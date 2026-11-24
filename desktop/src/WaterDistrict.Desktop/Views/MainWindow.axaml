@@ -2,8 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:WaterDistrict.Desktop.ViewModels"
         xmlns:app="using:WaterDistrict.Application"
+        xmlns:views="using:WaterDistrict.Desktop.Views"
         x:Class="WaterDistrict.Desktop.Views.MainWindow" x:DataType="vm:MainViewModel"
-        Title="Water District Administration" Width="1120" Height="760" MinWidth="850" MinHeight="650"
+        Title="Water District Administration" Width="1280" Height="860" MinWidth="1000" MinHeight="700"
         WindowStartupLocation="CenterScreen" Background="#F1F5F8">
     <Grid>
         <Grid ColumnDefinitions="0.85*,1.15*" IsVisible="{Binding IsSignedOut}">
@@ -26,7 +27,7 @@
                     <TextBlock Text="Email address" FontWeight="Medium" />
                     <TextBox Text="{Binding Email}" PlaceholderText="you@example.com" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Email address" />
                     <TextBlock Text="Password" FontWeight="Medium" />
-                    <TextBox Text="{Binding Password}" PasswordChar="?" PlaceholderText="Enter your password" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Password" />
+                    <TextBox Text="{Binding Password}" PasswordChar="*" PlaceholderText="Enter your password" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Password" />
                     <Button Classes="primary" Content="Sign in" Command="{Binding SignInCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0" IsDefault="True" />
                     <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
                     <Border Background="#EDF5F8" CornerRadius="8" Padding="12" IsVisible="{Binding HasMessage}">
@@ -44,6 +45,8 @@
                         <TextBlock Text="Water District" Foreground="White" FontSize="22" FontWeight="SemiBold" />
                         <TextBlock Text="Administration" Foreground="#B9D5DF" Margin="0,0,0,24" />
                         <Button Classes="nav" Content="Overview" Command="{Binding OverviewCommand}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Service concerns" Command="{Binding OpenConcernsCommand}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Repair tickets" Command="{Binding OpenTicketsCommand}" HorizontalAlignment="Stretch" />
                         <Button Classes="nav" Content="Staff directory" Command="{Binding LoadStaffCommand}" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom" Spacing="12">
@@ -57,13 +60,13 @@
             </Border>
             <ScrollViewer Grid.Column="1">
                 <StackPanel Margin="34" Spacing="22">
-                    <TextBlock Text="Your workspace" FontSize="30" FontWeight="SemiBold" />
-                    <TextBlock Classes="muted" Text="Shared information. Clear responsibility. Recorded progress." TextWrapping="Wrap" />
+                    <TextBlock IsVisible="{Binding IsOverview}" Text="Your workspace" FontSize="30" FontWeight="SemiBold" />
+                    <TextBlock IsVisible="{Binding IsOverview}" Classes="muted" Text="Shared information. Clear responsibility. Recorded progress." TextWrapping="Wrap" />
                     <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
                     <Border Background="#DFEEF3" CornerRadius="8" Padding="14" IsVisible="{Binding HasMessage}">
                         <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                     </Border>
-                    <StackPanel Spacing="18" IsVisible="{Binding !ShowDirectory}">
+                    <StackPanel Spacing="18" IsVisible="{Binding IsOverview}">
                         <Border Classes="card">
                             <StackPanel Spacing="12">
                                 <TextBlock Text="Signed in securely" FontSize="21" FontWeight="SemiBold" />
@@ -75,10 +78,16 @@
                         <Border Classes="card">
                             <StackPanel Spacing="12">
                                 <TextBlock Text="Service concerns and repair work" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Classes="muted" Text="Concern review, assignments, and repair updates will be available here as these features are released." TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" Text="Receive and review service concerns, dispatch repair tickets, and record verified progress and resolution." TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button Classes="primary" Content="Open concerns" Command="{Binding OpenConcernsCommand}" />
+                                    <Button Content="Open repair tickets" Command="{Binding OpenTicketsCommand}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                    <Border IsVisible="{Binding IsConcerns}"><views:ConcernsView DataContext="{Binding Workflows}" /></Border>
+                    <Border IsVisible="{Binding IsTickets}"><views:TicketsView DataContext="{Binding Workflows}" /></Border>
                     <Border Classes="card" IsVisible="{Binding ShowDirectory}">
                         <StackPanel Spacing="18">
                             <TextBlock Text="Active office personnel" FontSize="22" FontWeight="SemiBold" />

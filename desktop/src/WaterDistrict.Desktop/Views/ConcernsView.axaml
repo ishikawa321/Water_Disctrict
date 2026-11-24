@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application"
+ x:Class="WaterDistrict.Desktop.Views.ConcernsView" x:DataType="vm:WorkflowViewModel">
+ <StackPanel Spacing="18">
+  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Service concerns" FontSize="26" FontWeight="SemiBold" />
+   <Button Grid.Column="1" Classes="primary" Content="New office report" Command="{Binding NewConcernCommand}" IsEnabled="{Binding !IsBusy}" /></Grid>
+  <ProgressBar Height="3" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+  <Border Background="#DFEEF3" Padding="14" CornerRadius="8" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+  <Border Classes="card" IsVisible="{Binding ShowIntake}">
+   <StackPanel Spacing="12" IsEnabled="{Binding !IsBusy}">
+    <TextBlock Text="Receive an office report" FontSize="22" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10"><TextBox Text="{Binding AccountSearch}" PlaceholderText="Find an account number or holder name" />
+     <Button Grid.Column="1" Content="Find accounts" Command="{Binding LoadAccountsCommand}" /></Grid>
+    <TextBlock Text="Service account (required)" />
+    <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}" HorizontalAlignment="Stretch" PlaceholderText="Select an active service account">
+     <ComboBox.ItemTemplate><DataTemplate x:DataType="app:AccountOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+    </ComboBox>
+    <TextBlock Text="Category" /><ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Subject (required)" /><TextBox Text="{Binding Subject}" MaxLength="160" PlaceholderText="Briefly describe the concern" />
+    <TextBlock Text="Description (required)" /><TextBox Text="{Binding Description}" MaxLength="3000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" />
+    <StackPanel Orientation="Horizontal" Spacing="10">
+     <Button Classes="primary" Content="Save concern" Command="{Binding SaveConcernCommand}" />
+     <Button Content="Close form" Command="{Binding CloseIntakeCommand}" /><Button Content="Clear draft" Command="{Binding ResetDraftCommand}" />
+    </StackPanel>
+    <TextBlock Classes="muted" Text="Closing the form keeps your draft. A failed save keeps the information you entered." TextWrapping="Wrap" FontSize="12" />
+   </StackPanel>
+  </Border>
+  <Grid ColumnDefinitions="*,160,Auto" ColumnSpacing="10" IsEnabled="{Binding !IsBusy}">
+   <TextBox Text="{Binding ConcernSearch}" PlaceholderText="Search subject or account number" />
+   <ComboBox Grid.Column="1" ItemsSource="{Binding ConcernFilters}" SelectedItem="{Binding ConcernFilter}" HorizontalAlignment="Stretch" />
+   <Button Grid.Column="2" Content="Refresh" Command="{Binding LoadConcernsCommand}" />
+  </Grid>
+  <Grid ColumnDefinitions="260,*" ColumnSpacing="18" IsEnabled="{Binding !IsBusy}">
+   <ListBox ItemsSource="{Binding Concerns}" SelectedItem="{Binding SelectedConcern}" VerticalAlignment="Top" MinHeight="330" MaxHeight="620" Background="White">
+    <ListBox.ItemTemplate><DataTemplate x:DataType="app:ConcernRecord">
+     <StackPanel Spacing="7" Margin="4,8"><TextBlock Text="{Binding AccountNumber}" FontSize="12" Classes="muted" />
+      <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding Status}" Foreground="#086B83" /></StackPanel>
+    </DataTemplate></ListBox.ItemTemplate>
+   </ListBox>
+   <Border Grid.Column="1" Classes="card">
+    <StackPanel Spacing="14">
+     <TextBlock Text="Concern review" FontSize="22" FontWeight="SemiBold" />
+     <TextBlock Classes="muted" Text="Select a concern to view the report and record a review." TextWrapping="Wrap" />
+     <StackPanel Spacing="12" IsVisible="{Binding HasConcern}">
+      <TextBlock Text="{Binding SelectedConcern.Subject}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding SelectedConcern.AccountNumber}" /><TextBlock Text="{Binding SelectedConcern.HolderName}" Classes="muted" />
+      <TextBlock Text="{Binding SelectedConcern.Category}" /><TextBlock Text="{Binding SelectedConcern.Description}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding SelectedConcern.Status}" Foreground="#086B83" FontWeight="Medium" />
+      <TextBlock Text="Saved response" FontWeight="Medium" /><TextBlock Text="{Binding SelectedConcern.Response}" TextWrapping="Wrap" />
+      <TextBlock Text="Review decision" /><ComboBox ItemsSource="{Binding ReviewStates}" SelectedItem="{Binding ReviewStatus}" HorizontalAlignment="Stretch" IsEnabled="{Binding CanReview}" />
+      <TextBlock Text="Response / closure explanation" /><TextBox Text="{Binding ReviewResponse}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxLength="3000" IsEnabled="{Binding CanReview}" />
+      <Button Classes="primary" Content="Save review" Command="{Binding SaveReviewCommand}" />
+      <Border BorderBrush="#DDE6EC" BorderThickness="0,1,0,0" Padding="0,16,0,0" IsVisible="{Binding IsAdmin}">
+       <StackPanel Spacing="12"><TextBlock Text="Repair dispatch" FontSize="18" FontWeight="SemiBold" />
+        <TextBlock Classes="muted" Text="Save an Under review decision first. A concern can have one repair ticket." TextWrapping="Wrap" />
+        <TextBox Text="{Binding CreationNote}" PlaceholderText="Reason for dispatch / initial ticket note" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="75" MaxLength="3000" IsEnabled="{Binding CanDispatch}" />
+        <Button Classes="primary" Content="Create repair ticket" Command="{Binding CreateRepairTicketCommand}" />
+       </StackPanel>
+      </Border>
+     </StackPanel>
+    </StackPanel>
+   </Border>
+  </Grid>
+ </StackPanel>
+</UserControl>

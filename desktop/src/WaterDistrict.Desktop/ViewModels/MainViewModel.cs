@@ -6,8 +6,26 @@ using WaterDistrict.Application;
 
 namespace WaterDistrict.Desktop.ViewModels;
 
-public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBase
+public partial class MainViewModel : ViewModelBase
 {
+    private readonly IDesktopSessionClient sessions;
+    public WorkflowViewModel? Workflows { get; }
+    public MainViewModel(IDesktopSessionClient sessions,IWorkflowClient? workflows=null)
+    {
+        this.sessions=sessions;
+        if(workflows is not null)
+        {
+            Workflows=new(workflows);
+            Workflows.SessionLost+=HandleFailure;
+            Workflows.TicketCreated+=()=>Section="Tickets";
+        }
+    }
+    [ObservableProperty,NotifyPropertyChangedFor(nameof(IsOverview)),NotifyPropertyChangedFor(nameof(IsConcerns)),NotifyPropertyChangedFor(nameof(IsTickets))]
+    private string section="Overview";
+    public bool IsOverview=>Section=="Overview" && !ShowDirectory;
+    public bool IsConcerns=>Section=="Concerns" && !ShowDirectory;
+    public bool IsTickets=>Section=="Tickets" && !ShowDirectory;
+
     [ObservableProperty] private string email = "";
     [ObservableProperty] private string password = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMessage))] private string message = "";
@@ -17,7 +35,7 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
     [ObservableProperty, NotifyPropertyChangedFor(nameof(IsSignedOut)), NotifyPropertyChangedFor(nameof(DisplayName)),
         NotifyPropertyChangedFor(nameof(RoleLabel)), NotifyPropertyChangedFor(nameof(IsAdmin))]
     private bool isSignedIn;
-    [ObservableProperty] private bool showDirectory;
+    [ObservableProperty,NotifyPropertyChangedFor(nameof(IsOverview)),NotifyPropertyChangedFor(nameof(IsConcerns)),NotifyPropertyChangedFor(nameof(IsTickets))] private bool showDirectory;
     private SessionProfile? profile;
     public ObservableCollection<StaffMember> Staff { get; } = [];
     public bool HasMessage => !string.IsNullOrWhiteSpace(Message);
@@ -33,12 +51,14 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
         if (!MailAddress.TryCreate(Email.Trim(), out var address) || address.Address != Email.Trim() || string.IsNullOrEmpty(Password))
         { Message = "Enter a valid email address and your password."; return; }
         IsBusy = true;
-        Message = "Signing in?";
+        Message = "Signing in...";
         try
         {
             profile = await sessions.SignInAsync(Email.Trim(), Password);
             IsSignedIn = true;
             ShowDirectory = false;
+            Section="Overview";
+            if(Workflows is not null) Workflows.IsAdmin=profile.Role=="admin";
             Message = "";
         }
         catch (SessionClientException exception) { Message = exception.Message; }
@@ -48,6 +68,7 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
     [RelayCommand(CanExecute = nameof(CanWork))]
     private async Task SignOutAsync()
     {
+        if(Workflows?.IsBusy==true)return;
         IsBusy = true;
         ClearWorkspace();
         Message = "Signed out.";
@@ -61,11 +82,14 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
         IsBusy = true;
         try
         {
+            var previousRole=profile?.Role;
             profile = await sessions.RefreshProfileAsync();
+            if(previousRole!=profile.Role) { Workflows?.Clear();Section="Overview"; }
             OnPropertyChanged(nameof(IsAdmin));
             OnPropertyChanged(nameof(DisplayName));
             OnPropertyChanged(nameof(RoleLabel));
             if (!IsAdmin) { ShowDirectory = false; Staff.Clear(); }
+            if(Workflows is not null) Workflows.IsAdmin=IsAdmin;
             Message = "Your access is up to date.";
         }
         catch (SessionClientException exception) { HandleFailure(exception); }
@@ -75,7 +99,7 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
     [RelayCommand(CanExecute = nameof(CanWork))]
     private async Task LoadStaffAsync()
     {
-        if (!IsAdmin) return;
+        if (!IsAdmin || Workflows?.IsBusy==true) return;
         IsBusy = true;
         try
         {
@@ -89,7 +113,19 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
         finally { IsBusy = false; }
     }
 
-    [RelayCommand] private void Overview() { ShowDirectory = false; Message = ""; }
+    [RelayCommand] private void Overview() { if(Workflows?.IsBusy==true)return;ShowDirectory=false;Section="Overview";Message=""; }
+    [RelayCommand] private async Task OpenConcernsAsync()
+    {
+        if(Workflows is null || Workflows.IsBusy)return;
+        ShowDirectory=false;Section="Concerns";Message="";
+        await Workflows.LoadConcernsCommand.ExecuteAsync(null);
+    }
+    [RelayCommand] private async Task OpenTicketsAsync()
+    {
+        if(Workflows is null || Workflows.IsBusy)return;
+        ShowDirectory=false;Section="Tickets";Message="";
+        await Workflows.LoadTicketsCommand.ExecuteAsync(null);
+    }
     private void HandleFailure(SessionClientException exception)
     {
         if (exception.RequiresSignIn) ClearWorkspace();
@@ -98,6 +134,8 @@ public partial class MainViewModel(IDesktopSessionClient sessions) : ViewModelBa
     private void ClearWorkspace()
     {
         profile = null;
+        Workflows?.Clear();
+        Section="Overview";
         IsSignedIn = false;
         ShowDirectory = false;
         Staff.Clear();

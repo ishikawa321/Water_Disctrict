@@ -38,11 +38,13 @@ public partial class App : Avalonia.Application
                     client.BaseAddress = settings.ApiUrl;
                     client.Timeout = TimeSpan.FromSeconds(20);
                 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-                registrations.AddSingleton<IDesktopSessionClient>(provider =>
+                registrations.AddSingleton<DesktopSessionClient>(provider =>
                 {
                     var clients = provider.GetRequiredService<IHttpClientFactory>();
                     return new DesktopSessionClient(clients.CreateClient("SupabaseAuth"), clients.CreateClient("OfficeApi"));
                 });
+                registrations.AddSingleton<IDesktopSessionClient>(provider=>provider.GetRequiredService<DesktopSessionClient>());
+                registrations.AddSingleton<IWorkflowClient>(provider=>provider.GetRequiredService<DesktopSessionClient>());
                 registrations.AddSingleton<MainViewModel>();
                 services = registrations.BuildServiceProvider();
                 desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<MainViewModel>() };
