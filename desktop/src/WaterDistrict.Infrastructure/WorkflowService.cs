@@ -8,8 +8,16 @@ namespace WaterDistrict.Infrastructure;
 
 public sealed class WorkflowService(WaterDistrictDbContext db) : IWorkflowService
 {
+    private bool schemaVerified;
     private async Task<AppProfile> Actor(SessionProfile supplied, CancellationToken token, bool admin = false)
     {
+        if (!schemaVerified)
+        {
+            var applied = await db.Database.GetAppliedMigrationsAsync(token);
+            if (db.Database.GetMigrations().Except(applied).Any())
+                throw new DependencyUnavailableException("Apply the reviewed workflow migration before processing records.");
+            schemaVerified = true;
+        }
         var actor = await db.Profiles.AsNoTracking().SingleOrDefaultAsync(row => row.UserId == supplied.UserId, token);
         if (actor is null || !actor.Active || !AppRoles.HasDesktopAccess(actor.Role) || admin && actor.Role != AppRoles.Admin)
             throw new WorkflowException("forbidden", "Your account does not have permission for this operation.", 403);

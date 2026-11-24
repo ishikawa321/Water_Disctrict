@@ -4,11 +4,11 @@ The desktop supports existing active `admin` and `staff` profiles. It does not c
 
 ## Configure the backend database
 
-The Supabase REST URL and publishable key are already configured for this project. They support sign-in and permitted Data API requests, including the Session 1?4 profile checks. PostgreSQL credentials are separately required for EF Core workflow persistence and full schema inspection.
+The Supabase REST URL and publishable key are already configured for this project. They support sign-in and permitted Data API requests, including the Session 1-4 profile checks. PostgreSQL credentials are separately required for EF Core workflow persistence and full schema inspection.
 
-Copy `desktop/src/WaterDistrict.Api/appsettings.Local.example.json` to `desktop/src/WaterDistrict.Api/appsettings.Local.json`. Replace the sample connection locally with the actual connection from Supabase Dashboard ? Connect. The local file is ignored by Git. Use the project-provided hostname, username, pooling mode, SSL settings and certificate configuration; do not derive a pooler hostname from the project URL. A session pooler can be appropriate when the office network has IPv4 only.
+Copy `desktop/src/WaterDistrict.Api/appsettings.Local.example.json` to `desktop/src/WaterDistrict.Api/appsettings.Local.json`. Replace the sample connection locally with the actual connection from Supabase Dashboard > Connect. The local file is ignored by Git. Use the project-provided hostname, username, pooling mode, SSL settings and certificate configuration; do not derive a pooler hostname from the project URL. A session pooler can be appropriate when the office network has IPv4 only.
 
-Restart the API after configuration. `/health/ready` should return 200 only when a PostgreSQL connection and `SELECT 1` succeed. This check does not establish schema compatibility.
+Restart the API after configuration. `/health/ready` returns 200 when PostgreSQL is reachable and workflow schema markers exist. It returns 503 for unconfigured, unreachable or unmigrated environments. Run the acceptance scenarios to verify business correctness.
 
 Run the catalog inspector from the repository root:
 
@@ -42,3 +42,7 @@ For access from another computer, configure the API's actual host in AllowedHost
 ## Remaining database verification
 
 Live PostgreSQL constraints, policies and staff provisioning are pending authorized catalog access. The draft ERD and provisional EF profile mapping must be reconciled with that output before workflow migrations. The inspector deliberately does not modify grants, roles, policies or records.
+
+## Workflow deployment
+
+After catalog review and a backup, rehearse the RepairWorkflow migration on a development copy, then apply it using the database tool's explicit --migrate mode. See release-and-demonstration.md. The migration adds a Staff identity link without changing consumer-facing assignment text, creates append-only ticket history and enforces shared workflow rules in PostgreSQL. It intentionally rejects existing workflow triggers/history that need reconciliation rather than overwriting them. No migration has been applied to the live Supabase project during implementation.

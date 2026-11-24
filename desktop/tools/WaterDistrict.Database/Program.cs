@@ -38,8 +38,8 @@ try
         await using(var connection=new NpgsqlConnection(connectionString))
         {
             await connection.OpenAsync();
-            await using var exists=new NpgsqlCommand("SELECT to_regclass('public.profiles')",connection);
-            if(await exists.ExecuteScalarAsync() is not DBNull)
+            await using var exists=new NpgsqlCommand("SELECT to_regclass('public.profiles') IS NOT NULL",connection);
+            if(await exists.ExecuteScalarAsync() is true)
                 throw new InvalidOperationException("This database is already initialized. Use --migrate; bootstrap never resets records.");
             await using var transaction=await connection.BeginTransactionAsync();
             var baseline=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"development-baseline.sql"));

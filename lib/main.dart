@@ -241,9 +241,10 @@ class _AccountPageState extends State<AccountPage>
             /* Disposed. */
           }
         }
-        if (!mounted) return;
-        signingIn = false;
-        signInSlide.reset();
+        if (mounted) {
+          signingIn = false;
+          signInSlide.reset();
+        }
       }
       stopWorking();
     }
@@ -2247,6 +2248,14 @@ class _ConcernsPageState extends State<ConcernsPage> {
   }
 
   Future<void> openConcern([Map<String, dynamic>? concern]) async {
+    if (concern != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Review concerns in the office desktop application.'),
+        ),
+      );
+      return;
+    }
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => ConcernFormPage(concern: concern)),
     );
@@ -2390,7 +2399,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 const SizedBox(height: 12),
                                 FilledButton.tonal(
                                   onPressed: () => openConcern(c),
-                                  child: const Text('Review concern'),
+                                  child: const Text('Review on desktop'),
                                 ),
                               ],
                             ],
@@ -2755,14 +2764,13 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
   }
 
   Future<void> editTicket([Map<String, dynamic>? ticket]) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => RepairTicketFormPage(ticket: ticket)),
-    );
-    if (!mounted || saved != true) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: SuccessNotice('Repair ticket saved.')),
+      const SnackBar(
+        content: Text(
+          'Create, assign, and update repair tickets in the office desktop application.',
+        ),
+      ),
     );
-    await loadTickets();
   }
 
   @override
@@ -2787,7 +2795,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
           ? FloatingActionButton.extended(
               onPressed: loading ? null : () => editTicket(),
               icon: const Icon(Icons.add),
-              label: const Text('Create ticket'),
+              label: const Text('Use office desktop'),
             )
           : null,
       body: Column(
@@ -2833,7 +2841,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                     title: 'No repair tickets yet',
                     message: 'Recorded repair assignments and updates will appear here.',
                     icon: Icons.build_outlined,
-                    actionLabel: widget.isAdmin ? 'Create ticket' : null,
+                    actionLabel: widget.isAdmin ? 'Use office desktop' : null,
                     onAction: widget.isAdmin ? () => editTicket() : null,
                   )
                 : ListView.separated(
@@ -2883,7 +2891,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                                 const SizedBox(height: 12),
                                 FilledButton.tonal(
                                   onPressed: () => editTicket(t),
-                                  child: const Text('Update ticket'),
+                                  child: const Text('Update on desktop'),
                                 ),
                               ],
                             ],

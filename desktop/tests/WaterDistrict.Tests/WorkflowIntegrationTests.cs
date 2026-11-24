@@ -189,4 +189,15 @@ public sealed class WorkflowIntegrationTests
         var review=await service.ReviewConcernAsync(database.Staff,id,new(incoming.Version,"Under review","Received for repair assessment."),Token);
         Assert.Equal("Under review",review.Status);
     }
+    [Fact]
+    public async Task Missing_migration_prevents_workflow_processing_without_partial_records()
+    {
+        await using var database=await PostgresDatabase.CreateAsync();
+        await database.SqlAsync("DELETE FROM public.\"__EFMigrationsHistory\"");
+        await using var db=database.Open();
+        var rejected=await Assert.ThrowsAsync<DependencyUnavailableException>(()=>new WorkflowService(db).CreateConcernAsync(database.Admin,Intake(database),Token));
+        Assert.Contains("migration",rejected.Message);
+        Assert.Empty(await db.Concerns.ToListAsync(Token));
+    }
+
 }

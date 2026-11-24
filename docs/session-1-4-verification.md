@@ -35,3 +35,7 @@ UI previews are generated under `desktop/tests/WaterDistrict.Tests/bin/Debug/net
 ## Outstanding checks
 
 Full schema inventory, EF mapping confirmation/migrations, Staff constraint and RLS changes, authorized test-account provisioning and real sign-in with those identities need PostgreSQL/catalog administration access. No database migration or role change has been applied. Final workflow/persistence/transaction tests belong to Sessions 5?10 and are not replaced by these foundation/authentication tests. Self-contained publishing and native release verification remain in Session 11. Flutter source was unchanged.
+
+## Subsequent implementation
+
+This is the historical Session 1?4 checkpoint. Sessions 5?12 implementation, PostgreSQL workflow tests, consumer compatibility changes and published executable checks are recorded in acceptance-verification.md and release-and-demonstration.md. Live shared-environment verification and instructor approval remain pending.

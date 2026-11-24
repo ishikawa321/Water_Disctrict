@@ -136,7 +136,10 @@ void main() {
           jsonEncode(body),
           code,
           request: request,
-          headers: {'content-type': 'application/json'},
+          headers: {
+            'content-type': 'application/json',
+            if (request.method == 'HEAD') 'content-range': '0-0/1',
+          },
         );
       }),
     );
@@ -240,6 +243,8 @@ void main() {
   testWidgets('successful sign-in waits for label then opens dashboard', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     failAuth = false;
     await tester.pumpWidget(app(const AccountPage()));
     await tester.enterText(find.byType(TextField).first, 'user@example.com');
@@ -323,26 +328,28 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
-    expect(find.text('PHP 450.00'), findsOneWidget);
-    expect(find.text('Earliest unpaid due date: 2026-11-01'), findsOneWidget);
+    expect(find.text('\u20b1450.00'), findsOneWidget);
+    expect(find.text('Earliest due date: 2026-11-01'), findsOneWidget);
     expect(find.text('Service interruption'), findsOneWidget);
     await screenshot(tester, 'client-dashboard');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('bill details expand and small keyboard layout stays usable', (
+  testWidgets('bill totals and small keyboard layout stay usable', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(app(const BillsPage(isAdmin: false)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('PHP 450.00'), findsOneWidget);
-    await tester.tap(find.text('Billing details'));
-    await tester.pumpAndSettle();
-    expect(find.text('Original bill: PHP 450.00'), findsOneWidget);
+    expect(find.text('Original bill'), findsOneWidget);
+    expect(find.text('Verified payments'), findsOneWidget);
+    expect(find.text('Remaining balance'), findsOneWidget);
+    expect(find.text('\u20b1450.00'), findsNWidgets(2));
+    expect(find.text('\u20b10.00'), findsOneWidget);
     await screenshot(tester, 'bill-details');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(
