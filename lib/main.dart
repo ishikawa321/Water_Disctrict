@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -399,7 +400,7 @@ class _AccountPageState extends State<AccountPage>
         decoration: InputDecoration(
           labelText: label,
           errorText: fieldErrors[controller],
-          prefixIcon: Icon(secret ? Icons.lock_outline : Icons.mail_outline),
+          prefixIcon: Icon(secret ? CupertinoIcons.lock : CupertinoIcons.mail),
           suffixIcon: secret
               ? IconButton(
                   tooltip: passwordVisible ? 'Hide password' : 'Show password',
@@ -407,8 +408,8 @@ class _AccountPageState extends State<AccountPage>
                       setState(() => passwordVisible = !passwordVisible),
                   icon: Icon(
                     passwordVisible
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
+                        ? CupertinoIcons.eye_slash
+                        : CupertinoIcons.eye,
                   ),
                 )
               : null,
@@ -458,6 +459,7 @@ class _AccountPageState extends State<AccountPage>
                     style: TextStyle(
                       fontSize: 27,
                       fontWeight: FontWeight.w600,
+                      letterSpacing: -.6,
                       color: ink,
                     ),
                   ),
@@ -483,7 +485,8 @@ class _AccountPageState extends State<AccountPage>
                           reset ? 'Reset password' : 'Sign in to your account',
                           style: const TextStyle(
                             fontSize: 27,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -.6,
                             color: ink,
                           ),
                         ),
@@ -551,7 +554,7 @@ class _AccountPageState extends State<AccountPage>
                                                   Text('Sign in'),
                                                   SizedBox(width: 12),
                                                   Icon(
-                                                    Icons.arrow_forward,
+                                                    CupertinoIcons.arrow_right,
                                                     size: 19,
                                                   ),
                                                 ],
@@ -582,7 +585,7 @@ class _AccountPageState extends State<AccountPage>
                                       if (!busy) ...[
                                         const SizedBox(width: 12),
                                         const Icon(
-                                          Icons.arrow_forward,
+                                          CupertinoIcons.arrow_right,
                                           size: 19,
                                         ),
                                       ],
@@ -620,16 +623,16 @@ class _AccountPageState extends State<AccountPage>
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEDF2FF),
+                              color: const Color(0xFFF3F4F6),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: Color(0xFF1A4FD6),
-                                  foregroundColor: Colors.white,
-                                  child: Icon(Icons.people_outline),
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: royalBlue,
+                                  child: Icon(CupertinoIcons.person_2, size: 20),
                                 ),
                                 SizedBox(width: 16),
                                 Expanded(
@@ -640,7 +643,7 @@ class _AccountPageState extends State<AccountPage>
                                       Text(
                                         'Need help signing in?',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
                                           color: ink,
                                         ),
                                       ),
@@ -744,13 +747,13 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
           IconButton(
             tooltip: 'Refresh accounts',
             onPressed: loading || adding ? null : loadAccounts,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: adding || loading ? null : addAccount,
-        icon: const Icon(Icons.add),
+        icon: const Icon(CupertinoIcons.add),
         label: const Text('Add account'),
       ),
       body: Column(
@@ -796,7 +799,7 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
                 ? EmptyState(
                     title: 'No service accounts yet',
                     message: 'Add a water-service account to begin managing district records.',
-                    icon: Icons.people_outline,
+                    icon: CupertinoIcons.person_2,
                     actionLabel: 'Add account',
                     onAction: addAccount,
                   )
@@ -808,7 +811,7 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
                       final account = accounts[index];
                       return Card(
                         child: ListTile(
-                          leading: const Icon(Icons.water_drop_outlined),
+                          leading: const Icon(CupertinoIcons.drop),
                           title: Text('${account['account_number']}'),
                           subtitle: Text(
                             '${account['holder_name']}\n'
@@ -969,7 +972,7 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
                     ],
                     FilledButton.icon(
                       onPressed: saving ? null : saveAccount,
-                      icon: const Icon(Icons.save_outlined),
+                      icon: const Icon(CupertinoIcons.floppy_disk),
                       label: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         child: Text(saving ? 'Saving...' : 'Save account'),
@@ -1063,9 +1066,9 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
         .take(2).map((s) => s[0]).join().toUpperCase();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My profile', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text('My profile', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [IconButton(tooltip: 'Refresh', onPressed: loading ? null : loadAccount,
-          icon: const Icon(Icons.refresh))],
+          icon: const Icon(CupertinoIcons.arrow_clockwise))],
       ),
       bottomNavigationBar: const ClientDesignNav(index: 3),
       body: loading ? const SingleChildScrollView(child: LoadingCards(count: 1)) : Align(
@@ -1084,12 +1087,12 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
               else Card(child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Center(child: CircleAvatar(radius: 34, backgroundColor: royalBlue,
-                    foregroundColor: Colors.white,
-                    child: Text(initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)))),
+                  Center(child: CircleAvatar(radius: 34, backgroundColor: accentTint,
+                    foregroundColor: royalBlue,
+                    child: Text(initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)))),
                   const SizedBox(height: 16),
                   Text(holder, textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink)),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
                   const Divider(height: 36),
                   DesignValue('Account number', '${record['account_number']}', strong: true),
                   const SizedBox(height: 22),
@@ -1104,10 +1107,10 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                 ]),
               )),
               const SizedBox(height: 12),
-              TextButton.icon(onPressed: showHelp, icon: const Icon(Icons.help_outline), label: const Text('Get help')),
+              TextButton.icon(onPressed: showHelp, icon: const Icon(CupertinoIcons.question_circle), label: const Text('Get help')),
               const SizedBox(height: 24),
               OutlinedButton.icon(
-                icon: const Icon(Icons.logout), label: const Text('Sign out'),
+                icon: const Icon(CupertinoIcons.square_arrow_right), label: const Text('Sign out'),
                 onPressed: () async {
                   try {
                     await supabase.auth.signOut();
@@ -1227,7 +1230,7 @@ class _BillsPageState extends State<BillsPage> {
           IconButton(
             tooltip: 'Refresh bills',
             onPressed: loading ? null : loadBills,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
@@ -1237,7 +1240,7 @@ class _BillsPageState extends State<BillsPage> {
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : addBill,
-              icon: const Icon(Icons.add),
+              icon: const Icon(CupertinoIcons.add),
               label: const Text('Add bill'),
             )
           : null,
@@ -1305,7 +1308,7 @@ class _BillsPageState extends State<BillsPage> {
                     message: outstandingOnly
                         ? 'You can still review your billing history.'
                         : 'New billing records will appear here.',
-                    icon: Icons.receipt_long_outlined,
+                    icon: CupertinoIcons.doc_text,
                     actionLabel: outstandingOnly
                         ? 'View all bills'
                         : widget.isAdmin
@@ -1339,12 +1342,12 @@ class _BillsPageState extends State<BillsPage> {
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                           Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
                             spacing: 8, children: [
-                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                             StatusBadge(status),
                           ]),
                           const SizedBox(height: 8),
                           Text('₱${formatCentavos(remaining)}',
-                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: royalBlue)),
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -.8, color: ink)),
                           const SizedBox(height: 4),
                           Text('Due ${recordDate(bill['due_date'])}', style: const TextStyle(color: muted)),
                           if (excess > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text(
@@ -1363,7 +1366,7 @@ class _BillsPageState extends State<BillsPage> {
                           if (paid > 0) TextButton.icon(
                             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => PaymentsPage(isAdmin: widget.isAdmin, billNumber: '${bill['bill_number']}'))),
-                            icon: const Icon(Icons.receipt_long_outlined), label: const Text('View payment record')),
+                            icon: const Icon(CupertinoIcons.doc_text), label: const Text('View payment record')),
                         ],
                       );
                     },
@@ -1714,14 +1717,14 @@ class _PaymentsPageState extends State<PaymentsPage> {
           IconButton(
             tooltip: 'Refresh payments',
             onPressed: loading ? null : loadPayments,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : recordPayment,
-              icon: const Icon(Icons.add),
+              icon: const Icon(CupertinoIcons.add),
               label: const Text('Record payment'),
             )
           : null,
@@ -1767,7 +1770,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
                 ? EmptyState(
                     title: 'No payments recorded',
                     message: 'Verified offline payments will appear here once recorded by the district.',
-                    icon: Icons.receipt_long_outlined,
+                    icon: CupertinoIcons.doc_text,
                     actionLabel: widget.isAdmin ? 'Record payment' : null,
                     onAction: widget.isAdmin ? recordPayment : null,
                   )
@@ -1788,7 +1791,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const StatusBadge('Verified'),
-                          Text('₱$amount', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: royalBlue)),
+                          Text('₱$amount', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -.8, color: ink)),
                           const SizedBox(height: 8),
                           Text(recordDate(payment['payment_date']), style: const TextStyle(color: muted)),
                         ]),
@@ -2125,7 +2128,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
           IconButton(
             tooltip: 'Refresh concerns',
             onPressed: loading ? null : loadConcerns,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
@@ -2133,7 +2136,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
           ? null
           : FloatingActionButton.extended(
               onPressed: loading ? null : () => openConcern(),
-              icon: const Icon(Icons.add),
+              icon: const Icon(CupertinoIcons.add),
               label: const Text('Submit concern'),
             ),
       body: Column(
@@ -2180,7 +2183,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                     message: widget.isAdmin
                         ? 'New client concerns will appear here.'
                         : 'Need help with your water service?',
-                    icon: Icons.chat_bubble_outline,
+                    icon: CupertinoIcons.chat_bubble,
                     actionLabel: widget.isAdmin ? null : 'Submit concern',
                     onAction: widget.isAdmin ? null : () => openConcern(),
                   )
@@ -2200,7 +2203,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                             children: [
                               Text(
                                 '${c['subject']}',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                               ),
                               StatusBadge('${c['status']}'),
                               Text(
@@ -2400,9 +2403,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(reviewing ? 'Review concern' : 'Submit concern'),
-          backgroundColor: royalBlue,
-          foregroundColor: Colors.white,
-        ),
+                  ),
         bottomNavigationBar: reviewing ? null : const ClientDesignNav(index: 2),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
@@ -2631,7 +2632,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
           IconButton(
             tooltip: 'Refresh tickets',
             onPressed: loading ? null : loadTickets,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
@@ -2641,7 +2642,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : () => editTicket(),
-              icon: const Icon(Icons.add),
+              icon: const Icon(CupertinoIcons.add),
               label: const Text('Create ticket'),
             )
           : null,
@@ -2687,7 +2688,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                 ? EmptyState(
                     title: 'No repair tickets yet',
                     message: 'Recorded repair assignments and updates will appear here.',
-                    icon: Icons.build_outlined,
+                    icon: CupertinoIcons.wrench,
                     actionLabel: widget.isAdmin ? 'Create ticket' : null,
                     onAction: widget.isAdmin ? () => editTicket() : null,
                   )
@@ -2704,7 +2705,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('${concern?['subject'] ?? 'Repair ticket'}',
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                           StatusBadge('${t['status']}'),
                           Text('${t['latest_update']}', maxLines: 2, overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: muted, height: 1.4)),
@@ -2720,7 +2721,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                           const SizedBox(height: 8),
                           Text('Assigned to: ${t['assigned_to'] ?? 'Not assigned'}'),
                           const Divider(height: 24),
-                          const Text('Latest recorded update', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const Text('Latest recorded update', style: TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 8), Text('${t['latest_update']}'),
                           const SizedBox(height: 16),
                           const Text('District-recorded updates, not live repair tracking.', style: TextStyle(color: muted, fontSize: 13)),
@@ -3066,14 +3067,14 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           IconButton(
             tooltip: 'Refresh announcements',
             onPressed: loading ? null : loadAnnouncements,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
           ),
         ],
       ),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : () => editAnnouncement(),
-              icon: const Icon(Icons.add),
+              icon: const Icon(CupertinoIcons.add),
               label: const Text('Create announcement'),
             )
           : null,
@@ -3119,7 +3120,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 ? EmptyState(
                     title: 'No notices yet',
                     message: 'District notices and service interruptions will appear here.',
-                    icon: Icons.campaign_outlined,
+                    icon: CupertinoIcons.speaker_2,
                     actionLabel: widget.isAdmin ? 'Create announcement' : null,
                     onAction: widget.isAdmin ? () => editAnnouncement() : null,
                   )
@@ -3131,7 +3132,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                       final a = announcements[index];
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                           if (isInterruption(a['title'])) const StatusBadge('Service interruption'),
                           if (widget.isAdmin) StatusBadge(a['published'] == true ? 'Published' : 'Draft'),
                           const SizedBox(height: 8),
@@ -3357,9 +3358,47 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   }
 }
 
-const royalBlue = Color(0xFF1A4FD6);
-const ink = Color(0xFF324C82);
-const muted = Color(0xFF526077);
+const royalBlue = Color(0xFF2563EB);
+const ink = Color(0xFF111827);
+const muted = Color(0xFF6B7280);
+const accentTint = Color(0xFFEFF4FF);
+const hairline = Color(0xFFE5E7EB);
+
+/// Solid blue circle with a white line icon and a soft blue shadow.
+Widget circleIcon(IconData icon, {double diameter = 52, double iconSize = 24}) =>
+    Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: royalBlue,
+        boxShadow: [
+          BoxShadow(
+            color: royalBlue.withValues(alpha: .28),
+            blurRadius: diameter * .32,
+            offset: Offset(0, diameter * .14),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: iconSize),
+    );
+
+/// Lighter weights and slightly tighter tracking on large text, so headings
+/// read smooth rather than heavy.
+TextTheme softTextTheme(TextTheme base) => base.copyWith(
+  displayLarge: base.displayLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1.2),
+  displayMedium: base.displayMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1),
+  displaySmall: base.displaySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.8),
+  headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.6),
+  headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.5),
+  headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.4),
+  titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.3),
+  titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -.1),
+  titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w500),
+  bodyLarge: base.bodyLarge?.copyWith(height: 1.45),
+  bodyMedium: base.bodyMedium?.copyWith(height: 1.45, color: ink),
+  labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w500),
+);
 
 ThemeData waterTheme() {
   final scheme = ColorScheme.fromSeed(seedColor: royalBlue).copyWith(
@@ -3369,12 +3408,12 @@ ThemeData waterTheme() {
     onSurface: ink,
     onSurfaceVariant: muted,
     secondary: royalBlue,
-    primaryContainer: const Color(0xFFE6EDFF),
+    primaryContainer: const Color(0xFFEFF4FF),
     onPrimaryContainer: royalBlue,
-    secondaryContainer: const Color(0xFFE6EDFF),
+    secondaryContainer: const Color(0xFFEFF4FF),
     onSecondaryContainer: royalBlue,
-    outline: const Color(0xFFE1E6EB),
-    outlineVariant: const Color(0xFFE1E6EB),
+    outline: const Color(0xFFE5E7EB),
+    outlineVariant: const Color(0xFFE5E7EB),
   );
   return ThemeData(
     useMaterial3: true,
@@ -3395,14 +3434,17 @@ ThemeData waterTheme() {
       collapsedShape: Border(),
     ),
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF6F9FC),
-    textTheme: ThemeData.light().textTheme.apply(
-      fontFamily: 'DM Sans',
-      bodyColor: ink,
-      displayColor: ink,
+    scaffoldBackgroundColor: const Color(0xFFF8F9FB),
+    textTheme: softTextTheme(
+      ThemeData.light().textTheme.apply(
+        fontFamily: 'DM Sans',
+        bodyColor: ink,
+        displayColor: ink,
+      ),
     ),
+    iconTheme: const IconThemeData(color: ink, size: 22),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF6F9FC),
+      backgroundColor: Color(0xFFF8F9FB),
       foregroundColor: ink,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -3415,12 +3457,12 @@ ThemeData waterTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE1E6EB)),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFFF2F5F9),
+      fillColor: const Color(0xFFF3F4F6),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       labelStyle: const TextStyle(color: muted),
       prefixIconColor: muted,
@@ -3428,7 +3470,7 @@ ThemeData waterTheme() {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFE1E6EB)),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -3440,7 +3482,7 @@ ThemeData waterTheme() {
         minimumSize: const Size(48, 52),
         textStyle: const TextStyle(
           fontSize: 15,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
           fontFamily: 'DM Sans',
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -3451,14 +3493,25 @@ ThemeData waterTheme() {
     ),
     navigationBarTheme: const NavigationBarThemeData(
       backgroundColor: Color(0xFFFFFFFF),
-      indicatorColor: Color(0xFFE6EDFF),
-      labelTextStyle: WidgetStatePropertyAll(TextStyle(
-        fontFamily: 'DM Sans',
-        fontWeight: FontWeight.w600,
-        fontSize: 11,
-        color: muted,
-      )),
-      iconTheme: WidgetStatePropertyAll(IconThemeData(color: royalBlue)),
+      indicatorColor: Color(0xFFF1F3F6),
+      labelTextStyle: WidgetStateProperty.fromMap({
+        WidgetState.selected: TextStyle(
+          fontFamily: 'DM Sans',
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+          color: ink,
+        ),
+        WidgetState.any: TextStyle(
+          fontFamily: 'DM Sans',
+          fontWeight: FontWeight.w500,
+          fontSize: 11,
+          color: muted,
+        ),
+      }),
+      iconTheme: WidgetStateProperty.fromMap({
+        WidgetState.selected: IconThemeData(color: royalBlue, size: 22),
+        WidgetState.any: IconThemeData(color: muted, size: 22),
+      }),
       elevation: 0,
       height: 76,
     ),
@@ -3749,7 +3802,7 @@ class WaterPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00F6F9FC), Color(0x99F6F9FC), Color(0xFFF6F9FC)],
+          colors: [Color(0x00F8F9FB), Color(0x99F8F9FB), Color(0xFFF8F9FB)],
           stops: [0, .58, 1],
         ).createShader(fadeArea),
     );
@@ -3902,14 +3955,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
     await refresh();
   }
 
-  Widget iconBubble(IconData icon) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: royalBlue,
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Icon(icon, color: Colors.white, size: 27),
-  );
+  Widget iconBubble(IconData icon) =>
+      circleIcon(icon, diameter: 44, iconSize: 21);
 
   Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
     builder: (context, constraints) {
@@ -3928,11 +3975,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
       borderRadius: BorderRadius.circular(18),
       child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
         child: Column(children: [
-          CircleAvatar(backgroundColor: royalBlue, foregroundColor: Colors.white,
-            child: Icon(icon, size: 22)),
-          const SizedBox(height: 12),
+          circleIcon(icon),
+          const SizedBox(height: 14),
           Text(label, textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         ])),
     )),
   );
@@ -3945,14 +3991,14 @@ class _ModernDashboardState extends State<ModernDashboard> {
       child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
         iconBubble(icon), const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
           if (showSubtitle) ...[
             const SizedBox(height: 6),
             Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
           ],
         ])),
-        const SizedBox(width: 8), const Icon(Icons.chevron_right, color: royalBlue),
+        const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
       ])),
     ))),
   );
@@ -3962,7 +4008,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
       Expanded(
         child: Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
       TextButton(onPressed: action, child: const Text('View all')),
@@ -3994,7 +4040,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      iconBubble(Icons.chat_bubble_outline),
+                      iconBubble(CupertinoIcons.chat_bubble),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -4019,7 +4065,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: royalBlue),
+                      const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
                     ],
                   ),
                 ),
@@ -4041,7 +4087,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(noticeTitle(notice['title']),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink)),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
             if (isInterruption(notice['title'])) const StatusBadge('Service interruption'),
             const SizedBox(height: 8),
             Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 13)),
@@ -4075,8 +4121,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
             noticeTitle(n['title']),
             '${recordDate(n['updated_at'])}\n${n['message']}',
             isInterruption(n['title'])
-                ? Icons.warning_amber_rounded
-                : Icons.campaign_outlined,
+                ? CupertinoIcons.exclamationmark_triangle
+                : CupertinoIcons.speaker_2,
             () => showNotice(n),
             showSubtitle: true,
           ),
@@ -4089,25 +4135,20 @@ class _ModernDashboardState extends State<ModernDashboard> {
     clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(20),
-      color: const Color(0xFFEDF2FF),
-      border: Border.all(color: const Color(0xFFD7E1FA)),
+      color: Colors.white,
+      border: Border.all(color: hairline),
     ),
     child: Stack(children: [
-      Positioned(right: -35, bottom: -65, child: IgnorePointer(child: Container(
-        width: 230, height: 160, decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: royalBlue.withValues(alpha: .08), width: 22)),
-      ))),
       Padding(padding: const EdgeInsets.all(20), child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Row(children: [Icon(Icons.assignment_outlined, color: royalBlue, size: 25),
+        const Row(children: [Icon(CupertinoIcons.doc_plaintext, color: royalBlue, size: 21),
           SizedBox(width: 10), Expanded(child: Text('District overview',
-            style: TextStyle(color: ink, fontSize: 19, fontWeight: FontWeight.w700)))]),
+            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w500, letterSpacing: -.2)))]),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: overviewMetric(pendingConcerns, 'Pending concerns',
             () => open(const ConcernsPage(isAdmin: true)))),
-          Container(height: 58, width: 1, color: const Color(0xFFD7E1FA)),
+          Container(height: 58, width: 1, color: hairline),
           Expanded(child: overviewMetric(activeRepairs, 'Active repairs',
             () => open(const RepairTicketsPage(isAdmin: true)))),
         ]),
@@ -4123,34 +4164,37 @@ class _ModernDashboardState extends State<ModernDashboard> {
     borderRadius: BorderRadius.circular(12),
     child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Column(children: [
       Text(value?.toString() ?? '—', style: const TextStyle(
-        color: royalBlue, fontSize: 38, fontWeight: FontWeight.w800)),
+        color: ink, fontSize: 38, fontWeight: FontWeight.w600, letterSpacing: -1)),
       const SizedBox(height: 3),
       Text(label, textAlign: TextAlign.center,
-        style: const TextStyle(color: Color(0xFF455571), fontSize: 14)),
+        style: const TextStyle(color: muted, fontSize: 14)),
     ])),
   );
 
   Widget balanceCard() => Container(
     padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(color: royalBlue, borderRadius: BorderRadius.circular(24)),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: hairline),
+    ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Outstanding balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+      const Text('Outstanding balance', style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
       const SizedBox(height: 12),
       AnimatedSwitcher(duration: motionDuration(context, 200), child: Align(
         key: ValueKey('$initialLoading/$hasLoaded/$remaining'), alignment: Alignment.centerLeft,
         child: Text(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
           : '₱${formatCentavos(remaining)}',
-          style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w800, letterSpacing: -1)),
+          style: const TextStyle(color: ink, fontSize: 42, fontWeight: FontWeight.w600, letterSpacing: -1.4)),
       )),
       const SizedBox(height: 8),
       Text(initialLoading ? 'Updating records' : !hasLoaded && error != null ? 'Please refresh'
         : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}' : billCount == 0 ? 'No bills yet' : 'All paid',
-        style: const TextStyle(color: Colors.white, fontSize: 14)),
+        style: const TextStyle(color: muted, fontSize: 14)),
       const SizedBox(height: 22),
       FilledButton.icon(
         onPressed: () => open(const BillsPage(isAdmin: false)),
-        style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: royalBlue),
-        icon: const Icon(Icons.receipt_long_outlined), label: const Text('View bill'),
+        icon: const Icon(CupertinoIcons.doc_text, size: 20), label: const Text('View bill'),
       ),
     ]),
   );
@@ -4159,24 +4203,24 @@ class _ModernDashboardState extends State<ModernDashboard> {
     adminOverview(),
     requests(),
     const SizedBox(height: 24),
-    const Text('Manage district', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+    const Text('Manage district', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
     const SizedBox(height: 16),
     actionGrid([
-      quickAction('Accounts', Icons.people_outline, () => open(const ServiceAccountsPage())),
-      quickAction('Add bill', Icons.add_card_outlined, () => open(const AddBillPage())),
-      quickAction('Record payment', Icons.payments_outlined, () => open(const RecordPaymentPage())),
-      quickAction('Concerns', Icons.chat_bubble_outline, () => open(const ConcernsPage(isAdmin: true))),
-      quickAction('Repairs', Icons.build_outlined, () => open(const RepairTicketsPage(isAdmin: true))),
-      quickAction('Announcements', Icons.campaign_outlined, () => open(const AnnouncementsPage(isAdmin: true))),
+      quickAction('Accounts', CupertinoIcons.person_2, () => open(const ServiceAccountsPage())),
+      quickAction('Add bill', CupertinoIcons.plus_rectangle, () => open(const AddBillPage())),
+      quickAction('Record payment', CupertinoIcons.creditcard, () => open(const RecordPaymentPage())),
+      quickAction('Concerns', CupertinoIcons.chat_bubble, () => open(const ConcernsPage(isAdmin: true))),
+      quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: true))),
+      quickAction('Announcements', CupertinoIcons.speaker_2, () => open(const AnnouncementsPage(isAdmin: true))),
     ], columns: 2),
   ] : [
     balanceCard(),
     const Padding(padding: EdgeInsets.symmetric(vertical: 14),
       child: Text('Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 12))),
     actionGrid([
-      quickAction('Bills', Icons.receipt_long_outlined, () => open(const BillsPage(isAdmin: false))),
-      quickAction('Report issue', Icons.add_comment_outlined, () => open(const ConcernFormPage())),
-      quickAction('Repairs', Icons.build_outlined, () => open(const RepairTicketsPage(isAdmin: false))),
+      quickAction('Bills', CupertinoIcons.doc_text, () => open(const BillsPage(isAdmin: false))),
+      quickAction('Report issue', CupertinoIcons.plus_bubble, () => open(const ConcernFormPage())),
+      quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: false))),
     ]),
     const SizedBox(height: 24),
     requests(),
@@ -4192,19 +4236,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
               rowTile(
                 'Service accounts',
                 'Create and view water-service records',
-                Icons.people_outline,
+                CupertinoIcons.person_2,
                 () => open(const ServiceAccountsPage()),
               ),
               rowTile(
                 'Billing records',
                 'Add and view district-computed bills',
-                Icons.receipt_long_outlined,
+                CupertinoIcons.doc_text,
                 () => open(const BillsPage(isAdmin: true)),
               ),
               rowTile(
                 'Verified payments',
                 'Record verified offline payments',
-                Icons.payments_outlined,
+                CupertinoIcons.creditcard,
                 () => open(const PaymentsPage(isAdmin: true)),
               ),
             ]
@@ -4213,13 +4257,13 @@ class _ModernDashboardState extends State<ModernDashboard> {
               rowTile(
                 'My bills',
                 'Outstanding bills and billing history',
-                Icons.receipt_long_outlined,
+                CupertinoIcons.doc_text,
                 () => open(const BillsPage(isAdmin: false)),
               ),
               rowTile(
                 'Payments',
                 'Verified offline payment records',
-                Icons.payments_outlined,
+                CupertinoIcons.creditcard,
                 () => open(const PaymentsPage(isAdmin: false)),
               ),
             ];
@@ -4230,19 +4274,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
           rowTile(
             'Submit concern',
             'Tell the district about a service issue',
-            Icons.add_comment_outlined,
+            CupertinoIcons.plus_bubble,
             () => open(const ConcernFormPage()),
           ),
         rowTile(
           admin ? 'Service concerns' : 'My concerns',
           'Responses and concern status',
-          Icons.chat_bubble_outline,
+          CupertinoIcons.chat_bubble,
           () => open(ConcernsPage(isAdmin: admin)),
         ),
         rowTile(
           'Repair updates',
           'Assignments and latest recorded updates',
-          Icons.build_outlined,
+          CupertinoIcons.wrench,
           () => open(RepairTicketsPage(isAdmin: admin)),
         ),
       ];
@@ -4252,19 +4296,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
         rowTile(
           'My water-service account',
           'Registered holder and service address',
-          Icons.person_outline,
+          CupertinoIcons.person,
           () => open(const ClientAccountPage()),
         ),
       rowTile(
         'Announcements',
         'Read district notices',
-        Icons.campaign_outlined,
+        CupertinoIcons.speaker_2,
         () => open(AnnouncementsPage(isAdmin: admin)),
       ),
       const SizedBox(height: 20),
       OutlinedButton.icon(
         onPressed: widget.signingOut ? null : widget.onSignOut,
-        icon: const Icon(Icons.logout),
+        icon: const Icon(CupertinoIcons.square_arrow_right),
         label: Text(widget.signingOut ? 'Signing out…' : 'Sign out'),
       ),
     ];
@@ -4297,35 +4341,45 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ? 'More'
         : 'My account';
     return Scaffold(
-      bottomNavigationBar: NavigationBar(
-        animationDuration: motionDuration(context, 220),
-        selectedIndex: tab,
-        onDestinationSelected: (value) {
-          if (value != tab) setState(() => tab = value);
-        },
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      extendBody: true,
+      bottomNavigationBar: PillNavBar(
+        selected: tab,
+        onSelect: (value) => setState(() => tab = value),
+        items: [
+          const PillNavItem(CupertinoIcons.house, 'Home',
+              selectedIcon: CupertinoIcons.house_fill),
+          PillNavItem(
+            admin ? CupertinoIcons.person_2 : CupertinoIcons.doc_text,
+            admin ? 'Accounts' : 'Bills',
           ),
-          NavigationDestination(
-            icon: Icon(
-              admin ? Icons.people_outline : Icons.receipt_long_outlined,
-            ),
-            label: admin ? 'Accounts' : 'Bills',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.build_outlined),
-            label: 'Services',
-          ),
-          NavigationDestination(
-            icon: Icon(admin ? Icons.more_horiz : Icons.person_outline),
-            label: admin ? 'More' : 'Account',
+          const PillNavItem(CupertinoIcons.wrench, 'Services'),
+          PillNavItem(
+            admin ? CupertinoIcons.ellipsis : CupertinoIcons.person,
+            admin ? 'More' : 'Account',
           ),
         ],
       ),
-      body: SafeArea(
+      body: Stack(children: [
+        // Soft haze behind the header, fading into the page background.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 340,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFE3ECFD), Color(0xFFF8F9FB)],
+                ),
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: refresh,
           child: LayoutBuilder(
@@ -4335,42 +4389,49 @@ class _ModernDashboardState extends State<ModernDashboard> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 640),
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 20, 20, admin ? 40 : 24),
+                    padding: EdgeInsets.fromLTRB(
+                      20, 12, 20, 24 + MediaQuery.paddingOf(context).bottom),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.water_drop, color: royalBlue, size: 26),
-                            const SizedBox(width: 8),
+                            const HeaderBubble(
+                              child: Icon(CupertinoIcons.drop_fill,
+                                  color: royalBlue, size: 20),
+                            ),
                             const Expanded(child: Text('Water District Connect',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
-                            IconButton(
-                              tooltip: admin ? 'Account menu' : 'My profile',
-                              onPressed: () {
-                                if (admin) {
-                                  setState(() => tab = 3);
-                                } else {
-                                  open(const ClientAccountPage());
-                                }
-                              },
-                              icon: CircleAvatar(
-                                backgroundColor: const Color(0xFF1A4FD6),
-                                foregroundColor: Colors.white,
-                                child: Text(
-                                  initials,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontWeight: FontWeight.w500,
+                                  fontSize: 15, color: ink))),
+                            Tooltip(
+                              message: admin ? 'Account menu' : 'My profile',
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  if (admin) {
+                                    setState(() => tab = 3);
+                                  } else {
+                                    open(const ClientAccountPage());
+                                  }
+                                },
+                                child: HeaderBubble(
+                                  child: Text(
+                                    initials,
+                                    style: const TextStyle(
+                                      color: royalBlue,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 28),
                         Text(heading, style: const TextStyle(
-                          fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -.7)),
+                          fontSize: 30, fontWeight: FontWeight.w600, letterSpacing: -.9)),
                         if (!admin && accountNumber != null) ...[
                           const SizedBox(height: 8),
                           Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),
@@ -4410,8 +4471,30 @@ class _ModernDashboardState extends State<ModernDashboard> {
           ),
         ),
       ),
+      ]),
     );
   }
+}
+
+/// White circle with a hairline edge and a soft shadow, used in the header.
+class HeaderBubble extends StatelessWidget {
+  const HeaderBubble({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 44,
+    height: 44,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      border: Border.all(color: const Color(0xFFEEF0F3)),
+      boxShadow: const [
+        BoxShadow(color: Color(0x0F111827), blurRadius: 16, offset: Offset(0, 6)),
+      ],
+    ),
+    child: child,
+  );
 }
 
 class WaterStartup extends StatefulWidget {
@@ -4505,7 +4588,7 @@ class _WaterStartupState extends State<WaterStartup>
               )
             : Scaffold(
                 key: const ValueKey('loading'),
-                backgroundColor: const Color(0xFF1A4FD6),
+                backgroundColor: royalBlue,
                 body: SafeArea(
                   child: Center(
                     child: Padding(
@@ -4533,9 +4616,9 @@ class _WaterStartupState extends State<WaterStartup>
                                     ),
                                   ),
                                   child: const Icon(
-                                    Icons.water_drop,
+                                    CupertinoIcons.drop_fill,
                                     color: Colors.white,
-                                    size: 70,
+                                    size: 64,
                                   ),
                                 ),
                               ),
@@ -4547,7 +4630,8 @@ class _WaterStartupState extends State<WaterStartup>
                               style: TextStyle(
                                 fontSize: 32,
                                 height: 1.15,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -.8,
                                 color: Colors.white,
                               ),
                             ),
@@ -4555,7 +4639,7 @@ class _WaterStartupState extends State<WaterStartup>
                             const Text(
                               'Maramag, Philippines',
                               style: TextStyle(
-                                color: Color(0xFFE6EDFF),
+                                color: Color(0xFFDCE6FD),
                                 fontSize: 15,
                               ),
                             ),
@@ -4614,24 +4698,102 @@ class ClientDesignNav extends StatelessWidget {
   const ClientDesignNav({super.key, required this.index});
   final int index;
   @override
-  Widget build(BuildContext context) => NavigationBar(
-    selectedIndex: index,
-    onDestinationSelected: (i) {
+  Widget build(BuildContext context) => PillNavBar(
+    selected: index,
+    onSelect: (i) {
       clientDesignTab.select(i);
       Navigator.of(context).popUntil((r) => r.isFirst);
     },
-    destinations: const [
-      NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-      NavigationDestination(
-        icon: Icon(Icons.receipt_long_outlined),
-        label: 'Bills',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.build_outlined),
-        label: 'Services',
-      ),
-      NavigationDestination(icon: Icon(Icons.person_outline), label: 'Account'),
+    items: const [
+      PillNavItem(CupertinoIcons.house, 'Home', selectedIcon: CupertinoIcons.house_fill),
+      PillNavItem(CupertinoIcons.doc_text, 'Bills'),
+      PillNavItem(CupertinoIcons.wrench, 'Services'),
+      PillNavItem(CupertinoIcons.person, 'Account'),
     ],
+  );
+}
+
+class PillNavItem {
+  const PillNavItem(this.icon, this.label, {this.selectedIcon});
+  final IconData icon;
+  final IconData? selectedIcon;
+  final String label;
+}
+
+/// Floating white pill with icon-only tabs; the selected tab sits on a soft
+/// gray capsule. Labels stay available as tooltips and screen-reader text.
+class PillNavBar extends StatelessWidget {
+  const PillNavBar({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onSelect,
+  });
+  final List<PillNavItem> items;
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    minimum: const EdgeInsets.only(bottom: 16),
+    child: Center(
+      heightFactor: 1,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        constraints: const BoxConstraints(maxWidth: 340),
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: const Color(0xFFEEF0F3)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14111827),
+              blurRadius: 30,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              Tooltip(
+                message: items[i].label,
+                child: Semantics(
+                  button: true,
+                  selected: i == selected,
+                  label: items[i].label,
+                  excludeSemantics: true,
+                  child: InkWell(
+                    customBorder: const StadiumBorder(),
+                    onTap: i == selected ? null : () => onSelect(i),
+                    child: AnimatedContainer(
+                      duration: motionDuration(context, 200),
+                      curve: Curves.easeOut,
+                      width: 58,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: i == selected ? accentTint : Colors.transparent,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Icon(
+                        i == selected
+                            ? items[i].selectedIcon ?? items[i].icon
+                            : items[i].icon,
+                        size: 22,
+                        color: i == selected ? royalBlue : muted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
@@ -4649,7 +4811,7 @@ class DesignValue extends StatelessWidget {
           style: TextStyle(
             color: strong ? ink : muted,
             fontSize: 16,
-            fontWeight: strong ? FontWeight.w700 : FontWeight.w400,
+            fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ),
@@ -4660,7 +4822,7 @@ class DesignValue extends StatelessWidget {
           textAlign: TextAlign.right,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+            fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
           ),
         ),
       ),
@@ -4684,7 +4846,7 @@ class DesignHelp extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: royalBlue, size: 30),
+          Icon(icon, color: royalBlue, size: 24),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -4694,7 +4856,7 @@ class DesignHelp extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -4734,16 +4896,16 @@ class DesignRepairStages extends StatelessWidget {
                   children: [
                     Icon(
                       i == current
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
-                      color: i == current ? royalBlue : Colors.blueGrey,
+                          ? CupertinoIcons.largecircle_fill_circle
+                          : CupertinoIcons.circle,
+                      color: i == current ? royalBlue : const Color(0xFFD1D5DB),
                       size: 27,
                     ),
                     if (i < stages.length - 1)
                       Container(
                         width: 2,
                         height: 24,
-                        color: const Color(0xFFE1E6EB),
+                        color: const Color(0xFFE5E7EB),
                       ),
                   ],
                 ),
@@ -4756,7 +4918,7 @@ class DesignRepairStages extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: i == current
-                            ? FontWeight.w700
+                            ? FontWeight.w600
                             : FontWeight.w400,
                       ),
                     ),

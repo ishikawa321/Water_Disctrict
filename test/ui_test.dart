@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +41,16 @@ void main() {
       final loader = FontLoader('MaterialIcons')
         ..addFont(
           iconFont.readAsBytes().then((bytes) => ByteData.sublistView(bytes)),
+        );
+      await loader.load();
+    }
+    final lineIcons = File(
+      'build/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf',
+    );
+    if (await lineIcons.exists()) {
+      final loader = FontLoader('packages/cupertino_icons/CupertinoIcons')
+        ..addFont(
+          lineIcons.readAsBytes().then((bytes) => ByteData.sublistView(bytes)),
         );
       await loader.load();
     }
@@ -244,7 +255,7 @@ void main() {
           expect(heading, findsOneWidget);
           expect(tester.takeException(), isNull);
           await screenshot(tester, '$role-clean-${width.toInt()}-${scale.toInt()}x');
-          await tester.tap(find.text('Services').last);
+          await tester.tap(find.byTooltip('Services'));
           await tester.pumpAndSettle();
           expect(find.text(role == 'admin' ? 'Service concerns' : 'My concerns'), findsOneWidget);
           expect(tester.takeException(), isNull);
@@ -590,7 +601,7 @@ void main() {
       );
       await tester.pump();
       expect(tester.hasRunningAnimations, isFalse);
-      expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
+      expect(find.byIcon(CupertinoIcons.largecircle_fill_circle), findsOneWidget);
       expect(find.text('In progress'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
