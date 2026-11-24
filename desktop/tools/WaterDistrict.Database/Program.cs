@@ -10,12 +10,29 @@ if (string.IsNullOrWhiteSpace(connectionString))
     return 2;
 }
 var mode=args.Length==0?"--inspect":args[0];
-if(mode is not ("--inspect" or "--migrate" or "--bootstrap-development"))
+if(mode is not ("--inspect" or "--migrate" or "--bootstrap-development" or "--export-schema"))
 {
-    Console.Error.WriteLine("Use --inspect (default), --migrate, or --bootstrap-development.");return 2;
+    Console.Error.WriteLine("Use --inspect (default), --export-schema, --migrate, or --bootstrap-development.");return 2;
 }
 try
 {
+    if(mode=="--export-schema")
+    {
+        var settings=new NpgsqlConnectionStringBuilder(connectionString);
+        var start=new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("PG_DUMP_PATH")??"pg_dump")
+        { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
+        foreach(var argument in new[]{"--schema-only","--schema=public","--no-owner","--lock-wait-timeout=10s"})start.ArgumentList.Add(argument);
+        start.Environment["PGHOST"]=settings.Host;start.Environment["PGPORT"]=settings.Port.ToString();
+        start.Environment["PGDATABASE"]=settings.Database;start.Environment["PGUSER"]=settings.Username;
+        start.Environment["PGPASSWORD"]=settings.Password;start.Environment["PGCONNECT_TIMEOUT"]="10";
+        start.Environment["PGSSLMODE"]=settings.SslMode==SslMode.VerifyFull?"verify-full":settings.SslMode==SslMode.Require?"require":"prefer";
+        if(!string.IsNullOrWhiteSpace(settings.RootCertificate))start.Environment["PGSSLROOTCERT"]=settings.RootCertificate;
+        using var process=System.Diagnostics.Process.Start(start)??throw new InvalidOperationException("Could not start pg_dump.");
+        var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();await error;
+        if(process.ExitCode!=0){Console.Error.WriteLine("Schema-only export failed. Verify pg_dump version, SSL configuration and database permissions.");return 1;}
+        Console.Write(await output);return 0;
+    }
     if(mode=="--bootstrap-development")
     {
         var settings=new NpgsqlConnectionStringBuilder(connectionString);
@@ -62,7 +79,7 @@ try
 }
 catch(InvalidOperationException exception)
 { Console.Error.WriteLine(exception.Message);return 1; }
-catch(Exception exception) when(exception is NpgsqlException or ArgumentException or IOException)
+catch(Exception exception) when(exception is NpgsqlException or ArgumentException or IOException or System.ComponentModel.Win32Exception)
 {
     Console.Error.WriteLine("Database operation failed. Check connectivity and inspect the schema before migrating. No success is claimed.");
     if(exception is PostgresException pg)

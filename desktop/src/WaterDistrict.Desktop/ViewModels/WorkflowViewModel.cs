@@ -98,7 +98,7 @@ public partial class WorkflowViewModel(IWorkflowClient client) : ViewModelBase
     private Task SaveConcernAsync() => Run(async()=>
     {
         if(SelectedAccount is null) { Message="Select the service account for this report.";return; }
-        WorkflowRules.Required(Subject,"Subject",160);WorkflowRules.Required(Description,"Description",3000);
+        WorkflowRules.Required(Subject,"Subject",150);WorkflowRules.Required(Description,"Description",3000);
         var saved=await client.CreateConcernAsync(new(requestId,SelectedAccount.Id,Category,Subject,Description));
         Concerns.Insert(0,saved);SelectedConcern=saved;ResetDraft();ShowIntake=false;
         Message="Concern saved. The report is ready for review.";

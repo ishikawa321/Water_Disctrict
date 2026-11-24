@@ -87,7 +87,7 @@
    </StackPanel></Border>
    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
     <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Announcement editor" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" /><Button Grid.Column="1" Content="New" Command="{Binding NewAnnouncementCommand}" /></Grid>
-    <TextBlock Text="Title" /><TextBox Text="{Binding NoticeTitle}" MaxLength="150" />
+    <TextBlock Text="Title" /><TextBox Text="{Binding NoticeTitle}" MaxLength="{Binding NoticeTitleLimit}" />
     <TextBlock Text="Message" /><TextBox Text="{Binding NoticeMessage}" MaxLength="5000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" />
     <CheckBox Content="Service interruption" IsChecked="{Binding Interruption}" /><CheckBox Content="Publish for consumers" IsChecked="{Binding Published}" />
     <Button Classes="primary" Content="Save announcement" Command="{Binding SaveAnnouncementCommand}" />

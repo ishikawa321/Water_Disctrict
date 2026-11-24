@@ -16,7 +16,7 @@
      <ComboBox.ItemTemplate><DataTemplate x:DataType="app:AccountOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
     </ComboBox>
     <TextBlock Text="Category" /><ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" HorizontalAlignment="Stretch" />
-    <TextBlock Text="Subject (required)" /><TextBox Text="{Binding Subject}" MaxLength="160" PlaceholderText="Briefly describe the concern" />
+    <TextBlock Text="Subject (required)" /><TextBox Text="{Binding Subject}" MaxLength="150" PlaceholderText="Briefly describe the concern" />
     <TextBlock Text="Description (required)" /><TextBox Text="{Binding Description}" MaxLength="3000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" />
     <StackPanel Orientation="Horizontal" Spacing="10">
      <Button Classes="primary" Content="Save concern" Command="{Binding SaveConcernCommand}" />

@@ -47,7 +47,8 @@ public partial class OfficeViewModel:ViewModelBase
     [ObservableProperty] private string noticeTitle="";
     [ObservableProperty] private string noticeMessage="";
     [ObservableProperty] private bool published;
-    [ObservableProperty] private bool interruption;
+    [ObservableProperty,NotifyPropertyChangedFor(nameof(NoticeTitleLimit))] private bool interruption;
+    public int NoticeTitleLimit=>150-(Interruption?OfficeAnnouncement.InterruptionPrefix.Length:0);
     public bool HasMessage=>!string.IsNullOrWhiteSpace(Message);
     public bool IsAccounts=>Page=="Accounts";
     public bool IsBills=>Page=="Bills";

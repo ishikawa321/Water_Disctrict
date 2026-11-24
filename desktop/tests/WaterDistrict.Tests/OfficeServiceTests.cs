@@ -120,6 +120,14 @@ public sealed class OfficeServiceTests
         var malformed=Service(_=>Task.FromResult(Json(new[]{new {id=BillId,bill_number="B-001",billing_period_start="2026-10-01",billing_period_end="2026-10-31",due_date="2026-11-15",amount_due="invalid",offline_payments=Array.Empty<object>()}})));
         await Assert.ThrowsAsync<DependencyUnavailableException>(()=>malformed.BillsAsync(Admin,"token",Token));
     }
+
+    [Fact]
+    public async Task Interruption_marker_counts_toward_the_live_announcement_title_limit()
+    {
+        var service=Service(_=>throw new InvalidOperationException("Invalid title must not be sent to the data service."));
+        var failure=await Assert.ThrowsAsync<WorkflowException>(()=>service.SaveAnnouncementAsync(Admin,"token",null,new(new string('t',150),"Notice body.",false,true),Token));
+        Assert.Equal("validation",failure.Code);Assert.Contains("150",failure.Message);
+    }
     private static HttpResponseMessage Json<T>(T value)=>new(HttpStatusCode.OK){Content=JsonContent.Create(value)};
     private static SupabaseOfficeService Service(Func<HttpRequestMessage,Task<HttpResponseMessage>> send)=>new(new HttpClient(new Handler(send)){BaseAddress=new("https://test.supabase.co/rest/v1/")});
     private sealed class Handler(Func<HttpRequestMessage,Task<HttpResponseMessage>> send):HttpMessageHandler

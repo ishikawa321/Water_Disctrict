@@ -72,7 +72,7 @@ public sealed class WorkflowService(WaterDistrictDbContext db) : IWorkflowServic
         if (input.RequestId == Guid.Empty) throw new WorkflowException("validation", "A request identifier is required.");
         var category = WorkflowRules.Required(input.Category, "Category", 80);
         if (!WorkflowRules.Categories.Contains(category)) throw new WorkflowException("category", "Select a supported concern category.");
-        var subject = WorkflowRules.Required(input.Subject, "Subject", 160);
+        var subject = WorkflowRules.Required(input.Subject, "Subject", 150);
         var description = WorkflowRules.Required(input.Description, "Description", 3000);
         var existing = await db.Concerns.AsNoTracking().SingleOrDefaultAsync(row => row.Id == input.RequestId, token);
         if (existing is not null)

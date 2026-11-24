@@ -66,7 +66,8 @@ public sealed class SupabaseOfficeService(HttpClient http,TimeProvider? clock=nu
         var title=WorkflowRules.Required(input.Title,"Title",150);
         if(title.StartsWith(OfficeAnnouncement.InterruptionPrefix,StringComparison.Ordinal))title=title[OfficeAnnouncement.InterruptionPrefix.Length..].Trim();
         title=WorkflowRules.Required(title,"Title",150);
-        var values=new Dictionary<string,object?> { ["title"]=(input.IsInterruption?OfficeAnnouncement.InterruptionPrefix:"")+title,
+        var storedTitle=WorkflowRules.Required((input.IsInterruption?OfficeAnnouncement.InterruptionPrefix:"")+title,"Full announcement title (including interruption marker)",150);
+        var values=new Dictionary<string,object?> { ["title"]=storedTitle,
             ["message"]=WorkflowRules.Required(input.Message,"Announcement message",5000),["published"]=input.Published,["updated_by"]=actor.UserId };
         if(id is null)values["created_by"]=actor.UserId;else values["updated_at"]=time.GetUtcNow();
         var path=$"announcements?select={NoticeFields}"+(id is null?"":$"&id=eq.{id:D}");

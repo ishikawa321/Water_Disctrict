@@ -51,3 +51,7 @@ The main/f4848dc comparison and new office-module verification are documented in
 Final Admin adaptation verification: solution build succeeded with zero warnings/errors; 77 .NET tests passed with local PostgreSQL configured, zero failures and zero skipped tests. Rendered account, bill, payment and announcement screens were generated; payment and announcement layouts were visually inspected. Consumer Flutter source was unchanged in this adaptation, so the earlier Flutter verification remains applicable to this branch's unchanged consumer source rather than to newly fetched main UI changes.
 
 The updated Windows x64 release at desktop/artifacts/release/20261125-015301 was smoke-checked: native desktop opened, local configured API readiness returned 200, and all five new office endpoints rejected anonymous access with 401. Supabase database connectivity remains blocked at TLS certificate verification.
+
+## Verified live schema follow-up
+
+Database authentication and VerifyFull certificate validation now succeed. The live public schema was inspected/exported read-only and used as a local DDL/grants fixture with generated test identities. No operational production data was copied into tests. See live-database-integration.md for Staff/profile gaps, title/subject corrections, the 83-test verification and the migration impact on direct mobile Admin edits. Live migration remains pending the shared-workflow decision.
