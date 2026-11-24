@@ -299,6 +299,62 @@ class SuccessNotice extends StatelessWidget {
 }
 
 const interruptionPrefix = '[Service interruption] ';
+
+/// Keeps the essential record information visible and supporting details nearby.
+class RecordCard extends StatelessWidget {
+  const RecordCard({
+    super.key,
+    required this.summary,
+    required this.details,
+    this.detailsLabel = 'Details',
+    this.action,
+  });
+
+  final Widget summary;
+  final List<Widget> details;
+  final String detailsLabel;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          summary,
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 16),
+            expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+            title: Text(
+              detailsLabel,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            children: details,
+          ),
+          if (action != null) ...[
+            action!,
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+String recordDate(Object? value) {
+  final date = DateTime.tryParse('$value')?.toLocal();
+  if (date == null) return 'Date unavailable';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
+}
+
 bool isInterruption(Object? title) =>
     title.toString().startsWith(interruptionPrefix);
 String noticeTitle(Object? title) => isInterruption(title)

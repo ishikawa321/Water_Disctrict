@@ -923,8 +923,7 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Use fictional records while testing. This creates a '
-                      'water-service record; client login access is linked separately.',
+                      'Use demo records for testing. Link client access separately.',
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
@@ -1044,166 +1043,90 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
     }
   }
 
+  void showHelp() => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Account help'),
+      content: const Text(
+        'Contact authorized district personnel to correct your account details '
+        'or request assistance. Representatives need district verification.',
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final record = account;
     final holder = record?['holder_name'] as String? ?? '';
-    final initials = holder
-        .split(RegExp(r'\s+'))
-        .where((s) => s.isNotEmpty)
-        .take(2)
-        .map((s) => s[0])
-        .join();
+    final initials = holder.split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
+        .take(2).map((s) => s[0]).join().toUpperCase();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My account'),
-        backgroundColor: royalBlue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: loading ? null : loadAccount,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        title: const Text('My profile', style: TextStyle(fontWeight: FontWeight.w700)),
+        actions: [IconButton(tooltip: 'Refresh', onPressed: loading ? null : loadAccount,
+          icon: const Icon(Icons.refresh))],
       ),
       bottomNavigationBar: const ClientDesignNav(index: 3),
-      body: loading
-          ? const LoadingCards()
-          : Align(
-              alignment: Alignment.topCenter,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (error != null) ...[
-                        Text(error!),
-                        TextButton(
-                          onPressed: loadAccount,
-                          child: const Text('Retry'),
-                        ),
-                      ] else if (record == null)
-                        const Text(
-                          'No linked account is available. Contact authorized district personnel.',
-                        )
-                      else ...[
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 32,
-                              backgroundColor: royalBlue,
-                              foregroundColor: Colors.white,
-                              child: Text(
-                                initials,
-                                style: const TextStyle(fontSize: 22),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    holder,
-                                    style: const TextStyle(
-                                      fontSize: 23,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Registered account holder',
-                                    style: TextStyle(color: muted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(18),
-                            child: Column(
-                              children: [
-                                DesignValue(
-                                  'Account number',
-                                  '${record['account_number']}',
-                                ),
-                                const Divider(height: 24),
-                                DesignValue('Registered holder', holder),
-                                const Divider(height: 24),
-                                DesignValue(
-                                  'Service address',
-                                  '${record['service_address']}',
-                                ),
-                                const Divider(height: 24),
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Account status',
-                                        style: TextStyle(color: muted),
-                                      ),
-                                    ),
-                                    StatusBadge(
-                                      record['active'] == true
-                                          ? 'Active'
-                                          : 'Inactive',
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const DesignHelp(
-                          icon: Icons.edit_note,
-                          title: 'Need to correct your details?',
-                          text: 'Contact authorized district personnel.',
-                        ),
-                        const SizedBox(height: 16),
-                        const DesignHelp(
-                          icon: Icons.help_outline,
-                          title: 'Need help using the app?',
-                          text: 'An authorized representative may assist after district verification.',
-                        ),
-                        const SizedBox(height: 24),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.logout),
-                          label: const Text('Sign out'),
-                          onPressed: () async {
-                            try {
-                              await supabase.auth.signOut();
-                              if (context.mounted) {
-                                Navigator.of(context)
-                                    .popUntil((r) => r.isFirst);
-                              }
-                            } catch (_) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Could not sign out. Please retry.',
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+      body: loading ? const SingleChildScrollView(child: LoadingCards(count: 1)) : Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (error != null) ...[
+                Text(error!),
+                TextButton(onPressed: loadAccount, child: const Text('Retry')),
+              ] else if (record == null)
+                const Card(child: Padding(padding: EdgeInsets.all(24), child: Text(
+                  'No linked account. Contact district personnel to finish setup.')))
+              else Card(child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Center(child: CircleAvatar(radius: 34, backgroundColor: royalBlue,
+                    foregroundColor: Colors.white,
+                    child: Text(initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)))),
+                  const SizedBox(height: 16),
+                  Text(holder, textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink)),
+                  const Divider(height: 36),
+                  DesignValue('Account number', '${record['account_number']}', strong: true),
+                  const SizedBox(height: 22),
+                  const Text('Service address', style: TextStyle(color: muted, fontSize: 14)),
+                  const SizedBox(height: 6),
+                  Text('${record['service_address']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    const Expanded(child: Text('Account status', style: TextStyle(color: muted))),
+                    StatusBadge(record['active'] == true ? 'Active' : 'Inactive'),
+                  ]),
+                ]),
+              )),
+              const SizedBox(height: 12),
+              TextButton.icon(onPressed: showHelp, icon: const Icon(Icons.help_outline), label: const Text('Get help')),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.logout), label: const Text('Sign out'),
+                onPressed: () async {
+                  try {
+                    await supabase.auth.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).popUntil((r) => r.isFirst);
+                    }
+                  } catch (_) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not sign out. Please retry.')));
+                  }
+                },
               ),
-            ),
+            ]),
+          ),
+        ),
+      ),
     );
   }
+
 }
 
 // Use centavos to avoid floating-point rounding in payment totals.
@@ -1412,87 +1335,36 @@ class _BillsPageState extends State<BillsPage> {
                           ? 'Partially paid'
                           : 'Unpaid';
 
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Wrap(
-                                alignment: WrapAlignment.spaceBetween,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 8,
-                                children: [
-                                  Text(
-                                    'Bill ${bill['bill_number']}',
-                                    style: const TextStyle(
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  StatusBadge(status),
-                                ],
-                              ),
-                              Text(
-                                '${bill['billing_period_start']} – ${bill['billing_period_end']}',
-                                style: const TextStyle(
-                                  color: muted,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const Divider(height: 28),
-                              DesignValue(
-                                'Original bill',
-                                '₱${formatCentavos(billed)}',
-                              ),
-                              const SizedBox(height: 14),
-                              DesignValue(
-                                'Verified payments',
-                                '₱${formatCentavos(paid)}',
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEDF2FF),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: DesignValue(
-                                  'Remaining balance',
-                                  '₱${formatCentavos(remaining)}',
-                                  strong: true,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              DesignValue('Due date', '${bill['due_date']}'),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Account: ${account?['account_number'] ?? 'Unavailable'}',
-                                style: const TextStyle(color: muted),
-                              ),
-                              if (excess > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 12),
-                                  child: Text(
-                                    'Recorded payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.',
-                                  ),
-                                ),
-                              if (paid > 0)
-                                TextButton.icon(
-                                  onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => PaymentsPage(
-                                        isAdmin: widget.isAdmin,
-                                        billNumber: '${bill['bill_number']}',
-                                      ),
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.receipt_long_outlined),
-                                  label: const Text('View payment record'),
-                                ),
-                            ],
-                          ),
-                        ),
+                      return RecordCard(
+                        summary: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8, children: [
+                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                            StatusBadge(status),
+                          ]),
+                          const SizedBox(height: 8),
+                          Text('₱${formatCentavos(remaining)}',
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: royalBlue)),
+                          const SizedBox(height: 4),
+                          Text('Due ${recordDate(bill['due_date'])}', style: const TextStyle(color: muted)),
+                          if (excess > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text(
+                            'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.')),
+                        ]),
+                        detailsLabel: 'Billing details',
+                        details: [
+                          DesignValue('Original bill', '₱${formatCentavos(billed)}'),
+                          const SizedBox(height: 12),
+                          DesignValue('Verified payments', '₱${formatCentavos(paid)}'),
+                          const SizedBox(height: 12),
+                          Text('Period: ${recordDate(bill['billing_period_start'])} – ${recordDate(bill['billing_period_end'])}',
+                            style: const TextStyle(color: muted)),
+                          const SizedBox(height: 8),
+                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          if (paid > 0) TextButton.icon(
+                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => PaymentsPage(isAdmin: widget.isAdmin, billNumber: '${bill['bill_number']}'))),
+                            icon: const Icon(Icons.receipt_long_outlined), label: const Text('View payment record')),
+                        ],
                       );
                     },
                   ),
@@ -1913,44 +1785,27 @@ class _PaymentsPageState extends State<PaymentsPage> {
                       final verified = DateTime.tryParse(
                         '${payment['verified_at']}',
                       )?.toLocal();
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Chip(
-                                avatar: Icon(Icons.verified_outlined, size: 18),
-                                label: Text('Verified offline payment'),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'PHP $amount',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall,
-                              ),
-                              Text(
-                                'Receipt/reference: ${payment['receipt_reference']}',
-                              ),
-                              Text(
-                                'Bill: ${bill?['bill_number'] ?? 'Unavailable'}',
-                              ),
-                              Text(
-                                'Account: ${account?['account_number'] ?? 'Unavailable'}',
-                              ),
-                              Text('Payment date: ${payment['payment_date']}'),
-                              if (verified != null)
-                                Text(
-                                  'Recorded: ${verified.toString().split('.').first}',
-                                ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'This is a record of an offline payment, not a newly issued receipt.',
-                              ),
-                            ],
-                          ),
-                        ),
+                      return RecordCard(
+                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const StatusBadge('Verified'),
+                          Text('₱$amount', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: royalBlue)),
+                          const SizedBox(height: 8),
+                          Text(recordDate(payment['payment_date']), style: const TextStyle(color: muted)),
+                        ]),
+                        detailsLabel: 'Payment details',
+                        details: [
+                          Text('Receipt/reference: ${payment['receipt_reference']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 10),
+                          Text('Bill: ${bill?['bill_number'] ?? 'Unavailable'}'),
+                          const SizedBox(height: 8),
+                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          if (verified != null) ...[
+                            const SizedBox(height: 8), Text('Recorded: ${recordDate(verified)}'),
+                          ],
+                          const SizedBox(height: 16),
+                          const Text('Verified offline payment record. This is not a newly issued receipt.',
+                            style: TextStyle(color: muted, fontSize: 13)),
+                        ],
                       );
                     },
                   ),
@@ -2345,7 +2200,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                             children: [
                               Text(
                                 '${c['subject']}',
-                                style: Theme.of(context).textTheme.titleLarge,
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                               ),
                               StatusBadge('${c['status']}'),
                               Text(
@@ -2356,7 +2211,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 expandedCrossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 title: const Text(
-                                  'Request details and response',
+                                  'Details & response',
                                 ),
                                 children: [
                                   Text('Category: ${c['category']}'),
@@ -2846,49 +2701,32 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                           t['service_concerns'] as Map<String, dynamic>?;
                       final account =
                           concern?['service_accounts'] as Map<String, dynamic>?;
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${concern?['subject'] ?? 'Repair ticket'}',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              StatusBadge('${t['status']}'),
-                              DesignRepairStages(status: '${t['status']}'),
-                              SelectableText('Ticket ID: ${t['id']}'),
-                              Text(
-                                'Account: ${account?['account_number'] ?? 'Unavailable'}',
-                              ),
-                              Text(
-                                'Assigned to: ${t['assigned_to'] ?? 'Not assigned'}',
-                              ),
-                              const Divider(height: 24),
-                              Text(
-                                'Latest recorded update',
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              Text('${t['latest_update']}'),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Updated: ${DateTime.parse(t['updated_at'] as String).toLocal().toString().split('.').first}',
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Updates are entered by district personnel. This is not live repair tracking.',
-                              ),
-                              if (widget.isAdmin) ...[
-                                const SizedBox(height: 12),
-                                FilledButton.tonal(
-                                  onPressed: () => editTicket(t),
-                                  child: const Text('Update ticket'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                      return RecordCard(
+                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${concern?['subject'] ?? 'Repair ticket'}',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                          StatusBadge('${t['status']}'),
+                          Text('${t['latest_update']}', maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: muted, height: 1.4)),
+                          const SizedBox(height: 8),
+                          Text('Updated ${recordDate(t['updated_at'])}', style: const TextStyle(color: muted, fontSize: 12)),
+                        ]),
+                        detailsLabel: 'Repair details',
+                        details: [
+                          DesignRepairStages(status: '${t['status']}'),
+                          SelectableText('Ticket ID: ${t['id']}'),
+                          const SizedBox(height: 8),
+                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          const SizedBox(height: 8),
+                          Text('Assigned to: ${t['assigned_to'] ?? 'Not assigned'}'),
+                          const Divider(height: 24),
+                          const Text('Latest recorded update', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8), Text('${t['latest_update']}'),
+                          const SizedBox(height: 16),
+                          const Text('District-recorded updates, not live repair tracking.', style: TextStyle(color: muted, fontSize: 13)),
+                        ],
+                        action: widget.isAdmin ? FilledButton.tonal(
+                          onPressed: () => editTicket(t), child: const Text('Update ticket')) : null,
                       );
                     },
                   ),
@@ -3291,44 +3129,21 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     separatorBuilder: (_, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final a = announcements[index];
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                noticeTitle(a['title']),
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              if (isInterruption(a['title']))
-                                const StatusBadge('Service interruption'),
-                              if (widget.isAdmin)
-                                Chip(
-                                  label: Text(
-                                    a['published'] == true
-                                        ? 'Published'
-                                        : 'Draft',
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              Text('${a['message']}'),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Updated: ${DateTime.parse(a['updated_at'] as String).toLocal().toString().split('.').first}',
-                              ),
-                              if (widget.isAdmin) ...[
-                                const SizedBox(height: 12),
-                                FilledButton.tonal(
-                                  onPressed: () => editAnnouncement(a),
-                                  child: const Text(
-                                    'Edit / change publication',
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                      return RecordCard(
+                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                          if (isInterruption(a['title'])) const StatusBadge('Service interruption'),
+                          if (widget.isAdmin) StatusBadge(a['published'] == true ? 'Published' : 'Draft'),
+                          const SizedBox(height: 8),
+                          Text(recordDate(a['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
+                          const SizedBox(height: 12),
+                          Text('${a['message']}', maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: muted, height: 1.5)),
+                        ]),
+                        detailsLabel: 'Read notice',
+                        details: [Text('${a['message']}', style: const TextStyle(fontSize: 16, height: 1.6))],
+                        action: widget.isAdmin ? FilledButton.tonal(
+                          onPressed: () => editAnnouncement(a), child: const Text('Edit notice')) : null,
                       );
                     },
                   ),
@@ -4013,11 +3828,6 @@ class _ModernDashboardState extends State<ModernDashboard> {
           .eq('published', true)
           .order('updated_at', ascending: false)
           .limit(10);
-      noticeRows.sort(
-        (a, b) => (isInterruption(b['title']) ? 1 : 0).compareTo(
-          isInterruption(a['title']) ? 1 : 0,
-        ),
-      );
       String? number;
       int balance = 0, count = 0;
       String? upcoming;
@@ -4062,7 +3872,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
         pendingConcerns = pending;
         activeRepairs = repairs;
         recent = concernRows;
-        notices = noticeRows.take(2).toList();
+        notices = noticeRows.take(1).toList();
         accountNumber = number;
         remaining = balance;
         billCount = count;
@@ -4101,140 +3911,50 @@ class _ModernDashboardState extends State<ModernDashboard> {
     child: Icon(icon, color: Colors.white, size: 27),
   );
 
-  Widget tile(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback action, {
-    bool compact = false,
-  }) {
-    return PressFeedback(
-      child: Card(
-        child: InkWell(
-          onTap: action,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(icon, color: royalBlue, size: 26),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget pair(Widget left, Widget right) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 400 ||
-            MediaQuery.textScalerOf(context).scale(14) > 20) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [left, const SizedBox(height: 12), right],
-          );
-        }
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: left),
-              const SizedBox(width: 12),
-              Expanded(child: right),
-            ],
-          ),
-        );
-      },
-    ),
+  Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
+    builder: (context, constraints) {
+      final count = MediaQuery.textScalerOf(context).scale(14) > 20
+          ? 1 : constraints.maxWidth < 280 ? 2 : columns;
+      return Wrap(spacing: 12, runSpacing: 12, children: [
+        for (final action in actions)
+          SizedBox(width: (constraints.maxWidth - 12 * (count - 1)) / count, child: action),
+      ]);
+    },
   );
 
-  Widget groupHeading(String title, String description) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(description, style: const TextStyle(color: muted, height: 1.4)),
-      ],
-    ),
+  Widget quickAction(String label, IconData icon, VoidCallback action) => PressFeedback(
+    child: Card(child: InkWell(
+      onTap: action,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+        child: Column(children: [
+          CircleAvatar(backgroundColor: royalBlue, foregroundColor: Colors.white,
+            child: Icon(icon, size: 22)),
+          const SizedBox(height: 12),
+          Text(label, textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        ])),
+    )),
   );
-  Widget rowTile(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback action,
-  ) => Padding(
+
+  Widget rowTile(String title, String subtitle, IconData icon, VoidCallback action,
+      {bool showSubtitle = false}) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: PressFeedback(
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: action,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                iconBubble(icon),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(color: muted, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: royalBlue),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
+    child: PressFeedback(child: Card(child: InkWell(
+      onTap: action, borderRadius: BorderRadius.circular(18),
+      child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+        iconBubble(icon), const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          if (showSubtitle) ...[
+            const SizedBox(height: 6),
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
+          ],
+        ])),
+        const SizedBox(width: 8), const Icon(Icons.chevron_right, color: royalBlue),
+      ])),
+    ))),
   );
 
   Widget sectionTitle(String title, VoidCallback action) => Row(
@@ -4259,16 +3979,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
       if (initialLoading)
         const LoadingCards(count: 1)
       else if (hasLoaded && recent.isEmpty)
-        EmptyState(
-          title: admin ? 'You’re all caught up' : 'No concerns yet',
-          message: admin
-              ? 'No new concerns need review.'
-              : 'Your submitted concerns and responses will appear here.',
-          actionLabel: admin ? null : 'Submit concern',
-          onAction: admin ? null : () => open(const ConcernFormPage()),
-        )
+        const Card(child: Padding(padding: EdgeInsets.all(20),
+          child: Text('No open requests', style: TextStyle(color: muted))))
       else if (hasLoaded)
-        for (final c in recent)
+        for (final c in (admin ? recent : recent.take(1)))
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Card(
@@ -4293,7 +4007,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Text(
+                            if (admin) Text(
                               'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? '—'}',
                               style: const TextStyle(
                                 color: muted,
@@ -4315,6 +4029,32 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ],
   );
 
+  Future<void> showNotice(Map<String, dynamic> notice) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: Colors.white,
+    builder: (context) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(noticeTitle(notice['title']),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink)),
+            if (isInterruption(notice['title'])) const StatusBadge('Service interruption'),
+            const SizedBox(height: 8),
+            Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 13)),
+            const SizedBox(height: 20),
+            Text('${notice['message']}', style: const TextStyle(fontSize: 16, height: 1.6)),
+            const SizedBox(height: 24),
+            OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          ]),
+        ),
+      ),
+    ),
+  );
+
   Widget announcements() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -4333,13 +4073,12 @@ class _ModernDashboardState extends State<ModernDashboard> {
             const StatusBadge('Service interruption'),
           rowTile(
             noticeTitle(n['title']),
-            (n['message'] as String).length > 120
-                ? '${(n['message'] as String).substring(0, 120)}…'
-                : n['message'] as String,
+            '${recordDate(n['updated_at'])}\n${n['message']}',
             isInterruption(n['title'])
                 ? Icons.warning_amber_rounded
                 : Icons.campaign_outlined,
-            () => open(AnnouncementsPage(isAdmin: admin)),
+            () => showNotice(n),
+            showSubtitle: true,
           ),
         ],
     ],
@@ -4384,7 +4123,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
     borderRadius: BorderRadius.circular(12),
     child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Column(children: [
       Text(value?.toString() ?? '—', style: const TextStyle(
-        color: royalBlue, fontSize: 30, fontWeight: FontWeight.w700)),
+        color: royalBlue, fontSize: 38, fontWeight: FontWeight.w800)),
       const SizedBox(height: 3),
       Text(label, textAlign: TextAlign.center,
         style: const TextStyle(color: Color(0xFF455571), fontSize: 14)),
@@ -4392,183 +4131,58 @@ class _ModernDashboardState extends State<ModernDashboard> {
   );
 
   Widget balanceCard() => Container(
-    padding: const EdgeInsets.all(20),
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(18),
-      color: const Color(0xFFEDF2FF),
-      border: Border.all(color: const Color(0xFFD7E1FA)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Remaining balance',
-          style: TextStyle(color: ink, fontSize: 18),
-        ),
-        const SizedBox(height: 8),
-        AnimatedSwitcher(
-          duration: motionDuration(context, 200),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
-            child: Text(
-              initialLoading
-                  ? 'Loading…'
-                  : !hasLoaded && error != null
-                  ? 'Unavailable'
-                  : '₱${formatCentavos(remaining)}',
-              style: const TextStyle(
-                color: royalBlue,
-                fontSize: 38,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          initialLoading
-              ? 'Updating records'
-              : !hasLoaded && error != null
-              ? 'Please refresh'
-              : nextDueDate != null
-              ? 'Earliest due date: $nextDueDate'
-              : billCount == 0
-              ? 'No bills recorded'
-              : 'All bills paid',
-          style: const TextStyle(color: Color(0xFF455571), fontSize: 16),
-        ),
-        const SizedBox(height: 18),
-        FilledButton.tonal(
-          onPressed: () => open(const BillsPage(isAdmin: false)),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: ink,
-          ),
-          child: const Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'View bills',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
-      ],
-    ),
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(color: royalBlue, borderRadius: BorderRadius.circular(24)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const Text('Outstanding balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 12),
+      AnimatedSwitcher(duration: motionDuration(context, 200), child: Align(
+        key: ValueKey('$initialLoading/$hasLoaded/$remaining'), alignment: Alignment.centerLeft,
+        child: Text(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
+          : '₱${formatCentavos(remaining)}',
+          style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w800, letterSpacing: -1)),
+      )),
+      const SizedBox(height: 8),
+      Text(initialLoading ? 'Updating records' : !hasLoaded && error != null ? 'Please refresh'
+        : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}' : billCount == 0 ? 'No bills yet' : 'All paid',
+        style: const TextStyle(color: Colors.white, fontSize: 14)),
+      const SizedBox(height: 22),
+      FilledButton.icon(
+        onPressed: () => open(const BillsPage(isAdmin: false)),
+        style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: royalBlue),
+        icon: const Icon(Icons.receipt_long_outlined), label: const Text('View bill'),
+      ),
+    ]),
   );
 
-  List<Widget> homeContent() => admin
-      ? [
-          adminOverview(),
-          requests(),
-          groupHeading(
-            'Accounts & billing',
-            'Customer records, bills, and verified payments',
-          ),
-          rowTile(
-            'Service accounts',
-            'Manage customer records',
-            Icons.people_outline,
-            () => open(const ServiceAccountsPage()),
-          ),
-          rowTile(
-            'Billing records',
-            'View and manage bills',
-            Icons.receipt_long_outlined,
-            () => open(const BillsPage(isAdmin: true)),
-          ),
-          rowTile(
-            'Verified payments',
-            'Record verified offline payments',
-            Icons.payments_outlined,
-            () => open(const PaymentsPage(isAdmin: true)),
-          ),
-          groupHeading(
-            'Service operations',
-            'Review concerns and coordinate repair work',
-          ),
-          rowTile(
-            'Repair updates',
-            'Assign work and record progress',
-            Icons.build_outlined,
-            () => open(const RepairTicketsPage(isAdmin: true)),
-          ),
-          rowTile(
-            'Service concerns',
-            'Review and respond to clients',
-            Icons.chat_bubble_outline,
-            () => open(const ConcernsPage(isAdmin: true)),
-          ),
-          groupHeading(
-            'Communications',
-            'Keep customers informed about district services',
-          ),
-          rowTile(
-            'Announcements',
-            'Create and manage notices',
-            Icons.campaign_outlined,
-            () => open(const AnnouncementsPage(isAdmin: true)),
-          ),
-        ]
-      : [
-          balanceCard(),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Text(
-              'Payments are recorded after district verification.',
-              style: TextStyle(color: muted, fontSize: 14),
-            ),
-          ),
-          groupHeading(
-            'Account activity',
-            'Payment history and your registered details',
-          ),
-          pair(
-            tile(
-              'Payments',
-              'View verified payment records.',
-              Icons.receipt_outlined,
-              () => open(const PaymentsPage(isAdmin: false)),
-              compact: true,
-            ),
-            tile(
-              'My account',
-              'View your registered account details.',
-              Icons.people_outline,
-              () => open(const ClientAccountPage()),
-              compact: true,
-            ),
-          ),
-          groupHeading(
-            'Service support',
-            'Report an issue or follow repair progress',
-          ),
-          pair(
-            tile(
-              'Submit concern',
-              'Report a service concern',
-              Icons.chat_bubble_outline,
-              () => open(const ConcernFormPage()),
-              compact: true,
-            ),
-            tile(
-              'Repair updates',
-              'View recorded repair updates',
-              Icons.build_outlined,
-              () => open(const RepairTicketsPage(isAdmin: false)),
-              compact: true,
-            ),
-          ),
-          const SizedBox(height: 12),
-          requests(),
-          const SizedBox(height: 20),
-          announcements(),
-        ];
+  List<Widget> homeContent() => admin ? [
+    adminOverview(),
+    requests(),
+    const SizedBox(height: 24),
+    const Text('Manage district', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+    const SizedBox(height: 16),
+    actionGrid([
+      quickAction('Accounts', Icons.people_outline, () => open(const ServiceAccountsPage())),
+      quickAction('Add bill', Icons.add_card_outlined, () => open(const AddBillPage())),
+      quickAction('Record payment', Icons.payments_outlined, () => open(const RecordPaymentPage())),
+      quickAction('Concerns', Icons.chat_bubble_outline, () => open(const ConcernsPage(isAdmin: true))),
+      quickAction('Repairs', Icons.build_outlined, () => open(const RepairTicketsPage(isAdmin: true))),
+      quickAction('Announcements', Icons.campaign_outlined, () => open(const AnnouncementsPage(isAdmin: true))),
+    ], columns: 2),
+  ] : [
+    balanceCard(),
+    const Padding(padding: EdgeInsets.symmetric(vertical: 14),
+      child: Text('Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 12))),
+    actionGrid([
+      quickAction('Bills', Icons.receipt_long_outlined, () => open(const BillsPage(isAdmin: false))),
+      quickAction('Report issue', Icons.add_comment_outlined, () => open(const ConcernFormPage())),
+      quickAction('Repairs', Icons.build_outlined, () => open(const RepairTicketsPage(isAdmin: false))),
+    ]),
+    const SizedBox(height: 24),
+    requests(),
+    const SizedBox(height: 16),
+    announcements(),
+  ];
 
   List<Widget> tabContent() {
     if (tab == 0) return homeContent();
@@ -4674,7 +4288,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ? 'Good afternoon'
         : 'Good evening';
     final heading = tab == 0
-        ? (admin ? 'Administrator' : '$greeting, ${name.split(' ').first}')
+        ? (admin ? 'Dashboard' : '$greeting, ${name.split(' ').first}')
         : tab == 1
         ? (admin ? 'Accounts & billing' : 'Bills & payments')
         : tab == 2
@@ -4727,33 +4341,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.water_drop, color: royalBlue, size: 40),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Water District Connect',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  SizedBox(height: 3),
-                                  Text(
-                                    'Maramag, Philippines',
-                                    style: TextStyle(
-                                      color: muted,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            const Icon(Icons.water_drop, color: royalBlue, size: 26),
+                            const SizedBox(width: 8),
+                            const Expanded(child: Text('Water District Connect',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
                             IconButton(
-                              tooltip: 'Account menu',
-                              onPressed: () => setState(() => tab = 3),
+                              tooltip: admin ? 'Account menu' : 'My profile',
+                              onPressed: () {
+                                if (admin) {
+                                  setState(() => tab = 3);
+                                } else {
+                                  open(const ClientAccountPage());
+                                }
+                              },
                               icon: CircleAvatar(
                                 backgroundColor: const Color(0xFF1A4FD6),
                                 foregroundColor: Colors.white,
@@ -4768,32 +4368,14 @@ class _ModernDashboardState extends State<ModernDashboard> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        if (!admin) const Divider(),
-                        const SizedBox(height: 20),
-                        Text(
-                          heading,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          admin
-                              ? const [
-                                  'Manage accounts and district services.',
-                                  'Manage customer accounts, billing, and payments.',
-                                  'Review concerns and track repair progress.',
-                                  'District notices and session settings.',
-                                ][tab]
-                              : accountNumber == null
-                              ? 'Your water-service information'
-                              : 'Account $accountNumber',
-                          style: const TextStyle(color: muted, fontSize: 15),
-                        ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
+                        Text(heading, style: const TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -.7)),
+                        if (!admin && accountNumber != null) ...[
+                          const SizedBox(height: 8),
+                          Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),
+                        ],
+                        const SizedBox(height: 24),
                         if (error != null)
                           Card(
                             child: Padding(
