@@ -73,7 +73,7 @@ class StatusBadge extends StatelessWidget {
         : alert
         ? const Color(0xFFA02C24)
         : active
-        ? const Color(0xFF165D99)
+        ? const Color(0xFF1A4FD6)
         : const Color(0xFF78520A);
     return AnimatedSwitcher(
       duration: motionDuration(context, 180),
@@ -213,15 +213,15 @@ class _LoadingCardsState extends State<LoadingCards>
                   Container(
                     height: 22,
                     width: 150,
-                    color: const Color(0xFFDCEBEC),
+                    color: const Color(0xFFE1E6EB),
                   ),
                   const SizedBox(height: 18),
-                  Container(height: 14, color: const Color(0xFFDCEBEC)),
+                  Container(height: 14, color: const Color(0xFFE1E6EB)),
                   const SizedBox(height: 10),
                   Container(
                     height: 14,
                     width: 200,
-                    color: const Color(0xFFDCEBEC),
+                    color: const Color(0xFFE1E6EB),
                   ),
                 ],
               ),

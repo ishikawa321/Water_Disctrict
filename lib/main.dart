@@ -8,7 +8,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ui_components.dart';
 
 const projectUrl = 'https://kaeespcylucvsazfdaks.supabase.co';
-const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+// Public client key; database access is still controlled by Supabase policies.
+const publishableKey = String.fromEnvironment(
+  'SUPABASE_PUBLISHABLE_KEY',
+  defaultValue: 'sb_publishable_X81fBSYttDlVEYEiFCuoRQ_IQlSRsNo',
+);
 const mobileRecoveryUrl = 'waterdistrictconnect://reset-password/';
 
 String passwordRecoveryUrl({required bool isWeb, required Uri baseUri}) {
@@ -607,7 +611,7 @@ class _AccountPageState extends State<AccountPage>
                                 style: TextStyle(
                                   color: isError
                                       ? Theme.of(context).colorScheme.error
-                                      : teal,
+                                      : royalBlue,
                                 ),
                               ),
                             ),
@@ -616,15 +620,15 @@ class _AccountPageState extends State<AccountPage>
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE0F3F4),
+                              color: const Color(0xFFEDF2FF),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: Color(0xFFC2E9EB),
-                                  foregroundColor: teal,
+                                  backgroundColor: Color(0xFF1A4FD6),
+                                  foregroundColor: Colors.white,
                                   child: Icon(Icons.people_outline),
                                 ),
                                 SizedBox(width: 16),
@@ -1053,7 +1057,7 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My account'),
-        backgroundColor: teal,
+        backgroundColor: royalBlue,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -1090,7 +1094,7 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                           children: [
                             CircleAvatar(
                               radius: 32,
-                              backgroundColor: teal,
+                              backgroundColor: royalBlue,
                               foregroundColor: Colors.white,
                               child: Text(
                                 initials,
@@ -1450,7 +1454,7 @@ class _BillsPageState extends State<BillsPage> {
                               Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE9F3F8),
+                                  color: const Color(0xFFEDF2FF),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: DesignValue(
@@ -2541,7 +2545,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(reviewing ? 'Review concern' : 'Submit concern'),
-          backgroundColor: teal,
+          backgroundColor: royalBlue,
           foregroundColor: Colors.white,
         ),
         bottomNavigationBar: reviewing ? null : const ClientDesignNav(index: 2),
@@ -3538,21 +3542,28 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   }
 }
 
-const teal = Color(0xFF007D85);
-const ink = Color(0xFF102B46);
-const muted = Color(0xFF506477);
+const royalBlue = Color(0xFF1A4FD6);
+const ink = Color(0xFF324C82);
+const muted = Color(0xFF526077);
 
 ThemeData waterTheme() {
-  final scheme = ColorScheme.fromSeed(seedColor: teal).copyWith(
-    primary: teal,
+  final scheme = ColorScheme.fromSeed(seedColor: royalBlue).copyWith(
+    primary: royalBlue,
     onPrimary: Colors.white,
-    surface: const Color(0xFFF5FBFB),
+    surface: const Color(0xFFFFFFFF),
     onSurface: ink,
     onSurfaceVariant: muted,
-    secondary: teal,
+    secondary: royalBlue,
+    primaryContainer: const Color(0xFFE6EDFF),
+    onPrimaryContainer: royalBlue,
+    secondaryContainer: const Color(0xFFE6EDFF),
+    onSecondaryContainer: royalBlue,
+    outline: const Color(0xFFE1E6EB),
+    outlineVariant: const Color(0xFFE1E6EB),
   );
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'DM Sans',
     splashFactory: InkRipple.splashFactory,
     snackBarTheme: const SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
@@ -3569,13 +3580,14 @@ ThemeData waterTheme() {
       collapsedShape: Border(),
     ),
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF2FAFA),
+    scaffoldBackgroundColor: const Color(0xFFF6F9FC),
     textTheme: ThemeData.light().textTheme.apply(
+      fontFamily: 'DM Sans',
       bodyColor: ink,
       displayColor: ink,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF2FAFA),
+      backgroundColor: Color(0xFFF6F9FC),
       foregroundColor: ink,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -3588,12 +3600,12 @@ ThemeData waterTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE6F1F2)),
+        side: const BorderSide(color: Color(0xFFE1E6EB)),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: const Color(0xFFF2F5F9),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       labelStyle: const TextStyle(color: muted),
       prefixIconColor: muted,
@@ -3601,11 +3613,11 @@ ThemeData waterTheme() {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFBFD7DC)),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EB)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: teal, width: 2),
+        borderSide: const BorderSide(color: royalBlue, width: 2),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -3614,7 +3626,7 @@ ThemeData waterTheme() {
         textStyle: const TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          fontFamily: 'Roboto',
+          fontFamily: 'DM Sans',
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -3623,8 +3635,15 @@ ThemeData waterTheme() {
       style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
     ),
     navigationBarTheme: const NavigationBarThemeData(
-      backgroundColor: Color(0xFFF9FDFD),
-      indicatorColor: Color(0xFFD4EFF0),
+      backgroundColor: Color(0xFFFFFFFF),
+      indicatorColor: Color(0xFFE6EDFF),
+      labelTextStyle: WidgetStatePropertyAll(TextStyle(
+        fontFamily: 'DM Sans',
+        fontWeight: FontWeight.w600,
+        fontSize: 11,
+        color: muted,
+      )),
+      iconTheme: WidgetStatePropertyAll(IconThemeData(color: royalBlue)),
       elevation: 0,
       height: 76,
     ),
@@ -3647,7 +3666,19 @@ class _WaterArtworkState extends State<WaterArtwork>
     vsync: this,
     duration: const Duration(seconds: 7),
   );
+  late final AnimationController logo = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
   bool started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) logo.forward();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -3656,6 +3687,8 @@ class _WaterArtworkState extends State<WaterArtwork>
       water.stop();
       controller.stop();
       controller.value = 1;
+      logo.stop();
+      logo.value = 1;
       started = true;
     } else {
       if (!water.isAnimating) water.repeat();
@@ -3668,6 +3701,7 @@ class _WaterArtworkState extends State<WaterArtwork>
 
   @override
   void dispose() {
+    logo.dispose();
     water.dispose();
     controller.dispose();
     super.dispose();
@@ -3677,13 +3711,43 @@ class _WaterArtworkState extends State<WaterArtwork>
   Widget build(BuildContext context) => ExcludeSemantics(
     child: ClipRect(
       child: AnimatedBuilder(
-        animation: Listenable.merge([controller, water]),
-        builder: (_, child) => CustomPaint(
-          painter: WaterPainter(
-            progress: controller.value,
-            waterPhase: water.value,
-          ),
-          child: const SizedBox.expand(),
+        animation: Listenable.merge([controller, water, logo]),
+        child: Image.asset(
+          'assets/images/maramag-water-district-logo.png',
+          fit: BoxFit.contain,
+          cacheWidth: 512,
+          excludeFromSemantics: true,
+        ),
+        builder: (_, child) => LayoutBuilder(
+          builder: (_, constraints) {
+            final diameter = math.min(
+              constraints.maxWidth * .42,
+              constraints.maxHeight * .44,
+            );
+            final landingTop = constraints.maxHeight * .77 - diameter / 2;
+            final descent = Curves.easeOutCubic.transform(logo.value);
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: WaterPainter(
+                      progress: controller.value,
+                      waterPhase: water.value,
+                    ),
+                  ),
+                ),
+                if (logo.value > 0)
+                  Positioned(
+                    key: const ValueKey('water-district-logo'),
+                    left: (constraints.maxWidth - diameter) / 2,
+                    top: -diameter + (landingTop + diameter) * descent,
+                    width: diameter,
+                    height: diameter,
+                    child: IgnorePointer(child: child!),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     ),
@@ -3728,8 +3792,8 @@ class WaterPainter extends CustomPainter {
         path,
         Paint()
           ..color = Color.lerp(
-            const Color(0xFFD7F3F3),
-            const Color(0xFF91D7DC),
+            const Color(0xFFEDF2FF),
+            const Color(0xFFD7E1FA),
             i / 4,
           )!.withValues(alpha: .65),
       );
@@ -3744,7 +3808,7 @@ class WaterPainter extends CustomPainter {
       pool,
       Paint()
         ..shader = const RadialGradient(
-          colors: [Color(0xFFA7DFE2), Color(0xFFE2F6F6)],
+          colors: [Color(0xFFD7E1FA), Color(0xFFEDF2FF)],
         ).createShader(pool),
     );
     for (var i = 1; i <= 4; i++) {
@@ -3815,7 +3879,7 @@ class WaterPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [const Color(0xFF8EDDE0), teal, const Color(0xFF005F6B)],
+            colors: [const Color(0xFFE6EDFF), royalBlue, const Color(0xFF324C82)],
           ).createShader(bounds),
       );
       if (merge < .8) {
@@ -3856,7 +3920,7 @@ class WaterPainter extends CustomPainter {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3 * (1 - t) + .5
-            ..color = teal.withValues(alpha: alpha * .55),
+            ..color = royalBlue.withValues(alpha: alpha * .55),
         );
         canvas.drawOval(
           ring.inflate(2),
@@ -3880,7 +3944,7 @@ class WaterPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00F2FAFA), Color(0x99F2FAFA), Color(0xFFF2FAFA)],
+          colors: [Color(0x00F6F9FC), Color(0x99F6F9FC), Color(0xFFF6F9FC)],
           stops: [0, .58, 1],
         ).createShader(fadeArea),
     );
@@ -4041,10 +4105,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
   Widget iconBubble(IconData icon) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: const Color(0xFFE0F3F4),
+      color: royalBlue,
       borderRadius: BorderRadius.circular(15),
     ),
-    child: Icon(icon, color: teal, size: 27),
+    child: Icon(icon, color: Colors.white, size: 27),
   );
 
   Widget tile(
@@ -4067,7 +4131,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(icon, color: teal, size: 26),
+                    Icon(icon, color: royalBlue, size: 26),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -4174,7 +4238,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: teal),
+                const Icon(Icons.chevron_right, color: royalBlue),
               ],
             ),
           ),
@@ -4251,7 +4315,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: teal),
+                      const Icon(Icons.chevron_right, color: royalBlue),
                     ],
                   ),
                 ),
@@ -4296,30 +4360,31 @@ class _ModernDashboardState extends State<ModernDashboard> {
     clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(20),
-      gradient: const LinearGradient(colors: [Color(0xFF008B98), Color(0xFF006B7C)]),
+      color: const Color(0xFFEDF2FF),
+      border: Border.all(color: const Color(0xFFD7E1FA)),
     ),
     child: Stack(children: [
       Positioned(right: -35, bottom: -65, child: IgnorePointer(child: Container(
         width: 230, height: 160, decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: Colors.white.withValues(alpha: .08), width: 22)),
+          border: Border.all(color: royalBlue.withValues(alpha: .08), width: 22)),
       ))),
       Padding(padding: const EdgeInsets.all(20), child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Row(children: [Icon(Icons.assignment_outlined, color: Colors.white, size: 25),
+        const Row(children: [Icon(Icons.assignment_outlined, color: royalBlue, size: 25),
           SizedBox(width: 10), Expanded(child: Text('District overview',
-            style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w700)))]),
+            style: TextStyle(color: ink, fontSize: 19, fontWeight: FontWeight.w700)))]),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: overviewMetric(pendingConcerns, 'Pending concerns',
             () => open(const ConcernsPage(isAdmin: true)))),
-          Container(height: 58, width: 1, color: Colors.white24),
+          Container(height: 58, width: 1, color: const Color(0xFFD7E1FA)),
           Expanded(child: overviewMetric(activeRepairs, 'Active repairs',
             () => open(const RepairTicketsPage(isAdmin: true)))),
         ]),
         if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
           child: Text('Overview could not refresh. Pull down to retry.',
-            style: TextStyle(color: Colors.white, fontSize: 13))),
+            style: TextStyle(color: muted, fontSize: 13))),
       ])),
     ]),
   );
@@ -4329,10 +4394,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
     borderRadius: BorderRadius.circular(12),
     child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Column(children: [
       Text(value?.toString() ?? '—', style: const TextStyle(
-        color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700)),
+        color: royalBlue, fontSize: 30, fontWeight: FontWeight.w700)),
       const SizedBox(height: 3),
       Text(label, textAlign: TextAlign.center,
-        style: const TextStyle(color: Colors.white, fontSize: 14)),
+        style: const TextStyle(color: Color(0xFF455571), fontSize: 14)),
     ])),
   );
 
@@ -4341,18 +4406,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
     margin: const EdgeInsets.only(bottom: 12),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(18),
-      gradient: const LinearGradient(
-        colors: [Color(0xFF008F9D), Color(0xFF006579)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      color: const Color(0xFFEDF2FF),
+      border: Border.all(color: const Color(0xFFD7E1FA)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
           'Remaining balance',
-          style: TextStyle(color: Colors.white, fontSize: 18),
+          style: TextStyle(color: ink, fontSize: 18),
         ),
         const SizedBox(height: 8),
         AnimatedSwitcher(
@@ -4367,7 +4429,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                   ? 'Unavailable'
                   : '₱${formatCentavos(remaining)}',
               style: const TextStyle(
-                color: Colors.white,
+                color: royalBlue,
                 fontSize: 38,
                 fontWeight: FontWeight.w700,
               ),
@@ -4385,7 +4447,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
               : billCount == 0
               ? 'No bills recorded'
               : 'All bills paid',
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: const TextStyle(color: Color(0xFF455571), fontSize: 16),
         ),
         const SizedBox(height: 18),
         FilledButton.tonal(
@@ -4675,7 +4737,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.water_drop, color: teal, size: 40),
+                            const Icon(Icons.water_drop, color: royalBlue, size: 40),
                             const SizedBox(width: 10),
                             const Expanded(
                               child: Column(
@@ -4703,8 +4765,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
                               tooltip: 'Account menu',
                               onPressed: () => setState(() => tab = 3),
                               icon: CircleAvatar(
-                                backgroundColor: const Color(0xFFBDE7EA),
-                                foregroundColor: teal,
+                                backgroundColor: const Color(0xFF1A4FD6),
+                                foregroundColor: Colors.white,
                                 child: Text(
                                   initials,
                                   style: const TextStyle(
@@ -4834,8 +4896,9 @@ class _WaterStartupState extends State<WaterStartup>
       if (!mounted) return;
       pulse.stop();
       setState(
-        () => error =
-            'Unable to start the app (${e.runtimeType}). Check your connection and launch configuration, then restart.',
+        () => error = e is StateError && e.message == 'Missing configuration'
+            ? 'Database access is not configured. Contact the app administrator to finish setup.'
+            : 'Unable to start the app (${e.runtimeType}). Check your connection and launch configuration, then restart.',
       );
     }
   }
@@ -4870,7 +4933,7 @@ class _WaterStartupState extends State<WaterStartup>
               )
             : Scaffold(
                 key: const ValueKey('loading'),
-                backgroundColor: const Color(0xFF007D85),
+                backgroundColor: const Color(0xFF1A4FD6),
                 body: SafeArea(
                   child: Center(
                     child: Padding(
@@ -4920,7 +4983,7 @@ class _WaterStartupState extends State<WaterStartup>
                             const Text(
                               'Maramag, Philippines',
                               style: TextStyle(
-                                color: Color(0xFFC7EEEE),
+                                color: Color(0xFFE6EDFF),
                                 fontSize: 15,
                               ),
                             ),
@@ -5049,7 +5112,7 @@ class DesignHelp extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: teal, size: 30),
+          Icon(icon, color: royalBlue, size: 30),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -5101,14 +5164,14 @@ class DesignRepairStages extends StatelessWidget {
                       i == current
                           ? Icons.radio_button_checked
                           : Icons.radio_button_unchecked,
-                      color: i == current ? teal : Colors.blueGrey,
+                      color: i == current ? royalBlue : Colors.blueGrey,
                       size: 27,
                     ),
                     if (i < stages.length - 1)
                       Container(
                         width: 2,
                         height: 24,
-                        color: const Color(0xFFCBDCDF),
+                        color: const Color(0xFFE1E6EB),
                       ),
                   ],
                 ),

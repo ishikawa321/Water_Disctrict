@@ -3,8 +3,9 @@
 ## Configure authentication
 
 The app uses the existing Supabase project `kaeespcylucvsazfdaks`.
-Its public publishable key is configured in `lib/main.dart`. You can override it
-with `--dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_KEY`.
+The project URL and public publishable key are configured in `lib/main.dart`.
+You can override the key at build or launch time with
+`--dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_KEY`.
 Do not use a secret or service-role key in the app.
 
 Run the web app on the port registered in Supabase:
@@ -13,6 +14,7 @@ Run the web app on the port registered in Supabase:
 flutter run -d chrome --web-port=3000
 ```
 
+For Android, use `flutter run -d DEVICE_ID`.
 Alternatively, use the VS Code launch configuration **Web (password reset - port 3000)**.
 The reset redirect is `http://localhost:3000/`, matching your Supabase redirect URL.
 Request and open the reset email in the same browser on this computer, with the
