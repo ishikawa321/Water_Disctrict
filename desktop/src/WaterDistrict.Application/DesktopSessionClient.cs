@@ -21,7 +21,7 @@ public sealed class SessionClientException(string message, bool requiresSignIn =
 }
 
 // Access tokens stay in memory. No password/refresh token/session file is persisted.
-public sealed class DesktopSessionClient(HttpClient auth, HttpClient api, TimeProvider? clock = null) : IDesktopSessionClient, IWorkflowClient
+public sealed class DesktopSessionClient(HttpClient auth, HttpClient api, TimeProvider? clock = null) : IDesktopSessionClient, IWorkflowClient, IOfficeClient
 {
     private readonly TimeProvider time = clock ?? TimeProvider.System;
     private string? accessToken;
@@ -130,6 +130,15 @@ public sealed class DesktopSessionClient(HttpClient auth, HttpClient api, TimePr
     public Task<TicketDetails> TicketAsync(Guid id,CancellationToken token=default) => ReadApiAsync<TicketDetails>($"api/workflow/tickets/{id}",token);
     public Task<TicketDetails> CreateTicketAsync(CreateTicket input,CancellationToken token=default) => SendApiAsync<TicketDetails>(HttpMethod.Post,"api/workflow/tickets",input,token);
     public Task<TicketDetails> UpdateTicketAsync(Guid id,UpdateTicket input,CancellationToken token=default) => SendApiAsync<TicketDetails>(HttpMethod.Put,$"api/workflow/tickets/{id}",input,token);
+    public Task<OfficeSummary> SummaryAsync(CancellationToken token=default)=>ReadApiAsync<OfficeSummary>("api/office/summary",token);
+    public async Task<IReadOnlyList<OfficeAccount>> OfficeAccountsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeAccount[]>("api/office/accounts",token);
+    public Task<OfficeAccount> AddAccountAsync(AddOfficeAccount input,CancellationToken token=default)=>SendApiAsync<OfficeAccount>(HttpMethod.Post,"api/office/accounts",input,token);
+    public async Task<IReadOnlyList<OfficeBill>> BillsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeBill[]>("api/office/bills",token);
+    public Task<OfficeBill> AddBillAsync(AddOfficeBill input,CancellationToken token=default)=>SendApiAsync<OfficeBill>(HttpMethod.Post,"api/office/bills",input,token);
+    public async Task<IReadOnlyList<OfficePayment>> PaymentsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficePayment[]>("api/office/payments",token);
+    public Task<OfficePayment> AddPaymentAsync(AddOfficePayment input,CancellationToken token=default)=>SendApiAsync<OfficePayment>(HttpMethod.Post,"api/office/payments",input,token);
+    public async Task<IReadOnlyList<OfficeAnnouncement>> AnnouncementsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeAnnouncement[]>("api/office/announcements",token);
+    public Task<OfficeAnnouncement> SaveAnnouncementAsync(Guid? id,SaveOfficeAnnouncement input,CancellationToken token=default)=>SendApiAsync<OfficeAnnouncement>(id is null?HttpMethod.Post:HttpMethod.Put,"api/office/announcements"+(id is null?"":"/"+id),input,token);
     private sealed record ErrorResponse(string? Detail);
 
     private sealed record AuthResponse(

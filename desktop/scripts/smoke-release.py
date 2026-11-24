@@ -82,7 +82,7 @@ def main():
             results["ready"] = {"http": ready, "response": json.loads(detail)}
             expected = 200 if os.environ.get("ConnectionStrings__WaterDistrict") else 503
             assert ready == expected, detail
-            for path in ["/api/session", "/api/workflow/concerns", "/api/workflow/tickets"]:
+            for path in ["/api/session", "/api/workflow/concerns", "/api/workflow/tickets", "/api/office/accounts", "/api/office/bills", "/api/office/payments", "/api/office/announcements", "/api/office/summary"]:
                 status, _ = request(port, path)
                 assert status == 401, (path, status)
                 results[path] = status

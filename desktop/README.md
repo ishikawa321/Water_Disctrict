@@ -75,3 +75,9 @@ Public desktop settings can be overridden in an ignored desktop `appsettings.Loc
 Restore EF tooling from the desktop directory with `dotnet tool restore`. The design-time context reads the backend connection environment variable. Generate SQL with `dotnet tool run dotnet-ef -- migrations script --idempotent --project src/WaterDistrict.Infrastructure --startup-project src/WaterDistrict.Infrastructure` for review; it is never applied automatically.
 
 See `docs/acceptance-verification.md` and `docs/release-and-demonstration.md` in the source repository, or the release's Docs folder, for acceptance results, remaining live checks and the 8?10 minute demonstration. Instructor approval/student IDs remain pending. Billing, payments, notices, online payment, tariff computation and automatic physical-work monitoring are outside the required desktop scope.
+
+## Updated mobile Admin comparison
+
+The updated main draft at f4848dc has dedicated Admin accounts, billing, verified offline payments, announcements and overview counts. The desktop now includes these screens and corresponding protected API operations. These additional modules forward the validated caller's token to the same Supabase Data API and retain database RLS; repair processing still uses EF Core. Staff cannot access Admin office modules. See docs/admin-staff-mobile-comparison.md in the repository for the field mapping, retained workflow rules and remaining policy differences. The mobile draft has no Staff role.
+
+The live PostgreSQL connection currently fails TLS certificate validation. Keep VerifyFull and obtain the CA certificate under Supabase Database Settings > SSL Configuration. Add `Root Certificate=YOUR_LOCAL_CA_FILE` to the ignored API connection string. The CLI now reports SQLSTATE or TLS failure types without printing the connection string or password. The password is not yet confirmed and no live migration has run.

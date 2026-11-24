@@ -65,6 +65,18 @@ catch(InvalidOperationException exception)
 catch(Exception exception) when(exception is NpgsqlException or ArgumentException or IOException)
 {
     Console.Error.WriteLine("Database operation failed. Check connectivity and inspect the schema before migrating. No success is claimed.");
-    if(exception is PostgresException pg && pg.SqlState=="P0001") Console.Error.WriteLine(pg.MessageText);
+    if(exception is PostgresException pg)
+    {
+        Console.Error.WriteLine("PostgreSQL SQLSTATE: " + pg.SqlState);
+        if(pg.SqlState=="28P01") Console.Error.WriteLine("Database authentication failed. Confirm the Supabase database password and pooler username in local configuration.");
+        else if(pg.SqlState=="42501") Console.Error.WriteLine("The database user does not have permission for this operation.");
+        else if(pg.SqlState=="P0001") Console.Error.WriteLine(pg.MessageText);
+    }
+    else
+    {
+        Console.Error.WriteLine("Failure type: " + exception.GetType().Name + (exception.InnerException is null ? "" : "/" + exception.InnerException.GetType().Name));
+        if(exception.InnerException is System.Security.Authentication.AuthenticationException tls)
+            Console.Error.WriteLine("TLS validation: " + tls.Message);
+    }
     return 1;
 }

@@ -43,3 +43,11 @@ The live Supabase connection, catalog, role constraints, grants, existing trigge
 Verification evidence is local under desktop/artifacts/test-results/verification.trx and the release's smoke-results.json/api-smoke.log. UI previews use controlled fictional records. The current release folder is desktop/artifacts/release/20261125-011647; release output is ignored by Git and can be reproduced with publish.ps1.
 
 Flutter dependencies resolved without changing package versions after lowering the minimum Dart patch requirement from 3.13.5 to the installed 3.13.1. The Windows Flutter plugin-link step still requests Developer Mode; no system setting was changed. Analysis and all widget tests completed with the resolved packages using --no-pub. A native Flutter platform build remains a separate consumer deployment check.
+
+## Updated mobile Admin adaptation
+
+The main/f4848dc comparison and new office-module verification are documented in admin-staff-mobile-comparison.md. Existing local PostgreSQL workflow tests remain unchanged; new module tests use controlled Data API responses and do not claim live RLS/data verification. Read-only live schema inspection was attempted, but VerifyFull certificate validation failed before PostgreSQL password verification. No live database changes were made.
+
+Final Admin adaptation verification: solution build succeeded with zero warnings/errors; 77 .NET tests passed with local PostgreSQL configured, zero failures and zero skipped tests. Rendered account, bill, payment and announcement screens were generated; payment and announcement layouts were visually inspected. Consumer Flutter source was unchanged in this adaptation, so the earlier Flutter verification remains applicable to this branch's unchanged consumer source rather than to newly fetched main UI changes.
+
+The updated Windows x64 release at desktop/artifacts/release/20261125-015301 was smoke-checked: native desktop opened, local configured API readiness returned 200, and all five new office endpoints rejected anonymous access with 401. Supabase database connectivity remains blocked at TLS certificate verification.

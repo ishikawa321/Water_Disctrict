@@ -39,24 +39,29 @@
         </Grid>
         <Grid ColumnDefinitions="240,*" IsVisible="{Binding IsSignedIn}">
             <Border Background="#0C3449" Padding="22">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Spacing="14">
+                <Grid RowDefinitions="*,Auto" RowSpacing="20">
+                    <ScrollViewer>
+                    <StackPanel Spacing="12">
                         <Image Source="/Assets/water-district-logo.png" Width="66" Height="66" HorizontalAlignment="Left" />
                         <TextBlock Text="Water District" Foreground="White" FontSize="22" FontWeight="SemiBold" />
                         <TextBlock Text="Administration" Foreground="#B9D5DF" Margin="0,0,0,24" />
                         <Button Classes="nav" Content="Overview" Command="{Binding OverviewCommand}" HorizontalAlignment="Stretch" />
                         <Button Classes="nav" Content="Service concerns" Command="{Binding OpenConcernsCommand}" HorizontalAlignment="Stretch" />
                         <Button Classes="nav" Content="Repair tickets" Command="{Binding OpenTicketsCommand}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Service accounts" Command="{Binding OpenOfficeCommand}" CommandParameter="Accounts" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Billing records" Command="{Binding OpenOfficeCommand}" CommandParameter="Bills" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Verified payments" Command="{Binding OpenOfficeCommand}" CommandParameter="Payments" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Announcements" Command="{Binding OpenOfficeCommand}" CommandParameter="Announcements" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
                         <Button Classes="nav" Content="Staff directory" Command="{Binding LoadStaffCommand}" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
                     </StackPanel>
-                    <StackPanel DockPanel.Dock="Bottom" Spacing="12">
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="1" Spacing="12">
                         <TextBlock Text="{Binding DisplayName}" Foreground="White" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding RoleLabel}" Foreground="#7BD5DF" />
                         <Button Classes="nav" Content="Refresh access" Command="{Binding RefreshAccessCommand}" HorizontalAlignment="Stretch" />
                         <Button Classes="nav" Content="Sign out" Command="{Binding SignOutCommand}" HorizontalAlignment="Stretch" />
                     </StackPanel>
-                    <Panel />
-                </DockPanel>
+                </Grid>
             </Border>
             <ScrollViewer Grid.Column="1">
                 <StackPanel Margin="34" Spacing="22">
@@ -72,7 +77,14 @@
                                 <TextBlock Text="Signed in securely" FontSize="21" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding DisplayName}" FontSize="17" />
                                 <TextBlock Text="{Binding RoleLabel}" Foreground="#086B83" FontWeight="Medium" />
-                                <TextBlock Classes="muted" Text="Your account permissions are checked by the office service." TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" Text="Your account permissions are checked by the office service." TextWrapping="Wrap" /><StackPanel Spacing="12" IsVisible="{Binding IsAdmin}">
+                                    <Grid ColumnDefinitions="*,*" Margin="0,12,0,0">
+                                        <StackPanel><TextBlock Text="Pending concerns" /><TextBlock Text="{Binding Office.PendingText}" FontSize="30" Foreground="#086B83" /></StackPanel>
+                                        <StackPanel Grid.Column="1"><TextBlock Text="Active repairs" /><TextBlock Text="{Binding Office.ActiveRepairsText}" FontSize="30" Foreground="#086B83" /></StackPanel>
+                                    </Grid>
+                                    <Button Content="Refresh overview" Command="{Binding Office.LoadSummaryCommand}" />
+                                    <TextBlock Text="{Binding Office.Message}" TextWrapping="Wrap" Classes="muted" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                         <Border Classes="card">
@@ -86,6 +98,7 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                    <Border IsVisible="{Binding IsOffice}"><views:OfficeView DataContext="{Binding Office}" /></Border>
                     <Border IsVisible="{Binding IsConcerns}"><views:ConcernsView DataContext="{Binding Workflows}" /></Border>
                     <Border IsVisible="{Binding IsTickets}"><views:TicketsView DataContext="{Binding Workflows}" /></Border>
                     <Border Classes="card" IsVisible="{Binding ShowDirectory}">

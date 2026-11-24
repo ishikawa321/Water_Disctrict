@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application"
+ x:Class="WaterDistrict.Desktop.Views.OfficeView" x:DataType="vm:OfficeViewModel">
+ <StackPanel Spacing="18">
+  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Page}" FontSize="28" FontWeight="SemiBold" />
+   <Button Grid.Column="1" Content="Refresh records" Command="{Binding RefreshCommand}" /></Grid>
+  <ProgressBar IsIndeterminate="True" Height="3" IsVisible="{Binding IsBusy}" />
+  <Border Background="#DFEEF3" CornerRadius="8" Padding="14" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+  <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsAccounts}" IsEnabled="{Binding !IsBusy}">
+   <Border Classes="card"><StackPanel Spacing="12">
+    <TextBlock Text="Service accounts" FontSize="21" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Accounts}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficeAccount">
+     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+      <TextBlock Text="{Binding AccountNumber}" FontWeight="SemiBold" /><TextBlock Text="{Binding HolderName}" /><TextBlock Text="{Binding ServiceAddress}" TextWrapping="Wrap" />
+      <TextBlock Text="Inactive" IsVisible="{Binding !Active}" Classes="muted" />
+     </StackPanel></Border>
+    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   </StackPanel></Border>
+   <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
+    <TextBlock Text="Add service account" FontSize="21" FontWeight="SemiBold" />
+    <TextBlock Text="Account number" /><TextBox Text="{Binding AccountNumber}" MaxLength="80" />
+    <TextBlock Text="Account holder" /><TextBox Text="{Binding HolderName}" MaxLength="200" />
+    <TextBlock Text="Service address" /><TextBox Text="{Binding ServiceAddress}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="90" MaxLength="500" />
+    <Button Classes="primary" Content="Save account" Command="{Binding SaveAccountCommand}" />
+   </StackPanel></Border>
+  </Grid>
+  <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsBills}" IsEnabled="{Binding !IsBusy}">
+   <Border Classes="card"><StackPanel Spacing="12">
+    <TextBlock Text="Billing records" FontSize="21" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Bills}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficeBill">
+     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+      <TextBlock Text="{Binding BillNumber}" FontWeight="SemiBold" /><TextBlock Text="{Binding AccountNumber}" />
+      <TextBlock Text="{Binding PeriodStart, StringFormat='Period start: {0:yyyy-MM-dd}'}" /><TextBlock Text="{Binding PeriodEnd, StringFormat='Period end: {0:yyyy-MM-dd}'}" />
+      <TextBlock Text="{Binding DueDate, StringFormat='Due: {0:yyyy-MM-dd}'}" />
+      <TextBlock Text="{Binding AmountDue, StringFormat='Original amount: PHP {0:N2}'}" /><TextBlock Text="{Binding Paid, StringFormat='Verified payments: PHP {0:N2}'}" />
+      <TextBlock Text="{Binding Remaining, StringFormat='Remaining: PHP {0:N2}'}" Foreground="#086B83" FontWeight="SemiBold" />
+     </StackPanel></Border>
+    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   </StackPanel></Border>
+   <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
+    <TextBlock Text="Add district-computed bill" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock Classes="muted" Text="Enter the amount from district records. This app does not compute tariffs." TextWrapping="Wrap" />
+    <TextBlock Text="Service account" /><ComboBox ItemsSource="{Binding ActiveAccounts}" SelectedItem="{Binding SelectedAccount}" HorizontalAlignment="Stretch">
+     <ComboBox.ItemTemplate><DataTemplate x:DataType="app:OfficeAccount"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+    <TextBlock Text="Bill number" /><TextBox Text="{Binding BillNumber}" MaxLength="100" />
+    <TextBlock Text="Period start" /><DatePicker SelectedDate="{Binding PeriodStart}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Period end" /><DatePicker SelectedDate="{Binding PeriodEnd}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Due date" /><DatePicker SelectedDate="{Binding DueDate}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Amount (PHP)" /><TextBox Text="{Binding BillAmount}" PlaceholderText="0.00" />
+    <Button Classes="primary" Content="Save bill" Command="{Binding SaveBillCommand}" />
+   </StackPanel></Border>
+  </Grid>
+  <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsPayments}" IsEnabled="{Binding !IsBusy}">
+   <Border Classes="card"><StackPanel Spacing="12">
+    <TextBlock Text="Verified offline payments" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <CheckBox Content="Show payments for selected bill only" IsChecked="{Binding FilterPayments}" />
+    <ItemsControl ItemsSource="{Binding VisiblePayments}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficePayment">
+     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+      <TextBlock Text="{Binding ReceiptReference}" FontWeight="SemiBold" /><TextBlock Text="{Binding BillNumber}" /><TextBlock Text="{Binding AccountNumber}" />
+      <TextBlock Text="{Binding PaymentDate, StringFormat='Payment date: {0:yyyy-MM-dd}'}" /><TextBlock Text="{Binding AmountPaid, StringFormat='PHP {0:N2}'}" Foreground="#086B83" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding VerifiedAt, StringFormat='Verified: {0:yyyy-MM-dd HH:mm}'}" Classes="muted" />
+     </StackPanel></Border>
+    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   </StackPanel></Border>
+   <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
+    <TextBlock Text="Record verified payment" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock Classes="muted" Text="Record an offline payment only after verification against district records." TextWrapping="Wrap" />
+    <TextBlock Text="Bill" /><ComboBox ItemsSource="{Binding Bills}" SelectedItem="{Binding SelectedBill}" HorizontalAlignment="Stretch">
+     <ComboBox.ItemTemplate><DataTemplate x:DataType="app:OfficeBill"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+    <TextBlock Text="Receipt / reference" /><TextBox Text="{Binding ReceiptReference}" MaxLength="150" />
+    <TextBlock Text="Payment date" /><DatePicker SelectedDate="{Binding PaymentDate}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Amount paid (PHP)" /><TextBox Text="{Binding PaymentAmount}" PlaceholderText="0.00" />
+    <CheckBox IsChecked="{Binding Verified}"><TextBlock Text="I verified this offline payment against district records." TextWrapping="Wrap" /></CheckBox>
+    <Button Classes="primary" Content="Record payment" Command="{Binding SavePaymentCommand}" />
+   </StackPanel></Border>
+  </Grid>
+  <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsAnnouncements}" IsEnabled="{Binding !IsBusy}">
+   <Border Classes="card"><StackPanel Spacing="12">
+    <TextBlock Text="Published notices and drafts" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <ListBox ItemsSource="{Binding Announcements}" SelectedItem="{Binding SelectedAnnouncement}" MaxHeight="650" MinHeight="200">
+     <ListBox.ItemTemplate><DataTemplate x:DataType="app:OfficeAnnouncement"><StackPanel Spacing="7" Margin="0,10">
+      <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="Published" IsVisible="{Binding Published}" Foreground="#086B83" />
+      <TextBlock Text="Draft" IsVisible="{Binding !Published}" Classes="muted" /><TextBlock Text="Service interruption" IsVisible="{Binding IsInterruption}" />
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" /><TextBlock Text="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Classes="muted" />
+     </StackPanel></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+   </StackPanel></Border>
+   <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
+    <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Announcement editor" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" /><Button Grid.Column="1" Content="New" Command="{Binding NewAnnouncementCommand}" /></Grid>
+    <TextBlock Text="Title" /><TextBox Text="{Binding NoticeTitle}" MaxLength="150" />
+    <TextBlock Text="Message" /><TextBox Text="{Binding NoticeMessage}" MaxLength="5000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" />
+    <CheckBox Content="Service interruption" IsChecked="{Binding Interruption}" /><CheckBox Content="Publish for consumers" IsChecked="{Binding Published}" />
+    <Button Classes="primary" Content="Save announcement" Command="{Binding SaveAnnouncementCommand}" />
+   </StackPanel></Border>
+  </Grid>
+ </StackPanel>
+</UserControl>

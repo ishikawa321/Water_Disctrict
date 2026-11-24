@@ -45,6 +45,7 @@ public partial class App : Avalonia.Application
                 });
                 registrations.AddSingleton<IDesktopSessionClient>(provider=>provider.GetRequiredService<DesktopSessionClient>());
                 registrations.AddSingleton<IWorkflowClient>(provider=>provider.GetRequiredService<DesktopSessionClient>());
+                registrations.AddSingleton<IOfficeClient>(provider=>provider.GetRequiredService<DesktopSessionClient>());
                 registrations.AddSingleton<MainViewModel>();
                 services = registrations.BuildServiceProvider();
                 desktop.MainWindow = new MainWindow { DataContext = services.GetRequiredService<MainViewModel>() };

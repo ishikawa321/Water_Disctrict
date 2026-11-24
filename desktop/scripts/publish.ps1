@@ -18,7 +18,7 @@ Copy-Item -LiteralPath (Join-Path $desktopRoot 'scripts/launch.ps1') -Destinatio
 Copy-Item -LiteralPath (Join-Path $desktopRoot 'README.md') -Destination (Join-Path $releaseRoot 'SETUP.md')
 Copy-Item -LiteralPath (Join-Path $desktopRoot '../docs/release-and-demonstration.md') -Destination (Join-Path $releaseRoot 'RELEASE.md')
 New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'Docs') | Out-Null
-foreach ($document in @('acceptance-verification.md','database-contract.md','office-account-setup.md','release-and-demonstration.md')) {
+foreach ($document in @('admin-staff-mobile-comparison.md','acceptance-verification.md','database-contract.md','office-account-setup.md','release-and-demonstration.md')) {
     Copy-Item -LiteralPath (Join-Path $desktopRoot "../docs/$document") -Destination (Join-Path $releaseRoot "Docs/$document")
 }
 $manifest = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | ForEach-Object {
