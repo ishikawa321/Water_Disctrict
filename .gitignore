@@ -46,3 +46,21 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# .NET desktop and backend
+.vs/
+**/bin/
+**/obj/
+**/TestResults/
+**/artifacts/
+*.user
+*.suo
+**/appsettings.Local.json
+.env
+.env.*
+!.env.example
+
+# Original assessment materials stay local; implementation docs live in docs/.
+/ITSD81 Final Project Handout.pdf
+/ITSD81 Final Project Testing Guide.pdf
+/Malnegro&Tanamal_Midterm_Presentation (2).pptx

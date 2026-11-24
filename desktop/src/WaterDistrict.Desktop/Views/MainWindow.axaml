@@ -1,0 +1,104 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WaterDistrict.Desktop.ViewModels"
+        xmlns:app="using:WaterDistrict.Application"
+        x:Class="WaterDistrict.Desktop.Views.MainWindow" x:DataType="vm:MainViewModel"
+        Title="Water District Administration" Width="1120" Height="760" MinWidth="850" MinHeight="650"
+        WindowStartupLocation="CenterScreen" Background="#F1F5F8">
+    <Grid>
+        <Grid ColumnDefinitions="0.85*,1.15*" IsVisible="{Binding IsSignedOut}">
+            <Border Background="#0C3449" Padding="42">
+                <StackPanel Spacing="24" VerticalAlignment="Center">
+                    <Image Source="/Assets/water-district-logo.png" Width="128" Height="128" HorizontalAlignment="Left" />
+                    <TextBlock Text="WATER DISTRICT" Foreground="#7BD5DF" FontSize="14" LetterSpacing="3" />
+                    <TextBlock Text="Office administration" Foreground="White" FontSize="38" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="A shared workspace for service concerns, repair coordination, and accountable updates."
+                               Foreground="#B9D5DF" FontSize="17" TextWrapping="Wrap" LineHeight="27" />
+                    <Border BorderBrush="#416373" BorderThickness="0,1,0,0" Padding="0,22,0,0">
+                        <TextBlock Text="Authorized Admin and Staff access" Foreground="#B9D5DF" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="card" Margin="42" MaxWidth="430" VerticalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Welcome back" FontSize="29" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" Text="Sign in with your office account." TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <TextBlock Text="Email address" FontWeight="Medium" />
+                    <TextBox Text="{Binding Email}" PlaceholderText="you@example.com" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Email address" />
+                    <TextBlock Text="Password" FontWeight="Medium" />
+                    <TextBox Text="{Binding Password}" PasswordChar="?" PlaceholderText="Enter your password" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Password" />
+                    <Button Classes="primary" Content="Sign in" Command="{Binding SignInCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0" IsDefault="True" />
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
+                    <Border Background="#EDF5F8" CornerRadius="8" Padding="12" IsVisible="{Binding HasMessage}">
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </Border>
+                    <TextBlock Classes="muted" Text="Need access? Contact the district administrator." TextWrapping="Wrap" FontSize="12" />
+                </StackPanel>
+            </Border>
+        </Grid>
+        <Grid ColumnDefinitions="240,*" IsVisible="{Binding IsSignedIn}">
+            <Border Background="#0C3449" Padding="22">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Spacing="14">
+                        <Image Source="/Assets/water-district-logo.png" Width="66" Height="66" HorizontalAlignment="Left" />
+                        <TextBlock Text="Water District" Foreground="White" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Administration" Foreground="#B9D5DF" Margin="0,0,0,24" />
+                        <Button Classes="nav" Content="Overview" Command="{Binding OverviewCommand}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Staff directory" Command="{Binding LoadStaffCommand}" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Spacing="12">
+                        <TextBlock Text="{Binding DisplayName}" Foreground="White" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding RoleLabel}" Foreground="#7BD5DF" />
+                        <Button Classes="nav" Content="Refresh access" Command="{Binding RefreshAccessCommand}" HorizontalAlignment="Stretch" />
+                        <Button Classes="nav" Content="Sign out" Command="{Binding SignOutCommand}" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <Panel />
+                </DockPanel>
+            </Border>
+            <ScrollViewer Grid.Column="1">
+                <StackPanel Margin="34" Spacing="22">
+                    <TextBlock Text="Your workspace" FontSize="30" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" Text="Shared information. Clear responsibility. Recorded progress." TextWrapping="Wrap" />
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
+                    <Border Background="#DFEEF3" CornerRadius="8" Padding="14" IsVisible="{Binding HasMessage}">
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </Border>
+                    <StackPanel Spacing="18" IsVisible="{Binding !ShowDirectory}">
+                        <Border Classes="card">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Signed in securely" FontSize="21" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding DisplayName}" FontSize="17" />
+                                <TextBlock Text="{Binding RoleLabel}" Foreground="#086B83" FontWeight="Medium" />
+                                <TextBlock Classes="muted" Text="Your account permissions are checked by the office service." TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="card">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Service concerns and repair work" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Classes="muted" Text="Concern review, assignments, and repair updates will be available here as these features are released." TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <Border Classes="card" IsVisible="{Binding ShowDirectory}">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="Active office personnel" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Classes="muted" Text="Accounts visible under your administrator permissions." TextWrapping="Wrap" />
+                            <ItemsControl ItemsSource="{Binding Staff}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:StaffMember">
+                                        <Border BorderBrush="#E1E9EE" BorderThickness="0,0,0,1" Padding="0,14">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Medium" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Role}" Foreground="#086B83" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

@@ -67,3 +67,7 @@ authentication failure recovery, password recovery, retained dashboard records,
 bill disclosure, a 320-pixel keyboard layout, and reduced motion. Tests use mock
 records. UI preview images are written to `build/ui-review/` by `test/ui_test.dart`.
 
+
+## Admin and Staff desktop
+
+The Avalonia/.NET solution is in [`desktop/WaterDistrict.sln`](desktop/WaterDistrict.sln). See the [desktop setup guide](desktop/README.md), [implementation sessions](docs/implementation-plan.md), and [shared database contract](docs/database-contract.md).
