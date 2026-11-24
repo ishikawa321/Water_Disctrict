@@ -59,3 +59,7 @@ Updates record personnel actions and do not automatically monitor physical repai
 - README for configuration, migrations, tests, launch, dependencies and limitations.
 
 Instructor approval, actual office-user provisioning and live consumer-to-desktop verification require the shared environment and authorized identities. These cannot be certified by local tests alone.
+
+## Current local deployment
+
+The approved workflow/Staff migrations are now installed in Supabase. Local release desktop/artifacts/release/20261125-022034 passed native startup, live database readiness (HTTP 200) and anonymous-access rejection checks. launch-local.ps1 uses the ignored source API configuration by file path without embedding its credentials. A complete real-user Admin/Staff demonstration still requires the intended application accounts. See live-database-integration.md for the private backup location and preservation checks.

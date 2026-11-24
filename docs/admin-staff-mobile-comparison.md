@@ -4,7 +4,7 @@ Reference: ishikawa321/Water_Disctrict main at f4848dc (partial UI design update
 
 ## Role finding
 
-The mobile login accepts only admin and client. Its dashboard checks only whether role equals admin; it does not define Staff access or a Staff workflow. Consequently there is no mobile Staff permission matrix to copy. Existing desktop Staff access remains limited to concern review and their own assigned repair updates. New accounts/billing/payment/announcement management and overview counts are Admin-only. Permission-policy confirmation remains pending the user's response; no broader Staff access was inferred.
+The mobile login accepts only admin and client. Its dashboard checks only whether role equals admin; it does not define Staff access or a Staff workflow. Consequently there is no mobile Staff permission matrix to copy. Existing desktop Staff access remains limited to concern review and their own assigned repair updates. New accounts/billing/payment/announcement management and overview counts are Admin-only. The user approved the desktop rules (option 1); existing Staff limits were retained and no broader Staff access was inferred.
 
 ## Feature comparison and adaptation
 
@@ -21,7 +21,7 @@ The mobile login accepts only admin and client. Its dashboard checks only whethe
 
 The office additions call the same Supabase Data API tables with the validated user's bearer token and the public key. Existing RLS remains authoritative. Repair workflows continue through EF Core and their atomic history/concern updates. No secret/service-role key was introduced and no live schema migration was applied.
 
-## Workflow differences requiring a policy decision
+## Accepted shared workflow differences
 
 The mobile draft permits selecting any listed concern/ticket status in its forms and stores assignment as text. Desktop requires review before ticket creation, an active Staff identity for assignment, allowed sequential repair transitions, one ticket per concern, and append-only history. It closes answered non-repair concerns with Closed rather than directly setting Resolved. These integrity rules were retained rather than silently weakened. Exact status/assignment parity remains a policy decision and requires review against the real database constraints.
 
@@ -31,8 +31,10 @@ The desktop payment screen lists bill/account references and supports filtering 
 
 The adaptation builds without warnings. Tests cover actual actor stamping, caller-token forwarding, payment/date/amount validation, decimal totals, announcement prefixes and publish state, exact counts, duplicate/denied/empty saves, malformed responses, Staff denial, four rendered Admin screens and retained drafts. The final solution build passed with zero warnings and errors. All 77 tests passed with zero failures and zero skipped tests, including local PostgreSQL integration, office Data API contract tests, Admin/Staff permission checks, retained drafts, selected-bill filtering and four rendered Admin screens.
 
-The saved live PostgreSQL connection now succeeds with VerifyFull and the project CA certificate. Credentials and the public schema have been verified read-only. See live-database-integration.md for the confirmed constraints, column grants, Staff-role gap and tested migration package. Live migration is pending the shared ticket-workflow decision. New Admin Data API modules can be tested with an existing verified Admin login independently of that direct PostgreSQL certificate setup, subject to the current RLS policies.
+The saved live PostgreSQL connection now succeeds with VerifyFull and the project CA certificate. Credentials and the public schema have been verified read-only. See live-database-integration.md for the confirmed constraints, column grants, Staff-role gap and tested migration package. The user chose the shared desktop ticket rules; both migrations are applied. Existing consumer policies and original table counts were preserved. New Admin Data API modules can be tested with an existing verified Admin login independently of that direct PostgreSQL certificate setup, subject to the current RLS policies.
 
 Instructor scope documentation still identifies billing/payment/notice functionality as supporting additions; formal scope approval and the live role/schema review remain pending.
 
 Published adaptation release: desktop/artifacts/release/20261125-015301. Native process checks passed outside Visual Studio: desktop window opened; /health and configured local /health/ready returned 200; anonymous requests to all five new office routes returned 401. This was a local PostgreSQL check and does not establish live Supabase certificate/authentication or data verification.
+
+Deployment follow-up: option 1 was explicitly approved and the shared desktop rules are now installed in Supabase. See live-database-integration.md for the backup, applied migration IDs and preservation checks. The mobile Admin draft must follow the same review/assignment/transition rules; consumer submissions and reading retain their policies.

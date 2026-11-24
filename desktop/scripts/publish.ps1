@@ -15,10 +15,15 @@ dotnet publish (Join-Path $desktopRoot 'tools/WaterDistrict.Database/WaterDistri
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed: database tool' }
 if (Get-ChildItem -LiteralPath $releaseRoot -Recurse -Filter appsettings.Local.json) { throw 'Local configuration unexpectedly included. Do not distribute this output.' }
 Copy-Item -LiteralPath (Join-Path $desktopRoot 'scripts/launch.ps1') -Destination (Join-Path $releaseRoot 'launch.ps1')
+$localApiSettings = Join-Path $desktopRoot 'src/WaterDistrict.Api/appsettings.Local.json'
+if (Test-Path -LiteralPath $localApiSettings) {
+    $localLauncher = '& (Join-Path $PSScriptRoot ''launch.ps1'') -ApiConfigurationPath ''' + $localApiSettings.Replace("'", "''") + ''''
+    Set-Content -LiteralPath (Join-Path $releaseRoot 'launch-local.ps1') -Value $localLauncher -Encoding UTF8
+}
 Copy-Item -LiteralPath (Join-Path $desktopRoot 'README.md') -Destination (Join-Path $releaseRoot 'SETUP.md')
 Copy-Item -LiteralPath (Join-Path $desktopRoot '../docs/release-and-demonstration.md') -Destination (Join-Path $releaseRoot 'RELEASE.md')
 New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'Docs') | Out-Null
-foreach ($document in @('admin-staff-mobile-comparison.md','acceptance-verification.md','database-contract.md','office-account-setup.md','release-and-demonstration.md')) {
+foreach ($document in @('live-database-integration.md','admin-staff-mobile-comparison.md','acceptance-verification.md','database-contract.md','office-account-setup.md','release-and-demonstration.md')) {
     Copy-Item -LiteralPath (Join-Path $desktopRoot "../docs/$document") -Destination (Join-Path $releaseRoot "Docs/$document")
 }
 $manifest = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | ForEach-Object {

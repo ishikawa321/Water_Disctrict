@@ -1,6 +1,6 @@
 # Run in a published release folder. The API exits when this desktop session closes.
 [CmdletBinding()]
-param()
+param([string]$ApiConfigurationPath)
 $ErrorActionPreference = 'Stop'
 $apiDirectory = Join-Path $PSScriptRoot 'Api'
 $desktopDirectory = Join-Path $PSScriptRoot 'Desktop'
@@ -9,7 +9,20 @@ $desktopExecutable = Join-Path $desktopDirectory 'WaterDistrict.Desktop.exe'
 if (-not (Test-Path -LiteralPath $apiExecutable) -or -not (Test-Path -LiteralPath $desktopExecutable)) {
     throw 'Run this launcher from the published release directory.'
 }
-$officeApiProcess = Start-Process -FilePath $apiExecutable -ArgumentList @('--urls', 'http://127.0.0.1:5181') -WorkingDirectory $apiDirectory -WindowStyle Hidden -PassThru
+$previousConnection = [Environment]::GetEnvironmentVariable('ConnectionStrings__WaterDistrict', 'Process')
+try {
+    if ($ApiConfigurationPath) {
+        $configuration = Get-Content -LiteralPath $ApiConfigurationPath -Raw | ConvertFrom-Json
+        $localConnection = $configuration.ConnectionStrings.WaterDistrict
+        if (-not $localConnection) { throw 'The selected configuration has no WaterDistrict database connection.' }
+        [Environment]::SetEnvironmentVariable('ConnectionStrings__WaterDistrict', $localConnection, 'Process')
+    }
+    $officeApiProcess = Start-Process -FilePath $apiExecutable -ArgumentList @('--urls', 'http://127.0.0.1:5181') -WorkingDirectory $apiDirectory -WindowStyle Hidden -PassThru
+} finally {
+    [Environment]::SetEnvironmentVariable('ConnectionStrings__WaterDistrict', $previousConnection, 'Process')
+    $localConnection = $null
+    $configuration = $null
+}
 try {
     $ready = $false
     for ($attempt = 0; $attempt -lt 30; $attempt++) {

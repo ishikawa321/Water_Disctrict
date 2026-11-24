@@ -10,18 +10,26 @@ if (string.IsNullOrWhiteSpace(connectionString))
     return 2;
 }
 var mode=args.Length==0?"--inspect":args[0];
-if(mode is not ("--inspect" or "--migrate" or "--bootstrap-development" or "--export-schema"))
+if(mode is not ("--inspect" or "--migrate" or "--bootstrap-development" or "--export-schema" or "--backup-public" or "--status"))
 {
-    Console.Error.WriteLine("Use --inspect (default), --export-schema, --migrate, or --bootstrap-development.");return 2;
+    Console.Error.WriteLine("Use --inspect (default), --status, --export-schema, --backup-public FILE, --migrate, or --bootstrap-development.");return 2;
 }
 try
 {
-    if(mode=="--export-schema")
+    if(mode is "--export-schema" or "--backup-public")
     {
         var settings=new NpgsqlConnectionStringBuilder(connectionString);
         var start=new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("PG_DUMP_PATH")??"pg_dump")
         { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
-        foreach(var argument in new[]{"--schema-only","--schema=public","--no-owner","--lock-wait-timeout=10s"})start.ArgumentList.Add(argument);
+        foreach(var argument in new[]{"--schema=public","--no-owner","--lock-wait-timeout=10s"})start.ArgumentList.Add(argument);
+        if(mode=="--backup-public")
+        {
+            if(args.Length!=2)throw new InvalidOperationException("Specify a new local backup file path.");
+            var backupPath=Path.GetFullPath(args[1]);
+            if(File.Exists(backupPath))throw new InvalidOperationException("Backup output already exists; choose a new filename.");
+            start.ArgumentList.Add("--format=custom");start.ArgumentList.Add("--file="+backupPath);
+        }
+        else start.ArgumentList.Add("--schema-only");
         start.Environment["PGHOST"]=settings.Host;start.Environment["PGPORT"]=settings.Port.ToString();
         start.Environment["PGDATABASE"]=settings.Database;start.Environment["PGUSER"]=settings.Username;
         start.Environment["PGPASSWORD"]=settings.Password;start.Environment["PGCONNECT_TIMEOUT"]="10";
@@ -30,8 +38,10 @@ try
         using var process=System.Diagnostics.Process.Start(start)??throw new InvalidOperationException("Could not start pg_dump.");
         var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();await error;
-        if(process.ExitCode!=0){Console.Error.WriteLine("Schema-only export failed. Verify pg_dump version, SSL configuration and database permissions.");return 1;}
-        Console.Write(await output);return 0;
+        if(process.ExitCode!=0){Console.Error.WriteLine("Database export failed. Verify pg_dump version, SSL configuration and database permissions.");return 1;}
+        if(mode=="--backup-public")Console.WriteLine("Public schema and record backup completed. Keep this private archive out of source control.");
+        else Console.Write(await output);
+        return 0;
     }
     if(mode=="--bootstrap-development")
     {
@@ -73,6 +83,27 @@ try
     await using var inspectionConnection=new NpgsqlConnection(connectionString);await inspectionConnection.OpenAsync();
     await using var readTransaction=await inspectionConnection.BeginTransactionAsync(IsolationLevel.RepeatableRead);
     await using(var readOnly=new NpgsqlCommand("SET TRANSACTION READ ONLY",inspectionConnection,readTransaction)) await readOnly.ExecuteNonQueryAsync();
+    if(mode=="--status")
+    {
+        var counts=new Dictionary<string,long>();
+        foreach(var table in new[]{"profiles","service_accounts","account_access","bills","offline_payments","service_concerns","repair_tickets","announcements"})
+        {
+            await using var count=new NpgsqlCommand("SELECT count(*) FROM public."+table,inspectionConnection,readTransaction);
+            counts[table]=(long)(await count.ExecuteScalarAsync())!;
+        }
+        var migrations=new List<string>();
+        await using(var exists=new NpgsqlCommand("SELECT to_regclass('public.\"__EFMigrationsHistory\"') IS NOT NULL",inspectionConnection,readTransaction))
+        {
+            if(await exists.ExecuteScalarAsync() is true)
+            {
+                await using var query=new NpgsqlCommand("SELECT \"MigrationId\" FROM public.\"__EFMigrationsHistory\" ORDER BY \"MigrationId\"",inspectionConnection,readTransaction);
+                await using var reader=await query.ExecuteReaderAsync();
+                while(await reader.ReadAsync())migrations.Add(reader.GetString(0));
+            }
+        }
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new{Counts=counts,Migrations=migrations}));
+        await readTransaction.RollbackAsync();return 0;
+    }
     var sql=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"inspect.sql"));
     await using var command=new NpgsqlCommand(sql,inspectionConnection,readTransaction){CommandTimeout=30};
     Console.WriteLine(await command.ExecuteScalarAsync());await readTransaction.RollbackAsync();return 0;

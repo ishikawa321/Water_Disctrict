@@ -1,6 +1,12 @@
 # Shared database contract
 
-## Inspection status
+## Current deployment status
+
+On 2026-11-25, the secure live connection and database credentials were verified with the project CA certificate. The public schema was inspected and exported without row data. The user approved the desktop workflow rules; a private public-schema/data backup was validated, and RepairWorkflow plus StaffDirectoryAccess were applied successfully. Original record counts and consumer policies were preserved. See live-database-integration.md for exact migration IDs, evidence and remaining account-provisioning checks.
+
+The historical inspection notes below describe the earlier anonymous API check; full catalog/column-grant verification has now superseded those uncertainties.
+
+## Original inspection status
 
 Read-only requests on 2026-11-24 reached the configured Supabase project. Its public JWKS contains an ES256 key. Requests using the supplied publishable key without a signed-in user returned HTTP 401 / PostgreSQL code 42501 for the eight tables below. The OpenAPI root requires a secret key. No operational rows were retrieved and no database writes were performed.
 

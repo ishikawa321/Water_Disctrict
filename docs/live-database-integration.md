@@ -2,9 +2,9 @@
 
 ## Connection and inspection result
 
-On 2026-11-25, the configured Supabase session pooler accepted the saved database credentials with VerifyFull and the downloaded project CA certificate. Read-only inspection and a schema-only public export succeeded. No production row data was imported into tests, and no migration or operational write has been applied to the live database.
+On 2026-11-25, the configured Supabase session pooler accepted the saved database credentials with VerifyFull and the downloaded project CA certificate. Read-only inspection and a schema-only public export succeeded. No production row data was imported into tests. Following approval of option 1, the tested migrations were applied to the live database after a verified private backup.
 
-The server runs PostgreSQL 17.11. Its public schema has eight tables, 68 columns, 51 constraints, 24 RLS policies, 17 indexes and no public row triggers. All eight tables have RLS enabled. Subject and announcement titles are limited to 150 characters. The latter includes the stored service-interruption marker.
+The server runs PostgreSQL 17.11. Before migration, its public schema had eight tables, 68 columns, 51 constraints, 24 RLS policies, 17 indexes and no public row triggers. All eight tables have RLS enabled. Subject and announcement titles are limited to 150 characters. The latter includes the stored service-interruption marker.
 
 The initial metadata report inspected table-level privileges only. The schema export confirmed additional column-level INSERT/UPDATE grants on announcements, repair tickets and service concerns. These are deliberate restrictions and must not be replaced with blanket write grants. The inspector now includes column privileges.
 
@@ -38,7 +38,7 @@ The latest main mobile draft has Admin ticket forms that write directly to Supab
 3. Progress through Assigned, In progress and Resolved, with no reopening of completed tickets.
 4. Use the linked repair ticket to update its concern outcome.
 
-Consumer submission and reading remain supported, and the local rehearsal verified their ownership boundary. Choose whether to adopt these shared desktop rules and direct office edits to desktop, or preserve the mobile Admin forms' flexible status behavior and adapt the migration first. Live migration is pending that workflow choice.
+Consumer submission and reading remain supported, and the local rehearsal verified their ownership boundary. Choose whether to adopt these shared desktop rules and direct office edits to desktop, or preserve the mobile Admin forms' flexible status behavior and adapt the migration first. The user selected the shared desktop rules (option 1), and both prepared migrations have now been applied.
 
 ## Verification against the real schema shape
 
@@ -46,6 +46,26 @@ Consumer submission and reading remain supported, and the local rehearsal verifi
 
 The full solution builds with zero warnings and errors. All 83 tests passed, including actual-schema repair processing, Admin-directory visibility, Staff/consumer profile isolation, announcement column grants and immutable creator protection, consumer submission/account isolation, subject-length rejection and interruption-title validation. Existing rollback/concurrency and draft-retention tests also passed. The final readiness policy-marker adjustment was included in that passing suite.
 
-## Apply after the workflow decision
+## Live application result
 
-Use the saved local PostgreSQL configuration to create a backup, then run the database tool with --migrate explicitly. Normal application startup never migrates or resets data. Inspect the resulting schema and /health/ready afterward. Actual Staff login additionally requires an authorized operator to link an existing verified Auth user to an active staff profile; this migration does not pick a user automatically.
+The user approved option 1 on 2026-11-25. A private custom-format backup of the public schema and its records was created and validated by reading the archive without restoring it. Baseline metadata and counts were saved. Both migrations completed successfully, and post-application inspection confirmed:
+
+- 20261124154721_RepairWorkflow and 20261124180709_StaffDirectoryAccess are recorded as applied.
+- Existing record counts for all eight original tables are unchanged.
+- Ticket history exists, the Staff role is permitted, and the Admin office-directory policy exists.
+- Every original consumer policy is preserved.
+- No user was created or promoted and no production test records were added.
+
+Private backup and deployment evidence: desktop/artifacts/database-review/deployment-20261125-021820. The archive contains operational data and is intentionally ignored by Git. Keep it private. It is a public-schema/data backup, not a complete export of Supabase Auth or platform infrastructure.
+
+Normal application startup still never migrates or resets data. The database tool's --status mode reads counts and migration IDs in a read-only transaction. --backup-public FILE creates a private archive using pg_dump selected by PG_DUMP_PATH; credentials are passed through the child process environment, not command-line arguments. --export-schema remains schema-only.
+
+Actual Staff login requires a dedicated verified Auth user with an active staff profile. Choose the intended office account explicitly; this deployment does not change a consumer account into Staff automatically. Admin can use the desktop Staff directory after those profiles are provisioned.
+
+## Published runtime check
+
+The fresh self-contained Windows x64 release is desktop/artifacts/release/20261125-022034. Its API was started outside Visual Studio against the live Supabase connection: /health and /health/ready returned 200, while session, workflow and office routes returned 401 without authentication. The published desktop window opened successfully. No production test workflow records were created.
+
+Run launch-local.ps1 in this local release folder to use the existing ignored source API settings. This helper stores only the configuration file path; it contains no password and does not copy the configuration into the package. The launcher temporarily passes the database connection to its API child through the environment and restores the parent environment before opening Desktop. Use launch.ps1 with separate backend configuration when moving the release to another computer.
+
+Remaining verification is sign-in with actual application Admin/Staff credentials and a real authorized workflow demonstration. A Supabase Dashboard/GitHub login or the database password is not an application user login.

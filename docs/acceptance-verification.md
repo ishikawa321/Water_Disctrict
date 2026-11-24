@@ -55,3 +55,9 @@ The updated Windows x64 release at desktop/artifacts/release/20261125-015301 was
 ## Verified live schema follow-up
 
 Database authentication and VerifyFull certificate validation now succeed. The live public schema was inspected/exported read-only and used as a local DDL/grants fixture with generated test identities. No operational production data was copied into tests. See live-database-integration.md for Staff/profile gaps, title/subject corrections, the 83-test verification and the migration impact on direct mobile Admin edits. Live migration remains pending the shared-workflow decision.
+
+## Approved live deployment
+
+The user selected desktop workflow rules (option 1). A private public-schema/data backup was created and its contents verified before applying RepairWorkflow and StaffDirectoryAccess to Supabase. Both migrations succeeded. Read-only post-deployment checks confirmed that all original table counts and all original consumer policies are preserved, while Staff support, the Admin directory policy and ticket history are present. No production test identities or operational records were created. Actual office-user sign-in remains a separate check with real credentials.
+
+Post-deployment runtime verification: the new self-contained release's API returned HTTP 200 from /health/ready against live Supabase; all protected route groups returned 401 anonymously, and the native desktop window opened. The local launcher reads private settings from the ignored source configuration rather than embedding passwords in the package. Real application-user sign-in and a live operational demonstration remain unverified.
