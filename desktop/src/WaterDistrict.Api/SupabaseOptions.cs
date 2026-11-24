@@ -9,7 +9,7 @@ public sealed class SupabaseOptions
     public void Validate()
     {
         if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) || uri.Scheme != "https" ||
-            uri.AbsolutePath != "/" || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.UserInfo) ||
+            uri.AbsolutePath != "/" || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment) || !string.IsNullOrEmpty(uri.UserInfo) ||
             string.IsNullOrWhiteSpace(PublishableKey))
             throw new InvalidOperationException("Configure a valid HTTPS Supabase URL and public publishable key on the API.");
     }

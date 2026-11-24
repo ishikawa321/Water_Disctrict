@@ -24,7 +24,7 @@ public sealed class AuthorizationTests
     {
         await using var app = new AuthFactory("admin");
         using var client = app.CreateClient();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
         Assert.Equal(0, app.Profiles.ReadCount);
     }
 
@@ -35,9 +35,9 @@ public sealed class AuthorizationTests
     {
         await using var app = new AuthFactory(role);
         using var client = app.AuthenticatedClient();
-        var response = await client.GetAsync("/api/session");
+        var response = await client.GetAsync("/api/session", TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
-        var session = await response.Content.ReadFromJsonAsync<SessionProfile>();
+        var session = await response.Content.ReadFromJsonAsync<SessionProfile>(TestContext.Current.CancellationToken);
         Assert.Equal(role, session!.Role);
         Assert.Equal(app.UserId, session.UserId);
         Assert.Equal(role == "admin", session.Permissions.Contains("staff.read"));
@@ -52,7 +52,7 @@ public sealed class AuthorizationTests
     {
         await using var app = new AuthFactory(role, active);
         using var client = app.AuthenticatedClient(claimedRole: "admin");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -61,9 +61,9 @@ public sealed class AuthorizationTests
         await using var app = new AuthFactory("admin");
         using var client = app.AuthenticatedClient();
         app.Profiles.Profile = null;
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
         app.Profiles.Profile = new() { UserId = Guid.NewGuid(), Active = true, Role = "admin" };
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class AuthorizationTests
     {
         await using var app = new AuthFactory("staff");
         using var client = app.AuthenticatedClient(claimedRole: "admin");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/staff")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/staff", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -79,11 +79,11 @@ public sealed class AuthorizationTests
     {
         await using var app = new AuthFactory("admin");
         using var client = app.AuthenticatedClient();
-        var directory = await client.GetFromJsonAsync<StaffMember[]>("/api/admin/staff");
+        var directory = await client.GetFromJsonAsync<StaffMember[]>("/api/admin/staff", TestContext.Current.CancellationToken);
         Assert.Single(directory!);
         Assert.Equal(app.UserId, directory![0].UserId);
         app.Profiles.Profile!.Active = false;
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Theory]
@@ -97,7 +97,7 @@ public sealed class AuthorizationTests
         await using var app = new AuthFactory("admin");
         using var client = app.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", app.Token(fault: fault));
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/session", TestContext.Current.CancellationToken)).StatusCode);
         Assert.Equal(0, app.Profiles.ReadCount);
     }
 
@@ -107,9 +107,9 @@ public sealed class AuthorizationTests
         await using var app = new AuthFactory("admin");
         app.Profiles.Fail = true;
         using var client = app.AuthenticatedClient();
-        var response = await client.GetAsync("/api/session");
+        var response = await client.GetAsync("/api/session", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Contains("unavailable", await response.Content.ReadAsStringAsync());
+        Assert.Contains("unavailable", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     private sealed class AuthFactory : WebApplicationFactory<Program>

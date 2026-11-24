@@ -11,14 +11,14 @@ public sealed class FoundationTests
     [Fact]
     public async Task Unconfigured_database_reports_unavailable_without_throwing()
     {
-        var status = await new DatabaseProbe(null).CheckAsync(CancellationToken.None);
+        var status = await new DatabaseProbe(null).CheckAsync(TestContext.Current.CancellationToken);
         Assert.Equal("unconfigured", status.Status);
     }
 
     [Fact]
     public async Task Invalid_connection_does_not_expose_connection_details()
     {
-        var status = await new DatabaseProbe("invalid-secret-connection").CheckAsync(CancellationToken.None);
+        var status = await new DatabaseProbe("invalid-secret-connection").CheckAsync(TestContext.Current.CancellationToken);
         Assert.Equal("unavailable", status.Status);
         Assert.DoesNotContain("secret", status.Message);
     }
@@ -30,7 +30,7 @@ public sealed class FoundationTests
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
                 new Dictionary<string, string?> { ["ConnectionStrings:WaterDistrict"] = "" })));
         using var client = factory.CreateClient();
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health", TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready", TestContext.Current.CancellationToken)).StatusCode);
     }
 }
