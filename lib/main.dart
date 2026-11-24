@@ -480,7 +480,7 @@ class _AccountPageState extends State<AccountPage>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          reset ? 'Reset password' : 'Welcome back',
+                          reset ? 'Reset password' : 'Sign in to your account',
                           style: const TextStyle(
                             fontSize: 27,
                             fontWeight: FontWeight.w700,
@@ -3666,19 +3666,7 @@ class _WaterArtworkState extends State<WaterArtwork>
     vsync: this,
     duration: const Duration(seconds: 7),
   );
-  late final AnimationController logo = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
   bool started = false;
-
-  @override
-  void initState() {
-    super.initState();
-    controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) logo.forward();
-    });
-  }
 
   @override
   void didChangeDependencies() {
@@ -3687,8 +3675,6 @@ class _WaterArtworkState extends State<WaterArtwork>
       water.stop();
       controller.stop();
       controller.value = 1;
-      logo.stop();
-      logo.value = 1;
       started = true;
     } else {
       if (!water.isAnimating) water.repeat();
@@ -3701,7 +3687,6 @@ class _WaterArtworkState extends State<WaterArtwork>
 
   @override
   void dispose() {
-    logo.dispose();
     water.dispose();
     controller.dispose();
     super.dispose();
@@ -3711,7 +3696,7 @@ class _WaterArtworkState extends State<WaterArtwork>
   Widget build(BuildContext context) => ExcludeSemantics(
     child: ClipRect(
       child: AnimatedBuilder(
-        animation: Listenable.merge([controller, water, logo]),
+        animation: Listenable.merge([controller, water]),
         child: Image.asset(
           'assets/images/maramag-water-district-logo.png',
           fit: BoxFit.contain,
@@ -3721,11 +3706,16 @@ class _WaterArtworkState extends State<WaterArtwork>
         builder: (_, child) => LayoutBuilder(
           builder: (_, constraints) {
             final diameter = math.min(
-              constraints.maxWidth * .42,
-              constraints.maxHeight * .44,
+              constraints.maxWidth * .50,
+              constraints.maxHeight * .54,
             );
-            final landingTop = constraints.maxHeight * .77 - diameter / 2;
-            final descent = Curves.easeOutCubic.transform(logo.value);
+            final landingTop = math.min(
+              constraints.maxHeight * .77 - diameter / 2,
+              constraints.maxHeight - diameter,
+            );
+            // Drop ends at 1s, pause for 1s, then descend for 1.6s.
+            final logoProgress = ((controller.value - .50) / .40).clamp(0.0, 1.0);
+            final descent = Curves.easeOutSine.transform(logoProgress);
             return Stack(
               children: [
                 Positioned.fill(
@@ -3736,7 +3726,7 @@ class _WaterArtworkState extends State<WaterArtwork>
                     ),
                   ),
                 ),
-                if (logo.value > 0)
+                if (logoProgress > 0)
                   Positioned(
                     key: const ValueKey('water-district-logo'),
                     left: (constraints.maxWidth - diameter) / 2,

@@ -14,24 +14,32 @@ Widget artwork({bool reducedMotion = false}) => MaterialApp(
 void main() {
   const logoKey = ValueKey('water-district-logo');
 
-  testWidgets('logo descends after water animation and stays at landing point', (
+  testWidgets('logo pauses one second after drop then descends slowly', (
     tester,
   ) async {
     await tester.pumpWidget(artwork());
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 3999));
+    await tester.pump(const Duration(milliseconds: 999));
     expect(find.byKey(logoKey), findsNothing);
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(find.byKey(logoKey), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1));
     await tester.pump(const Duration(milliseconds: 100));
     final earlyTop = tester.getTopLeft(find.byKey(logoKey)).dy;
-    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 700));
     expect(tester.getTopLeft(find.byKey(logoKey)).dy, greaterThan(earlyTop));
-    await tester.pump(const Duration(milliseconds: 450));
+    final halfway = tester.getRect(find.byKey(logoKey));
+    expect(
+      halfway.bottom,
+      lessThan(tester.getRect(find.byType(WaterArtwork)).bottom - 10),
+    );
+    await tester.pump(const Duration(milliseconds: 801));
     final landing = tester.getCenter(find.byKey(logoKey));
     final waterRect = tester.getRect(find.byType(WaterArtwork));
     expect(landing.dx, closeTo(waterRect.center.dx, .01));
-    expect(landing.dy, closeTo(waterRect.top + waterRect.height * .77, .01));
+    final logoRect = tester.getRect(find.byKey(logoKey));
+    expect(logoRect.height, greaterThan(100));
+    expect(logoRect.bottom, closeTo(waterRect.bottom, .01));
     await tester.pump(const Duration(seconds: 8));
     expect(tester.getCenter(find.byKey(logoKey)), landing);
     expect(tester.takeException(), isNull);
@@ -43,7 +51,9 @@ void main() {
     expect(find.byKey(logoKey), findsOneWidget);
     final landing = tester.getCenter(find.byKey(logoKey));
     final waterRect = tester.getRect(find.byType(WaterArtwork));
-    expect(landing.dy, closeTo(waterRect.top + waterRect.height * .77, .01));
+    final logoRect = tester.getRect(find.byKey(logoKey));
+    expect(landing.dx, closeTo(waterRect.center.dx, .01));
+    expect(logoRect.bottom, closeTo(waterRect.bottom, .01));
     expect(tester.hasRunningAnimations, isFalse);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
