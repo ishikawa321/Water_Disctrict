@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
 Duration motionDuration(BuildContext context, int milliseconds) =>
@@ -73,7 +74,7 @@ class StatusBadge extends StatelessWidget {
         : alert
         ? const Color(0xFFA02C24)
         : active
-        ? const Color(0xFF1A4FD6)
+        ? const Color(0xFF2563EB)
         : const Color(0xFF78520A);
     return AnimatedSwitcher(
       duration: motionDuration(context, 180),
@@ -90,12 +91,12 @@ class StatusBadge extends StatelessWidget {
           children: [
             Icon(
               done
-                  ? Icons.check_circle_outline
+                  ? CupertinoIcons.checkmark_circle
                   : alert
-                  ? Icons.info_outline
+                  ? CupertinoIcons.info_circle
                   : active
-                  ? Icons.autorenew
-                  : Icons.schedule,
+                  ? CupertinoIcons.arrow_2_circlepath
+                  : CupertinoIcons.clock,
               size: 16,
               color: color,
             ),
@@ -122,7 +123,7 @@ class EmptyState extends StatelessWidget {
     super.key,
     required this.title,
     required this.message,
-    this.icon = Icons.inbox_outlined,
+    this.icon = CupertinoIcons.tray,
     this.actionLabel,
     this.onAction,
   });
@@ -213,15 +214,15 @@ class _LoadingCardsState extends State<LoadingCards>
                   Container(
                     height: 22,
                     width: 150,
-                    color: const Color(0xFFE1E6EB),
+                    color: const Color(0xFFE5E7EB),
                   ),
                   const SizedBox(height: 18),
-                  Container(height: 14, color: const Color(0xFFE1E6EB)),
+                  Container(height: 14, color: const Color(0xFFE5E7EB)),
                   const SizedBox(height: 10),
                   Container(
                     height: 14,
                     width: 200,
-                    color: const Color(0xFFE1E6EB),
+                    color: const Color(0xFFE5E7EB),
                   ),
                 ],
               ),
@@ -254,8 +255,8 @@ class RepairProgress extends StatelessWidget {
             children: [
               Icon(
                 stage == status
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
+                    ? CupertinoIcons.largecircle_fill_circle
+                    : CupertinoIcons.circle,
                 size: 18,
                 color: stage == status
                     ? Theme.of(context).colorScheme.primary
@@ -266,7 +267,7 @@ class RepairProgress extends StatelessWidget {
                 stage,
                 style: TextStyle(
                   fontWeight: stage == status
-                      ? FontWeight.w700
+                      ? FontWeight.w600
                       : FontWeight.normal,
                 ),
               ),
@@ -290,7 +291,7 @@ class SuccessNotice extends StatelessWidget {
         curve: Curves.easeOutBack,
         builder: (_, scale, child) =>
             Transform.scale(scale: scale, child: child),
-        child: const Icon(Icons.check_circle, color: Colors.white),
+        child: const Icon(CupertinoIcons.checkmark_circle_fill, color: Colors.white),
       ),
       const SizedBox(width: 12),
       Expanded(child: Text(message)),
@@ -299,6 +300,62 @@ class SuccessNotice extends StatelessWidget {
 }
 
 const interruptionPrefix = '[Service interruption] ';
+
+/// Keeps the essential record information visible and supporting details nearby.
+class RecordCard extends StatelessWidget {
+  const RecordCard({
+    super.key,
+    required this.summary,
+    required this.details,
+    this.detailsLabel = 'Details',
+    this.action,
+  });
+
+  final Widget summary;
+  final List<Widget> details;
+  final String detailsLabel;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          summary,
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 16),
+            expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+            title: Text(
+              detailsLabel,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            children: details,
+          ),
+          if (action != null) ...[
+            action!,
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+String recordDate(Object? value) {
+  final date = DateTime.tryParse('$value')?.toLocal();
+  if (date == null) return 'Date unavailable';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
+}
+
 bool isInterruption(Object? title) =>
     title.toString().startsWith(interruptionPrefix);
 String noticeTitle(Object? title) => isInterruption(title)
