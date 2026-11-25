@@ -3,12 +3,13 @@ using WaterDistrict.Domain;
 
 namespace WaterDistrict.Infrastructure;
 
-public sealed class WaterDistrictDbContext(DbContextOptions<WaterDistrictDbContext> options) : DbContext(options)
+public sealed partial class WaterDistrictDbContext(DbContextOptions<WaterDistrictDbContext> options) : DbContext(options)
 {
     public DbSet<AppProfile> Profiles => Set<AppProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ConfigureWorkflows(modelBuilder);
         // Existing Supabase table. Confirm catalog types before extending this mapping.
         // EF must never create/drop the shared identity table from this provisional model.
         modelBuilder.Entity<AppProfile>(entity =>

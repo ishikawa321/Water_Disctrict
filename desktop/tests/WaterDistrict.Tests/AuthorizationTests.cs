@@ -72,6 +72,8 @@ public sealed class AuthorizationTests
         await using var app = new AuthFactory("staff");
         using var client = app.AuthenticatedClient(claimedRole: "admin");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/staff", TestContext.Current.CancellationToken)).StatusCode);
+        foreach(var path in new[]{"accounts","bills","payments","announcements","summary"})
+            Assert.Equal(HttpStatusCode.Forbidden,(await client.GetAsync("/api/office/"+path,TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]

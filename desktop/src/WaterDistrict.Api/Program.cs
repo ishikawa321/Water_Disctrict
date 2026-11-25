@@ -21,6 +21,12 @@ builder.Services.AddHttpClient<IProfileReader, SupabaseProfileReader>(client =>
     client.DefaultRequestHeaders.Add("apikey", supabase.PublishableKey);
     client.Timeout = TimeSpan.FromSeconds(15);
 });
+builder.Services.AddHttpClient<IOfficeService,SupabaseOfficeService>(client =>
+{
+    client.BaseAddress=new Uri(supabase.Url.TrimEnd('/')+"/rest/v1/");
+    client.DefaultRequestHeaders.Add("apikey",supabase.PublishableKey);
+    client.Timeout=TimeSpan.FromSeconds(20);
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.MapInboundClaims = false;
@@ -48,6 +54,9 @@ var connection = builder.Configuration.GetConnectionString("WaterDistrict");
 builder.Services.AddSingleton(new DatabaseProbe(connection));
 if (!string.IsNullOrWhiteSpace(connection))
     builder.Services.AddDbContext<WaterDistrictDbContext>(options => options.UseNpgsql(connection));
+builder.Services.AddScoped<IWorkflowService>(services => string.IsNullOrWhiteSpace(connection)
+    ? throw new DependencyUnavailableException("Configure the backend PostgreSQL connection before processing concerns or tickets.")
+    : new WorkflowService(services.GetRequiredService<WaterDistrictDbContext>()));
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseAuthentication();
@@ -67,6 +76,8 @@ app.MapGet("/api/admin/staff", async (HttpContext http, IProfileReader profiles,
     return Results.Ok(staff.Where(profile => profile.Active && WaterDistrict.Domain.AppRoles.HasDesktopAccess(profile.Role))
         .Select(profile => new StaffMember(profile.UserId, profile.DisplayName, profile.Role)));
 }).RequireAuthorization("Admin");
+app.MapWorkflows();
+app.MapOffice();
 app.Run();
 
 public partial class Program;

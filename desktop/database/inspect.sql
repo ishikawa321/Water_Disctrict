@@ -22,6 +22,9 @@ SELECT jsonb_pretty(jsonb_build_object(
   'grants', (SELECT jsonb_agg(to_jsonb(g)) FROM (
     SELECT table_name, grantee, privilege_type FROM information_schema.table_privileges
     WHERE table_schema = 'public') g),
+  'column_grants', (SELECT jsonb_agg(to_jsonb(g)) FROM (
+    SELECT table_name, column_name, grantee, privilege_type FROM information_schema.column_privileges
+    WHERE table_schema = 'public') g),
   'triggers', (SELECT jsonb_agg(to_jsonb(t)) FROM (
     SELECT c.relname AS table_name, t.tgname AS name, pg_get_triggerdef(t.oid) AS definition
     FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
