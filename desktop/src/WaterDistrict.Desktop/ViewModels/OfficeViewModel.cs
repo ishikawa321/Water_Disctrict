@@ -22,8 +22,20 @@ public partial class OfficeViewModel:ViewModelBase
     public ObservableCollection<OfficeBill> Bills { get; }=[];
     public ObservableCollection<OfficePayment> Payments { get; }=[];
     public ObservableCollection<OfficeAnnouncement> Announcements { get; }=[];
-    [ObservableProperty,NotifyPropertyChangedFor(nameof(IsAccounts)),NotifyPropertyChangedFor(nameof(IsBills)),NotifyPropertyChangedFor(nameof(IsPayments)),NotifyPropertyChangedFor(nameof(IsAnnouncements))]
+    [ObservableProperty,NotifyPropertyChangedFor(nameof(IsAccounts)),NotifyPropertyChangedFor(nameof(IsBills)),NotifyPropertyChangedFor(nameof(IsPayments)),NotifyPropertyChangedFor(nameof(IsAnnouncements)),NotifyPropertyChangedFor(nameof(PageTitle)),NotifyPropertyChangedFor(nameof(PageDescription))]
     private string page="Accounts";
+    public string PageTitle => Page switch
+    {
+        "Accounts" => "Service accounts", "Bills" => "Billing records",
+        "Payments" => "Verified payments", _ => "Announcements"
+    };
+    public string PageDescription => Page switch
+    {
+        "Accounts" => "Keep account details ready for every service interaction.",
+        "Bills" => "Manage district billing records and outstanding balances.",
+        "Payments" => "A clear record of verified offline payments.",
+        _ => "Keep consumers informed with district news and service notices."
+    };
     [ObservableProperty,NotifyCanExecuteChangedFor(nameof(RefreshCommand)),NotifyCanExecuteChangedFor(nameof(SaveAccountCommand)),NotifyCanExecuteChangedFor(nameof(SaveBillCommand)),NotifyCanExecuteChangedFor(nameof(SavePaymentCommand)),NotifyCanExecuteChangedFor(nameof(SaveAnnouncementCommand)),NotifyCanExecuteChangedFor(nameof(LoadSummaryCommand))]
     private bool isBusy;
     [ObservableProperty,NotifyPropertyChangedFor(nameof(HasMessage))] private string message="";

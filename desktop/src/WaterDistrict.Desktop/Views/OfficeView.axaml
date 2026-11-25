@@ -1,23 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application"
+ xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application" xmlns:views="using:WaterDistrict.Desktop.Views"
  x:Class="WaterDistrict.Desktop.Views.OfficeView" x:DataType="vm:OfficeViewModel">
  <StackPanel Spacing="18">
-  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Page}" FontSize="28" FontWeight="SemiBold" />
-   <Button Grid.Column="1" Content="Refresh records" Command="{Binding RefreshCommand}" /></Grid>
+  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16"><StackPanel Spacing="8"><TextBlock Classes="page-title" Text="{Binding PageTitle}" /><TextBlock Classes="muted" Text="{Binding PageDescription}" TextWrapping="Wrap" /></StackPanel>
+   <Button Grid.Column="1" VerticalAlignment="Top" Content="Refresh records" Command="{Binding RefreshCommand}" /></Grid>
   <ProgressBar IsIndeterminate="True" Height="3" IsVisible="{Binding IsBusy}" />
-  <Border Background="#DFEEF3" CornerRadius="8" Padding="14" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+  <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
   <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsAccounts}" IsEnabled="{Binding !IsBusy}">
    <Border Classes="card"><StackPanel Spacing="12">
-    <TextBlock Text="Service accounts" FontSize="21" FontWeight="SemiBold" />
+    <TextBlock Text="Service accounts" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
     <ItemsControl ItemsSource="{Binding Accounts}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficeAccount">
-     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+     <Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
       <TextBlock Text="{Binding AccountNumber}" FontWeight="SemiBold" /><TextBlock Text="{Binding HolderName}" /><TextBlock Text="{Binding ServiceAddress}" TextWrapping="Wrap" />
       <TextBlock Text="Inactive" IsVisible="{Binding !Active}" Classes="muted" />
      </StackPanel></Border>
     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
    </StackPanel></Border>
    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
-    <TextBlock Text="Add service account" FontSize="21" FontWeight="SemiBold" />
+    <TextBlock Text="Add service account" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
     <TextBlock Text="Account number" /><TextBox Text="{Binding AccountNumber}" MaxLength="80" />
     <TextBlock Text="Account holder" /><TextBox Text="{Binding HolderName}" MaxLength="200" />
     <TextBlock Text="Service address" /><TextBox Text="{Binding ServiceAddress}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="90" MaxLength="500" />
@@ -26,14 +26,14 @@
   </Grid>
   <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsBills}" IsEnabled="{Binding !IsBusy}">
    <Border Classes="card"><StackPanel Spacing="12">
-    <TextBlock Text="Billing records" FontSize="21" FontWeight="SemiBold" />
+    <TextBlock Text="Billing records" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
     <ItemsControl ItemsSource="{Binding Bills}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficeBill">
-     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+     <Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
       <TextBlock Text="{Binding BillNumber}" FontWeight="SemiBold" /><TextBlock Text="{Binding AccountNumber}" />
       <TextBlock Text="{Binding PeriodStart, StringFormat='Period start: {0:yyyy-MM-dd}'}" /><TextBlock Text="{Binding PeriodEnd, StringFormat='Period end: {0:yyyy-MM-dd}'}" />
       <TextBlock Text="{Binding DueDate, StringFormat='Due: {0:yyyy-MM-dd}'}" />
       <TextBlock Text="{Binding AmountDue, StringFormat='Original amount: PHP {0:N2}'}" /><TextBlock Text="{Binding Paid, StringFormat='Verified payments: PHP {0:N2}'}" />
-      <TextBlock Text="{Binding Remaining, StringFormat='Remaining: PHP {0:N2}'}" Foreground="#086B83" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Remaining, StringFormat='Remaining: PHP {0:N2}'}" Foreground="#2563EB" FontWeight="SemiBold" />
      </StackPanel></Border>
     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
    </StackPanel></Border>
@@ -53,11 +53,11 @@
   <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsPayments}" IsEnabled="{Binding !IsBusy}">
    <Border Classes="card"><StackPanel Spacing="12">
     <TextBlock Text="Verified offline payments" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
-    <CheckBox Content="Show payments for selected bill only" IsChecked="{Binding FilterPayments}" />
+    <CheckBox IsChecked="{Binding FilterPayments}"><TextBlock Text="Show payments for selected bill only" TextWrapping="Wrap" /></CheckBox>
     <ItemsControl ItemsSource="{Binding VisiblePayments}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficePayment">
-     <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
+     <Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,14"><StackPanel Spacing="6">
       <TextBlock Text="{Binding ReceiptReference}" FontWeight="SemiBold" /><TextBlock Text="{Binding BillNumber}" /><TextBlock Text="{Binding AccountNumber}" />
-      <TextBlock Text="{Binding PaymentDate, StringFormat='Payment date: {0:yyyy-MM-dd}'}" /><TextBlock Text="{Binding AmountPaid, StringFormat='PHP {0:N2}'}" Foreground="#086B83" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding PaymentDate, StringFormat='Payment date: {0:yyyy-MM-dd}'}" /><TextBlock Text="{Binding AmountPaid, StringFormat='PHP {0:N2}'}" Foreground="#2563EB" FontWeight="SemiBold" />
       <TextBlock Text="{Binding VerifiedAt, StringFormat='Verified: {0:yyyy-MM-dd HH:mm}'}" Classes="muted" />
      </StackPanel></Border>
     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
@@ -79,8 +79,8 @@
     <TextBlock Text="Published notices and drafts" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
     <ListBox ItemsSource="{Binding Announcements}" SelectedItem="{Binding SelectedAnnouncement}" MaxHeight="650" MinHeight="200">
      <ListBox.ItemTemplate><DataTemplate x:DataType="app:OfficeAnnouncement"><StackPanel Spacing="7" Margin="0,10">
-      <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="Published" IsVisible="{Binding Published}" Foreground="#086B83" />
-      <TextBlock Text="Draft" IsVisible="{Binding !Published}" Classes="muted" /><TextBlock Text="Service interruption" IsVisible="{Binding IsInterruption}" />
+      <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextWrapping="Wrap" /><views:StatusBadge Status="Published" IsVisible="{Binding Published}" />
+      <views:StatusBadge Status="Draft" IsVisible="{Binding !Published}" /><views:StatusBadge Status="Service interruption" IsVisible="{Binding IsInterruption}" />
       <TextBlock Text="{Binding Message}" TextWrapping="Wrap" /><TextBlock Text="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Classes="muted" />
      </StackPanel></DataTemplate></ListBox.ItemTemplate>
     </ListBox>

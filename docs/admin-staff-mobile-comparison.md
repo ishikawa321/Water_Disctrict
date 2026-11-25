@@ -21,6 +21,14 @@ The mobile login accepts only admin and client. Its dashboard checks only whethe
 
 The office additions call the same Supabase Data API tables with the validated user's bearer token and the public key. Existing RLS remains authoritative. Repair workflows continue through EF Core and their atomic history/concern updates. No secret/service-role key was introduced and no live schema migration was applied.
 
+## Desktop visual adaptation
+
+The desktop now follows the visual language in the same mobile reference (main at f4848dc): embedded DM Sans fonts, royal blue (#2563EB), ink (#111827), muted text (#6B7280), pale backgrounds (#F8F9FB), thin gray borders (#E5E7EB), and rounded white cards. The font license ships beside the bundled fonts. Sign-in, the dashboard, service accounts, billing, verified payments, announcements, concerns, repair tickets, and the staff directory share this styling.
+
+Mobile's compact navigation is adapted into a labeled desktop sidebar with vector line icons, a selected-page capsule, a breadcrumb, and an account footer. The sidebar navigation and page content scroll independently at the 1000 x 700 minimum window size. Desktop keeps the wider record/form and list/detail layouts needed for office work. Status badges use the mobile green, blue, amber, and red state colors while retaining readable status text.
+
+This adaptation changes presentation only. The shared database contracts, authentication, role restrictions, and repair workflow rules remain in place. Headless UI checks render both roles, sign-in, the four office modules, concern review, and ticket detail; they also check selected navigation and that Sign out remains reachable at minimum size. Rendered PNG previews are generated under desktop/tests/WaterDistrict.Tests/bin/Debug/net10.0/artifacts/ui by the UI tests.
+
 ## Accepted shared workflow differences
 
 The mobile draft permits selecting any listed concern/ticket status in its forms and stores assignment as text. Desktop requires review before ticket creation, an active Staff identity for assignment, allowed sequential repair transitions, one ticket per concern, and append-only history. It closes answered non-repair concerns with Closed rather than directly setting Resolved. These integrity rules were retained rather than silently weakened. Exact status/assignment parity remains a policy decision and requires review against the real database constraints.
@@ -29,7 +37,7 @@ The desktop payment screen lists bill/account references and supports filtering 
 
 ## Verification and live connection status
 
-The adaptation builds without warnings. Tests cover actual actor stamping, caller-token forwarding, payment/date/amount validation, decimal totals, announcement prefixes and publish state, exact counts, duplicate/denied/empty saves, malformed responses, Staff denial, four rendered Admin screens and retained drafts. The final solution build passed with zero warnings and errors. All 77 tests passed with zero failures and zero skipped tests, including local PostgreSQL integration, office Data API contract tests, Admin/Staff permission checks, retained drafts, selected-bill filtering and four rendered Admin screens.
+The adaptation builds without warnings. Tests cover actual actor stamping, caller-token forwarding, payment/date/amount validation, decimal totals, announcement prefixes and publish state, exact counts, duplicate/denied/empty saves, malformed responses, Staff denial, four rendered Admin screens and retained drafts. The final solution build passed with zero warnings and errors. All 83 tests passed with zero failures and zero skipped tests, including local PostgreSQL integration, office Data API contract tests, Admin/Staff permission checks, retained drafts, selected-bill filtering, selected-page navigation, minimum-size account controls, and rendered Admin/Staff screens.
 
 The saved live PostgreSQL connection now succeeds with VerifyFull and the project CA certificate. Credentials and the public schema have been verified read-only. See live-database-integration.md for the confirmed constraints, column grants, Staff-role gap and tested migration package. The user chose the shared desktop ticket rules; both migrations are applied. Existing consumer policies and original table counts were preserved. New Admin Data API modules can be tested with an existing verified Admin login independently of that direct PostgreSQL certificate setup, subject to the current RLS policies.
 

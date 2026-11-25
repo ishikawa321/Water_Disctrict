@@ -5,122 +5,132 @@
         xmlns:views="using:WaterDistrict.Desktop.Views"
         x:Class="WaterDistrict.Desktop.Views.MainWindow" x:DataType="vm:MainViewModel"
         Title="Water District Administration" Width="1280" Height="860" MinWidth="1000" MinHeight="700"
-        WindowStartupLocation="CenterScreen" Background="#F1F5F8">
+        WindowStartupLocation="CenterScreen" Background="#F8F9FB">
     <Grid>
-        <Grid ColumnDefinitions="0.85*,1.15*" IsVisible="{Binding IsSignedOut}">
-            <Border Background="#0C3449" Padding="42">
-                <StackPanel Spacing="24" VerticalAlignment="Center">
-                    <Image Source="/Assets/water-district-logo.png" Width="128" Height="128" HorizontalAlignment="Left" />
-                    <TextBlock Text="WATER DISTRICT" Foreground="#7BD5DF" FontSize="14" LetterSpacing="3" />
-                    <TextBlock Text="Office administration" Foreground="White" FontSize="38" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <TextBlock Text="A shared workspace for service concerns, repair coordination, and accountable updates."
-                               Foreground="#B9D5DF" FontSize="17" TextWrapping="Wrap" LineHeight="27" />
-                    <Border BorderBrush="#416373" BorderThickness="0,1,0,0" Padding="0,22,0,0">
-                        <TextBlock Text="Authorized Admin and Staff access" Foreground="#B9D5DF" TextWrapping="Wrap" />
-                    </Border>
-                </StackPanel>
-            </Border>
-            <Border Grid.Column="1" Classes="card" Margin="42" MaxWidth="430" VerticalAlignment="Center">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Welcome back" FontSize="29" FontWeight="SemiBold" />
-                    <TextBlock Classes="muted" Text="Sign in with your office account." TextWrapping="Wrap" Margin="0,0,0,10" />
-                    <TextBlock Text="Email address" FontWeight="Medium" />
-                    <TextBox Text="{Binding Email}" PlaceholderText="you@example.com" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Email address" />
-                    <TextBlock Text="Password" FontWeight="Medium" />
-                    <TextBox Text="{Binding Password}" PasswordChar="*" PlaceholderText="Enter your password" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Password" />
-                    <Button Classes="primary" Content="Sign in" Command="{Binding SignInCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0" IsDefault="True" />
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
-                    <Border Background="#EDF5F8" CornerRadius="8" Padding="12" IsVisible="{Binding HasMessage}">
-                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                    </Border>
-                    <TextBlock Classes="muted" Text="Need access? Contact the district administrator." TextWrapping="Wrap" FontSize="12" />
-                </StackPanel>
-            </Border>
-        </Grid>
-        <Grid ColumnDefinitions="240,*" IsVisible="{Binding IsSignedIn}">
-            <Border Background="#0C3449" Padding="22">
-                <Grid RowDefinitions="*,Auto" RowSpacing="20">
-                    <ScrollViewer>
-                    <StackPanel Spacing="12">
-                        <Image Source="/Assets/water-district-logo.png" Width="66" Height="66" HorizontalAlignment="Left" />
-                        <TextBlock Text="Water District" Foreground="White" FontSize="22" FontWeight="SemiBold" />
-                        <TextBlock Text="Administration" Foreground="#B9D5DF" Margin="0,0,0,24" />
-                        <Button Classes="nav" Content="Overview" Command="{Binding OverviewCommand}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Service concerns" Command="{Binding OpenConcernsCommand}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Repair tickets" Command="{Binding OpenTicketsCommand}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Service accounts" Command="{Binding OpenOfficeCommand}" CommandParameter="Accounts" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Billing records" Command="{Binding OpenOfficeCommand}" CommandParameter="Bills" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Verified payments" Command="{Binding OpenOfficeCommand}" CommandParameter="Payments" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Announcements" Command="{Binding OpenOfficeCommand}" CommandParameter="Announcements" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Staff directory" Command="{Binding LoadStaffCommand}" IsVisible="{Binding IsAdmin}" HorizontalAlignment="Stretch" />
+        <!-- The mobile brand, expanded into a quiet two-column desktop welcome. -->
+        <Grid ColumnDefinitions="0.95*,1.05*" IsVisible="{Binding IsSignedOut}">
+            <Border Margin="20" CornerRadius="28" Padding="44" ClipToBounds="True">
+                <Border.Background><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Color="#E3ECFD" Offset="0" /><GradientStop Color="#EFF4FF" Offset="0.6" /><GradientStop Color="#F8F9FB" Offset="1" /></LinearGradientBrush></Border.Background>
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <Image Source="/Assets/water-district-logo.png" Width="54" Height="54" />
+                        <StackPanel VerticalAlignment="Center" Spacing="3"><TextBlock Text="Maramag Water District" FontSize="17" FontWeight="SemiBold" /><TextBlock Classes="muted" Text="Maramag, Philippines" FontSize="12" /></StackPanel>
                     </StackPanel>
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="22" Margin="0,28">
+                        <Border Background="White" CornerRadius="22" Width="76" Height="76" HorizontalAlignment="Left">
+                            <Path Data="M12,2 C12,2 3,12 3,18 A9,9 0 0 0 21,18 C21,12 12,2 12,2 Z M7,18 Q7,23 12,23" Stroke="#2563EB" StrokeThickness="1.5" Width="31" Height="39" Stretch="Uniform" />
+                        </Border>
+                        <TextBlock Classes="eyebrow" Text="YOUR DISTRICT. CONNECTED." Foreground="#2563EB" />
+                        <TextBlock Text="Better service.&#10;Every day." FontSize="46" FontWeight="SemiBold" LetterSpacing="-1.5" LineHeight="54" TextWrapping="Wrap" />
+                        <TextBlock Classes="muted" Text="One workspace for the people keeping our water district moving." FontSize="17" LineHeight="27" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Spacing="8"><TextBlock Text="Office administration" FontWeight="Medium" /><TextBlock Classes="muted" Text="For authorized Admin and Staff personnel" FontSize="12" TextWrapping="Wrap" /></StackPanel>
+                </Grid>
+            </Border>
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <Grid MinHeight="650" Margin="40,28">
+                    <StackPanel MaxWidth="380" VerticalAlignment="Center" Spacing="14">
+                        <TextBlock Classes="eyebrow" Text="WELCOME TO YOUR WORKSPACE" Margin="0,0,0,10" />
+                        <TextBlock Text="Welcome back" FontSize="34" FontWeight="SemiBold" LetterSpacing="-0.8" />
+                        <TextBlock Classes="muted" Text="Sign in with your office account to get started." TextWrapping="Wrap" Margin="0,0,0,20" />
+                        <TextBlock Text="Email address" FontWeight="Medium" />
+                        <TextBox Text="{Binding Email}" PlaceholderText="you@example.com" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Email address" />
+                        <TextBlock Text="Password" FontWeight="Medium" Margin="0,8,0,0" />
+                        <TextBox Text="{Binding Password}" PasswordChar="*" PlaceholderText="Enter your password" IsEnabled="{Binding !IsBusy}" AutomationProperties.Name="Password" />
+                        <Button Classes="primary" Content="Sign in" Command="{Binding SignInCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,12,0,0" IsDefault="True" MinHeight="48" />
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
+                        <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+                        <TextBlock Classes="muted" Text="Need access? Contact the district administrator." TextWrapping="Wrap" FontSize="12" Margin="0,12,0,0" TextAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+        <Grid ColumnDefinitions="252,*" IsVisible="{Binding IsSignedIn}">
+            <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,1,0" Padding="16,26,16,18">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="24">
+                    <Grid ColumnDefinitions="44,*" ColumnSpacing="12" Margin="10,0">
+                        <Image Source="/Assets/water-district-logo.png" Width="44" Height="44" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"><TextBlock Text="Maramag" FontSize="19" FontWeight="SemiBold" /><TextBlock Classes="muted" Text="Water District" FontSize="12" /></StackPanel>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="5">
+                            <TextBlock Classes="eyebrow" Text="WORKSPACE" Margin="14,2,0,10" />
+                            <Button Classes="nav home" Classes.active="{Binding IsOverview}" Content="Overview" Command="{Binding OverviewCommand}" />
+                            <Button Classes="nav concerns" Classes.active="{Binding IsConcerns}" Content="Service concerns" Command="{Binding OpenConcernsCommand}" />
+                            <Button Classes="nav repairs" Classes.active="{Binding IsTickets}" Content="Repair tickets" Command="{Binding OpenTicketsCommand}" />
+                            <TextBlock Classes="eyebrow" Text="DISTRICT MANAGEMENT" Margin="14,24,0,10" IsVisible="{Binding IsAdmin}" />
+                            <Button Classes="nav accounts" Classes.active="{Binding IsAccounts}" Content="Service accounts" Command="{Binding OpenOfficeCommand}" CommandParameter="Accounts" IsVisible="{Binding IsAdmin}" />
+                            <Button Classes="nav bills" Classes.active="{Binding IsBills}" Content="Billing records" Command="{Binding OpenOfficeCommand}" CommandParameter="Bills" IsVisible="{Binding IsAdmin}" />
+                            <Button Classes="nav payments" Classes.active="{Binding IsPayments}" Content="Verified payments" Command="{Binding OpenOfficeCommand}" CommandParameter="Payments" IsVisible="{Binding IsAdmin}" />
+                            <Button Classes="nav announcements" Classes.active="{Binding IsAnnouncements}" Content="Announcements" Command="{Binding OpenOfficeCommand}" CommandParameter="Announcements" IsVisible="{Binding IsAdmin}" />
+                            <Button Classes="nav staff" Classes.active="{Binding ShowDirectory}" Content="Staff directory" Command="{Binding LoadStaffCommand}" IsVisible="{Binding IsAdmin}" />
+                        </StackPanel>
                     </ScrollViewer>
-                    <StackPanel Grid.Row="1" Spacing="12">
-                        <TextBlock Text="{Binding DisplayName}" Foreground="White" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding RoleLabel}" Foreground="#7BD5DF" />
-                        <Button Classes="nav" Content="Refresh access" Command="{Binding RefreshAccessCommand}" HorizontalAlignment="Stretch" />
-                        <Button Classes="nav" Content="Sign out" Command="{Binding SignOutCommand}" HorizontalAlignment="Stretch" />
+                    <StackPanel Grid.Row="2" Spacing="5">
+                        <Border BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="14,18,14,12">
+                            <StackPanel Spacing="5"><TextBlock Text="{Binding DisplayName}" FontWeight="Medium" TextWrapping="Wrap" /><TextBlock Text="{Binding RoleLabel}" Classes="muted" FontSize="12" /></StackPanel>
+                        </Border>
+                        <Button Classes="nav refresh" Content="Refresh access" Command="{Binding RefreshAccessCommand}" />
+                        <Button Classes="nav exit" Content="Sign out" Command="{Binding SignOutCommand}" />
                     </StackPanel>
                 </Grid>
             </Border>
-            <ScrollViewer Grid.Column="1">
-                <StackPanel Margin="34" Spacing="22">
-                    <TextBlock IsVisible="{Binding IsOverview}" Text="Your workspace" FontSize="30" FontWeight="SemiBold" />
-                    <TextBlock IsVisible="{Binding IsOverview}" Classes="muted" Text="Shared information. Clear responsibility. Recorded progress." TextWrapping="Wrap" />
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
-                    <Border Background="#DFEEF3" CornerRadius="8" Padding="14" IsVisible="{Binding HasMessage}">
-                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                    </Border>
-                    <StackPanel Spacing="18" IsVisible="{Binding IsOverview}">
-                        <Border Classes="card">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="Signed in securely" FontSize="21" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding DisplayName}" FontSize="17" />
-                                <TextBlock Text="{Binding RoleLabel}" Foreground="#086B83" FontWeight="Medium" />
-                                <TextBlock Classes="muted" Text="Your account permissions are checked by the office service." TextWrapping="Wrap" /><StackPanel Spacing="12" IsVisible="{Binding IsAdmin}">
-                                    <Grid ColumnDefinitions="*,*" Margin="0,12,0,0">
-                                        <StackPanel><TextBlock Text="Pending concerns" /><TextBlock Text="{Binding Office.PendingText}" FontSize="30" Foreground="#086B83" /></StackPanel>
-                                        <StackPanel Grid.Column="1"><TextBlock Text="Active repairs" /><TextBlock Text="{Binding Office.ActiveRepairsText}" FontSize="30" Foreground="#086B83" /></StackPanel>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="32,18">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"><TextBlock Classes="muted" Text="Office workspace" /><TextBlock Text="/" Foreground="#D1D5DB" /><TextBlock Text="{Binding WorkspaceTitle}" FontWeight="Medium" /></StackPanel>
+                        <Border Grid.Column="1" Classes="badge"><TextBlock Text="{Binding RoleLabel}" Foreground="#2563EB" FontSize="12" FontWeight="Medium" /></Border>
+                    </Grid>
+                </Border>
+                <Grid Grid.Row="1">
+                    <Border Height="260" VerticalAlignment="Top" IsHitTestVisible="False"><Border.Background><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#EDF2FC" Offset="0" /><GradientStop Color="#F8F9FB" Offset="1" /></LinearGradientBrush></Border.Background></Border>
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="32,30" Spacing="22" MaxWidth="1440">
+                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
+                            <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+                            <StackPanel Spacing="24" IsVisible="{Binding IsOverview}">
+                                <StackPanel Spacing="8"><TextBlock Classes="eyebrow" Text="YOUR WORKSPACE" /><TextBlock Classes="page-title" Text="Dashboard" /><TextBlock Classes="muted" Text="A clear view of your district. A good place to start." TextWrapping="Wrap" /></StackPanel>
+                                <Border Classes="card" IsVisible="{Binding IsAdmin}">
+                                    <StackPanel Spacing="24">
+                                        <Grid ColumnDefinitions="*,Auto"><TextBlock Text="District overview" FontSize="19" FontWeight="Medium" VerticalAlignment="Center" /><Button Grid.Column="1" Content="Refresh overview" Command="{Binding Office.LoadSummaryCommand}" /></Grid>
+                                        <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="28" Margin="0,0,0,8">
+                                            <StackPanel Spacing="6"><TextBlock Text="{Binding Office.PendingText}" FontSize="42" FontWeight="SemiBold" LetterSpacing="-1" /><TextBlock Classes="muted" Text="Pending concerns" /><Button Content="View concerns &#8594;" Command="{Binding OpenConcernsCommand}" Margin="0,8,0,0" /></StackPanel>
+                                            <Border Grid.Column="1" Width="1" Background="#E5E7EB" />
+                                            <StackPanel Grid.Column="2" Spacing="6"><TextBlock Text="{Binding Office.ActiveRepairsText}" FontSize="42" FontWeight="SemiBold" LetterSpacing="-1" /><TextBlock Classes="muted" Text="Active repairs" /><Button Content="View repair tickets &#8594;" Command="{Binding OpenTicketsCommand}" Margin="0,8,0,0" /></StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{Binding Office.Message}" TextWrapping="Wrap" Classes="muted" />
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Spacing="14">
+                                    <TextBlock Text="Your daily workspace" FontSize="19" FontWeight="Medium" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                        <Border Classes="card"><StackPanel Spacing="14">
+                                            <Border Background="#EFF4FF" CornerRadius="22" Width="44" Height="44" HorizontalAlignment="Left"><Path Data="M4,3 L20,3 L20,17 L10,17 L4,22 Z M8,8 L16,8 M8,12 L14,12" Stroke="#2563EB" StrokeThickness="1.6" Width="21" Height="21" Stretch="Uniform" /></Border>
+                                            <TextBlock Text="Service concerns" FontSize="20" FontWeight="Medium" /><TextBlock Classes="muted" Text="Receive reports, review concerns, and keep consumers informed." TextWrapping="Wrap" MinHeight="60" LineHeight="22" />
+                                            <Button Classes="primary" Content="Open concerns" Command="{Binding OpenConcernsCommand}" />
+                                        </StackPanel></Border>
+                                        <Border Grid.Column="1" Classes="card"><StackPanel Spacing="14">
+                                            <Border Background="#EFF4FF" CornerRadius="22" Width="44" Height="44" HorizontalAlignment="Left"><Path Data="M15,3 L12,6 L15,9 L18,6 L21,6 Q22,12 16,14 L7,23 L2,18 L11,9 Q9,3 15,3 Z" Stroke="#2563EB" StrokeThickness="1.6" Width="22" Height="22" Stretch="Uniform" /></Border>
+                                            <TextBlock Text="Repair coordination" FontSize="20" FontWeight="Medium" TextWrapping="Wrap" /><TextBlock Classes="muted" Text="Follow assigned work and record progress through to resolution." TextWrapping="Wrap" MinHeight="60" LineHeight="22" />
+                                            <Button Content="Open repair tickets" Command="{Binding OpenTicketsCommand}" />
+                                        </StackPanel></Border>
                                     </Grid>
-                                    <Button Content="Refresh overview" Command="{Binding Office.LoadSummaryCommand}" />
-                                    <TextBlock Text="{Binding Office.Message}" TextWrapping="Wrap" Classes="muted" />
                                 </StackPanel>
+                                <Border Classes="card" Padding="20"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16"><StackPanel Spacing="5"><TextBlock Text="{Binding DisplayName}" FontWeight="Medium" /><TextBlock Classes="muted" Text="Signed in securely to your district workspace." FontSize="12" TextWrapping="Wrap" /></StackPanel><Border Grid.Column="1" Classes="badge" VerticalAlignment="Center"><TextBlock Text="{Binding RoleLabel}" Foreground="#2563EB" FontSize="12" /></Border></Grid></Border>
                             </StackPanel>
-                        </Border>
-                        <Border Classes="card">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="Service concerns and repair work" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Classes="muted" Text="Receive and review service concerns, dispatch repair tickets, and record verified progress and resolution." TextWrapping="Wrap" />
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Button Classes="primary" Content="Open concerns" Command="{Binding OpenConcernsCommand}" />
-                                    <Button Content="Open repair tickets" Command="{Binding OpenTicketsCommand}" />
-                                </StackPanel>
+                            <Border IsVisible="{Binding IsOffice}"><views:OfficeView DataContext="{Binding Office}" /></Border>
+                            <Border IsVisible="{Binding IsConcerns}"><views:ConcernsView DataContext="{Binding Workflows}" /></Border>
+                            <Border IsVisible="{Binding IsTickets}"><views:TicketsView DataContext="{Binding Workflows}" /></Border>
+                            <StackPanel IsVisible="{Binding ShowDirectory}" Spacing="22">
+                                <StackPanel Spacing="8"><TextBlock Classes="page-title" Text="Staff directory" /><TextBlock Classes="muted" Text="The people behind your district's service." /></StackPanel>
+                                <Border Classes="card"><StackPanel Spacing="18"><TextBlock Text="Active office personnel" FontSize="20" FontWeight="Medium" /><TextBlock Classes="muted" Text="Accounts visible under your administrator permissions." TextWrapping="Wrap" />
+                                    <ItemsControl ItemsSource="{Binding Staff}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:StaffMember"><Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,16"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16"><TextBlock Text="{Binding DisplayName}" FontWeight="Medium" TextWrapping="Wrap" /><Border Grid.Column="1" Classes="badge"><TextBlock Text="{Binding Role}" Foreground="#2563EB" FontSize="12" /></Border></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                </StackPanel></Border>
                             </StackPanel>
-                        </Border>
-                    </StackPanel>
-                    <Border IsVisible="{Binding IsOffice}"><views:OfficeView DataContext="{Binding Office}" /></Border>
-                    <Border IsVisible="{Binding IsConcerns}"><views:ConcernsView DataContext="{Binding Workflows}" /></Border>
-                    <Border IsVisible="{Binding IsTickets}"><views:TicketsView DataContext="{Binding Workflows}" /></Border>
-                    <Border Classes="card" IsVisible="{Binding ShowDirectory}">
-                        <StackPanel Spacing="18">
-                            <TextBlock Text="Active office personnel" FontSize="22" FontWeight="SemiBold" />
-                            <TextBlock Classes="muted" Text="Accounts visible under your administrator permissions." TextWrapping="Wrap" />
-                            <ItemsControl ItemsSource="{Binding Staff}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="app:StaffMember">
-                                        <Border BorderBrush="#E1E9EE" BorderThickness="0,0,0,1" Padding="0,14">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Medium" />
-                                                <TextBlock Grid.Column="1" Text="{Binding Role}" Foreground="#086B83" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
                         </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

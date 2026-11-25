@@ -28,6 +28,28 @@ public partial class MainViewModel : ViewModelBase
     public bool IsConcerns=>Section=="Concerns" && !ShowDirectory;
     public bool IsTickets=>Section=="Tickets" && !ShowDirectory;
     public bool IsOffice=>IsAdmin && !ShowDirectory && Section is "Accounts" or "Bills" or "Payments" or "Announcements";
+    public bool IsAccounts => IsOffice && Section == "Accounts";
+    public bool IsBills => IsOffice && Section == "Bills";
+    public bool IsPayments => IsOffice && Section == "Payments";
+    public bool IsAnnouncements => IsOffice && Section == "Announcements";
+    public string WorkspaceTitle => ShowDirectory ? "Staff directory" : Section switch
+    {
+        "Overview" => "Dashboard", "Concerns" => "Service concerns", "Tickets" => "Repair tickets",
+        "Accounts" => "Service accounts", "Bills" => "Billing records", "Payments" => "Verified payments",
+        "Announcements" => "Announcements", _ => "Workspace"
+    };
+
+    // Navigation visuals follow the same state used to show the authorized page.
+    partial void OnSectionChanged(string value) => NotifyNavigationChanged();
+    partial void OnShowDirectoryChanged(bool value) => NotifyNavigationChanged();
+    private void NotifyNavigationChanged()
+    {
+        OnPropertyChanged(nameof(IsAccounts));
+        OnPropertyChanged(nameof(IsBills));
+        OnPropertyChanged(nameof(IsPayments));
+        OnPropertyChanged(nameof(IsAnnouncements));
+        OnPropertyChanged(nameof(WorkspaceTitle));
+    }
 
     [ObservableProperty] private string email = "";
     [ObservableProperty] private string password = "";

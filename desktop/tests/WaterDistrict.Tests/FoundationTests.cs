@@ -1,7 +1,8 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using WaterDistrict.Infrastructure;
 
 namespace WaterDistrict.Tests;
@@ -24,11 +25,16 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public async Task Api_is_alive_but_not_database_ready_without_configuration()
+    public async Task Api_is_alive_but_not_database_ready_when_probe_is_unconfigured()
     {
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["ConnectionStrings:WaterDistrict"] = "" })));
+            builder.ConfigureServices(services =>
+            {
+                // Local settings are loaded during startup. This HTTP contract test must
+                // use its own probe rather than connecting to a developer's database.
+                services.RemoveAll<DatabaseProbe>();
+                services.AddSingleton(new DatabaseProbe(null));
+            }));
         using var client = factory.CreateClient();
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health", TestContext.Current.CancellationToken)).StatusCode);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready", TestContext.Current.CancellationToken)).StatusCode);

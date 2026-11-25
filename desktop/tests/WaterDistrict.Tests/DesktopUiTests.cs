@@ -49,6 +49,14 @@ public sealed class DesktopUiTests
         var directory = window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Staff directory"));
         Assert.Equal(expectedAdmin, directory.IsVisible);
         Capture(window, role + "-workspace");
+        window.Width = window.MinWidth;
+        window.Height = window.MinHeight;
+        Dispatcher.UIThread.RunJobs();
+        var signOut = window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Sign out"));
+        var location = signOut.TranslatePoint(default, window);
+        Assert.NotNull(location);
+        Assert.InRange(location.Value.Y + signOut.Bounds.Height, 0, window.ClientSize.Height);
+        Capture(window, role + "-workspace-minimum");
         await model.SignOutCommand.ExecuteAsync(null);
         Assert.True(model.IsSignedOut);
         Assert.Empty(model.Staff);

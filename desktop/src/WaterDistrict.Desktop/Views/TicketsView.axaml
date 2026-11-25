@@ -1,11 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application"
+ xmlns:vm="using:WaterDistrict.Desktop.ViewModels" xmlns:app="using:WaterDistrict.Application" xmlns:views="using:WaterDistrict.Desktop.Views"
  x:Class="WaterDistrict.Desktop.Views.TicketsView" x:DataType="vm:WorkflowViewModel">
  <StackPanel Spacing="18">
-  <TextBlock Text="Repair tickets" FontSize="26" FontWeight="SemiBold" />
+  <TextBlock Classes="page-title" Text="Repair tickets" />
   <TextBlock Classes="muted" Text="Staff see their assigned work. Progress reflects recorded updates from authorized personnel." TextWrapping="Wrap" />
   <ProgressBar Height="3" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
-  <Border Background="#DFEEF3" Padding="14" CornerRadius="8" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
+  <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
   <Grid ColumnDefinitions="*,150,Auto" ColumnSpacing="10" IsEnabled="{Binding !IsBusy}">
    <TextBox Text="{Binding TicketSearch}" PlaceholderText="Search subject or account number" />
    <ComboBox Grid.Column="1" ItemsSource="{Binding TicketFilters}" SelectedItem="{Binding TicketFilter}" HorizontalAlignment="Stretch" />
@@ -15,7 +15,7 @@
    <ListBox ItemsSource="{Binding Tickets}" SelectedItem="{Binding SelectedTicket}" VerticalAlignment="Top" MinHeight="350" MaxHeight="650" Background="White">
     <ListBox.ItemTemplate><DataTemplate x:DataType="app:TicketRecord"><StackPanel Spacing="7" Margin="4,8">
      <TextBlock Text="{Binding AccountNumber}" Classes="muted" FontSize="12" /><TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
-     <TextBlock Text="{Binding Status}" Foreground="#086B83" /><TextBlock Text="{Binding AssignedTo}" Classes="muted" TextWrapping="Wrap" />
+     <views:StatusBadge Status="{Binding Status}" /><TextBlock Text="{Binding AssignedTo}" Classes="muted" TextWrapping="Wrap" />
     </StackPanel></DataTemplate></ListBox.ItemTemplate>
    </ListBox>
    <Border Grid.Column="1" Classes="card">
@@ -24,10 +24,10 @@
      <TextBlock Classes="muted" Text="Select a ticket to retrieve its saved status and history." TextWrapping="Wrap" />
      <StackPanel Spacing="12" IsVisible="{Binding HasTicket}">
       <TextBlock Text="{Binding SelectedTicket.Subject}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding SelectedTicket.AccountNumber}" /><TextBlock Text="{Binding SelectedTicket.Status}" Foreground="#086B83" FontWeight="Medium" />
+      <TextBlock Text="{Binding SelectedTicket.AccountNumber}" /><views:StatusBadge Status="{Binding SelectedTicket.Status}" />
       <TextBlock Text="{Binding SelectedTicket.AssignedTo}" /><TextBlock Text="{Binding SelectedTicket.LatestUpdate}" TextWrapping="Wrap" />
       <Button Content="Reload saved detail and history" Command="{Binding LoadSelectedTicketCommand}" />
-      <Border BorderBrush="#DDE6EC" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+      <Border BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,14,0,0">
        <StackPanel Spacing="10">
         <TextBlock Text="Record an update" FontSize="18" FontWeight="SemiBold" />
         <TextBlock Text="Status" /><ComboBox ItemsSource="{Binding NextTicketStates}" SelectedItem="{Binding TicketStatus}" HorizontalAlignment="Stretch" IsEnabled="{Binding CanEditTicket}" />
@@ -41,10 +41,10 @@
         <Button Classes="primary" Content="Save ticket update" Command="{Binding SaveTicketCommand}" />
        </StackPanel>
       </Border>
-      <TextBlock Text="Recorded history" FontSize="19" FontWeight="SemiBold" />
+      <TextBlock Text="Recorded history" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
       <ItemsControl ItemsSource="{Binding History}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:HistoryRecord">
-       <Border BorderBrush="#DDE6EC" BorderThickness="0,0,0,1" Padding="0,12"><StackPanel Spacing="6">
-        <TextBlock Text="{Binding Status}" Foreground="#086B83" FontWeight="SemiBold" />
+       <Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,12"><StackPanel Spacing="6">
+        <views:StatusBadge Status="{Binding Status}" />
         <TextBlock Text="{Binding ChangedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Classes="muted" FontSize="12" />
         <TextBlock Text="{Binding ChangedBy}" FontWeight="Medium" /><TextBlock Text="{Binding AssignedTo}" Classes="muted" />
         <TextBlock Text="{Binding Note}" TextWrapping="Wrap" />

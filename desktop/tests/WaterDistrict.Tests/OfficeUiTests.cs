@@ -21,6 +21,10 @@ public sealed class OfficeUiTests
         var window=new MainWindow{DataContext=model};window.Show();
         await model.OpenOfficeCommand.ExecuteAsync(page);Dispatcher.UIThread.RunJobs();
         Assert.True(model.IsOffice);Assert.Equal(page,model.Office!.Page);
+        var selected = Assert.Single(window.GetVisualDescendants().OfType<Button>(), button => button.Classes.Contains("active"));
+        Assert.Equal(page, selected.CommandParameter);
+        Assert.Equal(selected.Content, model.WorkspaceTitle);
+        Assert.Equal(model.WorkspaceTitle, model.Office.PageTitle);
         Assert.Equal("7",model.Office.PendingText);
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();using var frame=window.CaptureRenderedFrame();Assert.NotNull(frame);
         var directory=Path.Combine(AppContext.BaseDirectory,"artifacts","ui");Directory.CreateDirectory(directory);
