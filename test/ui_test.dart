@@ -181,7 +181,6 @@ void main() {
             {
               'id': 'test-service-account',
               'account_number': 'MWD-001245',
-              'id': 'test-service-account',
               'holder_name': 'Test Client',
               'service_address': 'Demo service address',
               'active': true,
