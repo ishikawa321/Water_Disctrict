@@ -26,3 +26,7 @@ Two scoped helpers use a fixed search path and explicit active-role checks: Staf
 Disposable PostgreSQL tests install the SQL twice and verify intake/retry, review, stale edits, Admin-only dispatch, assignment, Staff resolution, account isolation, history, concurrent dispatch and rollback after a trigger failure. Real local PostgREST checks cover `xmin`, relationships, exact counts and authenticated RPCs. Browser tests disable the old API and assert zero desktop calls.
 
 Tests never use operational data. Deployment cannot install SQL using a public Supabase key. Production setup is not claimed applied until an authorized project operator completes it.
+
+## Admin announcement creation
+
+Announcement INSERT grants allow content, publication state and author columns. `updated_at` is granted only for UPDATE; creation timestamps use database defaults. The web now omits the timestamp on INSERT while retaining it on edits and derives both authors from the authenticated Admin. This fixes the permission denial for valid active Admin accounts without broadening RLS, column grants or Staff publication rights. No migration is needed for this announcement fix. Regression tests exercise actual exported PostgreSQL grants, strict browser fixtures and role checks.

@@ -27,6 +27,7 @@ export type Bill = {
   accountNumber: string;
   periodStart: string;
   periodEnd: string;
+  releaseDate?: string;
   dueDate: string;
   amountDue: string | number;
   baseAmount?: string | number;

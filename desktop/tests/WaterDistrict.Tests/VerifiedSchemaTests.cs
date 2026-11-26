@@ -58,6 +58,8 @@ public sealed class VerifiedSchemaTests
     public async Task Existing_column_grants_support_notices_and_preserve_creator_and_consumer_isolation()
     {
         await using var database=await PostgresDatabase.CreateAsync(verifiedSchema:true);
+        var forbiddenTimestamp=await Assert.ThrowsAsync<PostgresException>(()=>AsCaller<Guid>(database,database.Admin.UserId,$"INSERT INTO public.announcements(title,message,published,created_by,updated_by,updated_at) VALUES('Denied timestamp','Database owns creation timestamps.',true,'{database.Admin.UserId}','{database.Admin.UserId}',now()) RETURNING id"));
+        Assert.Equal("42501",forbiddenTimestamp.SqlState);
         var id=await AsCaller<Guid>(database,database.Admin.UserId,$"INSERT INTO public.announcements(title,message,published,created_by,updated_by) VALUES('Test notice','Local verified schema test.',false,'{database.Admin.UserId}','{database.Admin.UserId}') RETURNING id");
         Assert.Equal(0,await AsCaller<int>(database,database.ClientId,"SELECT count(*)::int FROM public.announcements"));
         await AsCaller<bool>(database,database.Admin.UserId,$"UPDATE public.announcements SET published=true,updated_by='{database.Admin.UserId}' WHERE id='{id}' RETURNING published");

@@ -477,7 +477,7 @@ createServer(async (request, response) => {
           account_id: body.p_account_id,
           monthly_amount: body.p_monthly_amount,
           enabled: body.p_enabled,
-          next_issue_date: "2026-11-28",
+          next_issue_date: body.p_release_date,
         };
         state.billingPlans = state.billingPlans.filter(
           (p) => p.account_id !== body.p_account_id,
@@ -498,6 +498,7 @@ createServer(async (request, response) => {
           periodStart: "2026-11-01",
           periodEnd: "2026-11-30",
           dueDate: body.p_due_date,
+          releaseDate: body.p_release_date,
           amountDue: body.p_amount,
           paid: "0.00",
           remaining: body.p_amount,
@@ -715,6 +716,15 @@ createServer(async (request, response) => {
     );
   if (table === "bills") {
     let values = state.bills;
+    if (role === "client" || role === "other") {
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      values = values.filter((b) => !b.releaseDate || b.releaseDate <= today);
+    }
     if (request.method === "POST") {
       const saved = {
         id: crypto.randomUUID(),
@@ -739,6 +749,7 @@ createServer(async (request, response) => {
         bill_number: b.billNumber,
         billing_period_start: b.periodStart,
         billing_period_end: b.periodEnd,
+        release_date: b.releaseDate ?? "2026-11-26",
         due_date: b.dueDate,
         amount_due: b.amountDue,
         base_amount_due: b.baseAmount ?? b.amountDue,
@@ -850,6 +861,30 @@ createServer(async (request, response) => {
   if (table === "announcements") {
     let values = state.notices.filter((n) => role === "admin" || n.published);
     if (request.method === "POST" || request.method === "PATCH") {
+      // Match the column grants in the exported, verified production schema.
+      // updated_at has a DB default and is UPDATE-only for authenticated users.
+      const allowed = new Set([
+        "title",
+        "message",
+        "published",
+        "updated_by",
+        request.method === "POST" ? "created_by" : "updated_at",
+      ]);
+      if (
+        role !== "admin" ||
+        Object.keys(body).some((key) => !allowed.has(key)) ||
+        body.updated_by !== ids.admin ||
+        (request.method === "POST" && body.created_by !== ids.admin)
+      ) {
+        return respond(
+          response,
+          {
+            code: "42501",
+            message: "permission denied for announcements write",
+          },
+          403,
+        );
+      }
       const id =
         url.searchParams.get("id")?.replace("eq.", "") ?? crypto.randomUUID();
       const saved = {

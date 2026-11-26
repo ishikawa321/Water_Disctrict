@@ -159,11 +159,12 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
   const accounts = useResource<Account[]>(
     staff ? null : "/api/office/office/accounts",
   );
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(!staff);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useDraft("office:add-bill", {
     accountId: "",
     requestId: crypto.randomUUID(),
+    releaseDate: todayInManila(),
     dueDate: nextBillingDueDate(),
     amountDue: "",
   });
@@ -176,13 +177,25 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
     ) ?? [];
   function submit(event: FormEvent) {
     event.preventDefault();
-    void mutation.run(async () => {
-      const amountDue = positiveMoney(draft.amountDue);
-      dateOnly(draft.dueDate);
-      await save("/api/office/office/bills", { ...draft, amountDue });
-      setDraft({ ...draft, requestId: crypto.randomUUID(), amountDue: "" });
-      void records.reload();
-    }, "Billing record created.");
+    void mutation.run(
+      async () => {
+        const amountDue = positiveMoney(draft.amountDue);
+        dateOnly(draft.dueDate);
+        const releaseDate = dateOnly(draft.releaseDate || todayInManila());
+        if (draft.dueDate < releaseDate)
+          throw new Error("The due date must be on or after the release date.");
+        await save("/api/office/office/bills", {
+          ...draft,
+          releaseDate,
+          amountDue,
+        });
+        setDraft({ ...draft, requestId: crypto.randomUUID(), amountDue: "" });
+        await records.reload();
+      },
+      (draft.releaseDate || todayInManila()) > todayInManila()
+        ? "Bill scheduled. The linked consumer can view it in All bills on its release date."
+        : "Bill released. It is available in the linked consumer's All bills, including before its due date.",
+    );
   }
   return (
     <>
@@ -220,7 +233,12 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
       <Feedback error={mutation.error} success={mutation.success} />
       <Feedback error={pdf.error} success={pdf.success} />
       {!staff && show && (
-        <Card title="Create a billing record">
+        <Card title="Create a bill">
+          <p>
+            Choose when this bill becomes visible to the consumer. Select today
+            to release it now, or a future date to schedule it. The release date
+            is separate from the due date.
+          </p>
           <Feedback error={accounts.error} />
           <form className="form" onSubmit={submit}>
             <fieldset disabled={mutation.busy}>
@@ -257,10 +275,31 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
                   required
                 />
               </Field>
-              <Field label="Due date">
+              <Field
+                label="Release bill date"
+                hint="Manila time. Consumers can view the bill from this date, even before it is due."
+              >
                 <input
                   type="date"
                   min={todayInManila()}
+                  max="2100-12-28"
+                  value={draft.releaseDate || todayInManila()}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      releaseDate: e.target.value,
+                      dueDate: e.target.value
+                        ? nextBillingDueDate(e.target.value)
+                        : "",
+                    })
+                  }
+                  required
+                />
+              </Field>
+              <Field label="Due date">
+                <input
+                  type="date"
+                  min={draft.releaseDate || todayInManila()}
                   max="2100-12-31"
                   value={draft.dueDate}
                   onChange={(e) =>
@@ -270,7 +309,7 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
                 />
               </Field>
               <button className="primary" type="submit">
-                {mutation.busy ? "Saving…" : "Create bill"}
+                {mutation.busy ? "Saving…" : "Save bill"}
               </button>
             </fieldset>
             <small>
@@ -280,8 +319,7 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
           </form>
         </Card>
       )}
-      {!staff && <MonthlyBilling accounts={accounts.data ?? []} />}
-      <Card>
+      <Card title="Saved bills and scheduled releases">
         <div className="toolbar">
           <input
             className="search-input"
@@ -297,10 +335,11 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
           empty={!!records.data && !visible.length}
         >
           <div className="table-scroll">
-            <table>
+            <table className="billing-records-table">
               <thead>
                 <tr>
                   <th>Bill / account</th>
+                  <th>Release</th>
                   <th>Due</th>
                   <th>Original</th>
                   <th>Interest</th>
@@ -317,6 +356,20 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
                     <td>
                       {b.billNumber}
                       <small>{b.accountNumber}</small>
+                    </td>
+                    <td>
+                      {b.releaseDate ? (
+                        <>
+                          {dateLabel(b.releaseDate)}
+                          <small>
+                            {b.releaseDate > todayInManila()
+                              ? "Scheduled"
+                              : "Released"}
+                          </small>
+                        </>
+                      ) : (
+                        "Released"
+                      )}
                     </td>
                     <td>{dateLabel(b.dueDate)}</td>
                     <td className="amount">
@@ -362,6 +415,12 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
           matching records, using fresh saved balances.
         </p>
       </Card>
+      {!staff && (
+        <details className="card record-details">
+          <summary>Recurring monthly plans (choose release date)</summary>
+          <MonthlyBilling accounts={accounts.data ?? []} />
+        </details>
+      )}
     </>
   );
 }

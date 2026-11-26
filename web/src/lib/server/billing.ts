@@ -11,7 +11,9 @@ export async function billingCall(
   if (result.error?.code === "PGRST202")
     throw new HttpError(
       503,
-      "Complete the Supabase billing setup to enable automatic numbers, payment confirmation and daily interest. Your draft is retained.",
+      input && "p_release_date" in input
+        ? "Run database/billing-release-dates.sql in the Supabase SQL Editor to enable your chosen release dates. Your draft is retained."
+        : "Complete the Supabase billing setup to enable automatic numbers, payment confirmation and daily interest. Your draft is retained.",
       "billing_setup_required",
     );
   return result;

@@ -517,10 +517,14 @@ export async function officeRequest(
     if (method === "POST") {
       if (typeof input.enabled !== "boolean")
         throw new HttpError(422, "Choose whether monthly billing is enabled.");
+      const releaseDate = inputDate(input.releaseDate);
+      if (releaseDate < todayInManila())
+        throw new HttpError(422, "Choose today or a future release date.");
       const result = await billingCall(supabase, "wd_billing_set_plan", {
         p_account_id: uuid(input.accountId),
         p_monthly_amount: amount(input.monthlyAmount),
         p_enabled: input.enabled,
+        p_release_date: releaseDate,
       });
       check(result.error);
       const p = row(result.data);
@@ -554,11 +558,19 @@ export async function officeRequest(
     const fields = "*,service_accounts(account_number)";
     let records: Row[];
     if (method === "POST") {
+      const releaseDate = inputDate(input.releaseDate);
+      const dueDate = inputDate(input.dueDate);
+      if (releaseDate < todayInManila() || dueDate < releaseDate)
+        throw new HttpError(
+          422,
+          "Choose today or a future release date and a due date on or after release.",
+        );
       const result = await billingCall(supabase, "wd_billing_create_bill", {
         p_request_id: uuid(input.requestId),
         p_account_id: uuid(input.accountId),
         p_amount: amount(input.amountDue),
-        p_due_date: inputDate(input.dueDate),
+        p_due_date: dueDate,
+        p_release_date: releaseDate,
       });
       check(result.error);
       const { data, error } = await supabase
@@ -591,6 +603,8 @@ export async function officeRequest(
           : "Unavailable",
       periodStart: text(b.billing_period_start),
       periodEnd: text(b.billing_period_end),
+      releaseDate:
+        typeof b.release_date === "string" ? b.release_date : undefined,
       dueDate: text(b.due_date),
       amountDue: String(b.amount_due),
       baseAmount: String(b.base_amount_due ?? b.amount_due),
@@ -662,12 +676,13 @@ export async function officeRequest(
       typeof input.isInterruption !== "boolean"
     )
       throw new HttpError(422, "Choose a valid publication state.");
+    // INSERT has column-level grants for content/authors only. The database
+    // supplies creation timestamps; updated_at is explicitly UPDATE-only.
     const values = {
       title,
       message: textField(input.message, "Message", 5000),
       published: input.published,
       updated_by: profile.userId,
-      updated_at: new Date().toISOString(),
     };
     const builder =
       method === "POST"
@@ -676,7 +691,7 @@ export async function officeRequest(
             .insert({ ...values, created_by: profile.userId })
         : supabase
             .from("announcements")
-            .update(values)
+            .update({ ...values, updated_at: new Date().toISOString() })
             .eq("id", uuid(route.split("/")[2]));
     const { data, error } = await builder.select(noticeFields).maybeSingle();
     check(error);

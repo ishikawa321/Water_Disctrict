@@ -29,20 +29,37 @@ test("new Admin-issued bills with future due dates automatically appear for the 
   const adminContext = await browser.newContext();
   const admin = await adminContext.newPage();
   await login(admin, "admin");
+  await admin.goto("/office/bills");
+  await expect(
+    admin.getByRole("heading", { name: "Create a bill", exact: true }),
+  ).toBeVisible();
+  await expect(admin.getByLabel("Monthly billing account")).not.toBeVisible();
   const created: string[] = [];
-  for (const [index, amountDue] of ["400.00", "600.00"].entries()) {
-    const response = await admin.request.post("/api/office/office/bills", {
-      data: {
-        requestId: `70000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
-        accountId: "20000000-0000-4000-8000-000000000001",
-        amountDue,
-        dueDate: "2099-12-31",
-      },
-      headers: { Origin: "http://127.0.0.1:3100" },
-    });
+  for (const amountDue of ["400.00", "600.00"]) {
+    await admin
+      .getByLabel("Active service account")
+      .selectOption("20000000-0000-4000-8000-000000000001");
+    await admin.getByLabel("District-computed amount (PHP)").fill(amountDue);
+    await admin.getByLabel("Due date", { exact: true }).fill("2099-12-31");
+    const issued = admin.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/office/office/bills") &&
+        r.request().method() === "POST",
+    );
+    await admin.getByRole("button", { name: "Save bill", exact: true }).click();
+    const response = await issued;
     expect(response.ok()).toBe(true);
-    created.push((await response.json()).billNumber);
+    const number = (await response.json()).billNumber;
+    created.push(number);
+    await expect(
+      admin.getByRole("cell").filter({ hasText: number }),
+    ).toBeVisible();
   }
+  expect(new Set(created).size).toBe(2);
+  await admin.screenshot({
+    path: test.info().outputPath("issue-bill-now.png"),
+    fullPage: true,
+  });
   for (const number of created) {
     await expect(
       page.getByRole("heading", { name: `Bill ${number}`, exact: true }),
@@ -54,6 +71,72 @@ test("new Admin-issued bills with future due dates automatically appear for the 
     page.getByText("Dec 31, 2099", { exact: false }).first(),
   ).toBeVisible();
   await adminContext.close();
+});
+
+test("Admin chooses a release date and the scheduled bill stays hidden until release", async ({
+  page,
+  browser,
+  request,
+}) => {
+  await login(page, "admin");
+  await page.goto("/office/bills");
+  const today = await page
+    .getByLabel("Release bill date", { exact: true })
+    .inputValue();
+  await page
+    .getByLabel("Active service account")
+    .selectOption("20000000-0000-4000-8000-000000000001");
+  await page.getByLabel("District-computed amount (PHP)").fill("750.00");
+  await page
+    .getByLabel("Release bill date", { exact: true })
+    .fill("2099-07-17");
+  await expect(page.getByLabel("Due date", { exact: true })).toHaveValue(
+    "2099-07-20",
+  );
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/office/office/bills") &&
+      r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Save bill", exact: true }).click();
+  const result = await saved;
+  expect(result.ok()).toBe(true);
+  const bill = await result.json();
+  await expect(
+    page.getByRole("row").filter({ hasText: bill.billNumber }),
+  ).toContainText("Scheduled");
+  const clientContext = await browser.newContext();
+  const client = await clientContext.newPage();
+  await login(client, "client");
+  await client.goto("/portal/bills");
+  await expect(
+    client.getByRole("heading", {
+      name: `Bill ${bill.billNumber}`,
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  const beforeRelease = await client.request.get("/api/consumer/bills");
+  expect(await beforeRelease.text()).not.toContain(bill.billNumber);
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      bills: state.bills.map((b: { id: string }) =>
+        b.id === bill.id ? { ...b, releaseDate: today } : b,
+      ),
+    },
+  });
+  await client.reload();
+  await expect(
+    client.getByRole("heading", {
+      name: `Bill ${bill.billNumber}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("scheduled-bill.png"),
+    fullPage: true,
+  });
+  await clientContext.close();
 });
 
 test("Admin and Staff download individual and filtered billing PDFs, while consumers and anonymous visitors are denied", async ({
@@ -272,17 +355,26 @@ test("monthly billing saves per-account amounts and confirmed full payment appea
   await login(page, "admin");
   await page.getByRole("link", { name: "Billing", exact: true }).click();
   await page
+    .getByText("Recurring monthly plans (choose release date)", { exact: true })
+    .click();
+  const beforePlans = await (
+    await request.get(`${fixture}/__test/state`)
+  ).json();
+  await page
     .getByLabel("Monthly billing account")
     .selectOption({ label: "QA-001 / QA Consumer" });
   await page.getByLabel("Monthly amount (PHP)").fill("1000.00");
+  await page.getByLabel("Next monthly release date").fill("2099-11-17");
   await page
-    .getByRole("button", { name: "Save monthly billing", exact: true })
+    .getByRole("button", { name: "Save recurring plan", exact: true })
     .click();
   await expect(
     page
       .getByRole("status")
       .filter({ hasText: "Monthly billing settings saved" }),
   ).toBeVisible();
+  const afterPlan = await (await request.get(`${fixture}/__test/state`)).json();
+  expect(afterPlan.bills).toHaveLength(beforePlans.bills.length);
   await expect(
     page.getByRole("cell", { name: "Enabled", exact: true }),
   ).toBeVisible();
@@ -293,7 +385,7 @@ test("monthly billing saves per-account amounts and confirmed full payment appea
   await login(page, "staff");
   await page.goto("/office/bills");
   await expect(
-    page.getByRole("button", { name: "New bill", exact: true }),
+    page.getByRole("button", { name: "Save bill", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("heading", {
@@ -680,7 +772,9 @@ test("Admin views registered accounts and creates bills, payments and notices", 
     page.getByRole("cell", { name: "QA-001", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Billing", exact: true }).click();
-  await page.getByRole("button", { name: "New bill", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a bill", exact: true }),
+  ).toBeVisible();
   await page
     .getByLabel("Active service account")
     .selectOption({ label: "QA-001 / QA Consumer" });
@@ -689,7 +783,7 @@ test("Admin views registered accounts and creates bills, payments and notices", 
   await expect(page.getByLabel("Period start")).toHaveCount(0);
   await expect(page.getByLabel("Period end")).toHaveCount(0);
   await page.getByLabel("Due date", { exact: true }).fill("2026-12-15");
-  await page.getByRole("button", { name: "Create bill", exact: true }).click();
+  await page.getByRole("button", { name: "Save bill", exact: true }).click();
   await expect(
     page.getByRole("cell").filter({ hasText: "MWD-202611-1000000001" }),
   ).toBeVisible();

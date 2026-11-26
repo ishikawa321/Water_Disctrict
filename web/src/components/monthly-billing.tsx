@@ -2,7 +2,13 @@
 import { type FormEvent } from "react";
 import { useDraft, useResource } from "@/lib/hooks";
 import { save } from "@/lib/client";
-import { money, dateLabel, positiveMoney } from "@/lib/format";
+import {
+  money,
+  dateLabel,
+  positiveMoney,
+  dateOnly,
+  todayInManila,
+} from "@/lib/format";
 import type { Account, BillingPlan } from "@/lib/types";
 import { Card, Feedback, Field } from "./ui";
 import { DataState, useMutation, Refresh } from "./data-ui";
@@ -15,6 +21,7 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
   const [draft, setDraft] = useDraft("office:monthly-billing", {
     accountId: "",
     monthlyAmount: "",
+    releaseDate: todayInManila(),
     enabled: true,
   });
   const mutation = useMutation();
@@ -24,16 +31,17 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
       await save("/api/office/office/billing-plans", {
         ...draft,
         monthlyAmount: positiveMoney(draft.monthlyAmount),
+        releaseDate: dateOnly(draft.releaseDate || todayInManila()),
       });
       await plans.reload();
-    }, "Monthly billing settings saved. Bills will be issued on the scheduled 28th; saving a plan does not create a bill now.");
+    }, "Monthly billing settings saved. Bills release on the selected date and repeat monthly. A release dated today is available to the consumer now.");
   }
   return (
     <Card title="Automatic monthly billing">
       <p>
-        These are monthly plans for future bills. Consumers see each bill as
-        soon as it is issued, even before its due date. Saving a plan does not
-        create a bill immediately.
+        Choose the next release date for each account. Bills repeat on that day
+        each month; shorter months use their last day. Select today to release
+        the first bill now. Consumers see released bills before their due date.
       </p>
       <Feedback error={status.error} />
       {status.data && (
@@ -48,9 +56,9 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
         </p>
       )}
       <p>
-        Bills issue on the 28th and are due three days later. Unpaid bills
-        accrue simple interest of 1% of the original amount per day after the
-        due date, until fully paid.
+        Bills are due three days after release. Unpaid bills accrue simple
+        interest of 1% of the original amount per day after the due date, until
+        fully paid.
       </p>
       <Feedback error={mutation.error} success={mutation.success} />
       <form className="form" onSubmit={submit}>
@@ -66,6 +74,10 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
                 setDraft({
                   accountId: e.target.value,
                   monthlyAmount: plan?.monthlyAmount ?? "",
+                  releaseDate:
+                    plan?.nextIssueDate && plan.nextIssueDate >= todayInManila()
+                      ? plan.nextIssueDate
+                      : todayInManila(),
                   enabled: plan?.enabled ?? true,
                 });
               }}
@@ -90,6 +102,18 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
               }
             />
           </Field>
+          <Field label="Next monthly release date">
+            <input
+              type="date"
+              required
+              min={todayInManila()}
+              max="2100-12-28"
+              value={draft.releaseDate || todayInManila()}
+              onChange={(e) =>
+                setDraft({ ...draft, releaseDate: e.target.value })
+              }
+            />
+          </Field>
           <label className="checkbox">
             <input
               type="checkbox"
@@ -101,7 +125,7 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
             <span>Enable automatic monthly bills for this account</span>
           </label>
           <button className="primary" type="submit">
-            {mutation.busy ? "Saving…" : "Save monthly billing"}
+            {mutation.busy ? "Saving…" : "Save recurring plan"}
           </button>
         </fieldset>
       </form>
@@ -123,7 +147,7 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
               <tr>
                 <th>Account</th>
                 <th>Monthly amount</th>
-                <th>Next bill issue</th>
+                <th>Next release</th>
                 <th>State</th>
               </tr>
             </thead>

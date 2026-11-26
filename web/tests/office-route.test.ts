@@ -60,6 +60,7 @@ vi.mock("@/lib/server/auth", () => ({
   },
 }));
 import { GET, POST, PUT } from "@/app/api/office/[...path]/route";
+import { todayInManila } from "@/lib/format";
 const accountId = "20000000-0000-4000-8000-000000000001",
   id = "40000000-0000-4000-8000-000000000001",
   ticketId = "50000000-0000-4000-8000-000000000001";
@@ -135,6 +136,91 @@ describe("Supabase office routes without a desktop server", () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
+  it("creates an Admin announcement using only INSERT-granted columns and server-derived authors", async () => {
+    const saved = {
+      id,
+      title: "Notice",
+      message: "Saved message",
+      published: true,
+      updated_at: "2026-11-27T00:00:00Z",
+    };
+    state.tables.set("announcements", { data: saved, error: null });
+    const response = await call("POST", "office/announcements", {
+      title: "Notice",
+      message: "Saved message",
+      published: true,
+      isInterruption: false,
+      created_by: "forged",
+      updated_by: "forged",
+      updated_at: "forged",
+      created_at: "forged",
+    });
+    expect(response.status).toBe(200);
+    expect(
+      state.calls.find(
+        (c) => c.table === "announcements" && c.method === "insert",
+      )?.args[0],
+    ).toEqual({
+      title: "Notice",
+      message: "Saved message",
+      published: true,
+      created_by: "10000000-0000-4000-8000-000000000001",
+      updated_by: "10000000-0000-4000-8000-000000000001",
+    });
+    expect((await response.json()).updatedAt).toBe(saved.updated_at);
+  });
+  it("updates the announcement timestamp without changing its immutable creator", async () => {
+    state.tables.set("announcements", {
+      data: [
+        {
+          id,
+          title: "Edited",
+          message: "Saved message",
+          published: true,
+          updated_at: "2026-11-27T01:00:00Z",
+        },
+      ],
+      error: null,
+    });
+    expect(
+      (
+        await call("PUT", `office/announcements/${id}`, {
+          title: "Edited",
+          message: "Saved message",
+          published: true,
+          isInterruption: false,
+          created_by: "forged",
+        })
+      ).status,
+    ).toBe(200);
+    const values = state.calls.find(
+      (c) => c.table === "announcements" && c.method === "update",
+    )?.args[0] as Record<string, unknown>;
+    expect(values.updated_at).toEqual(expect.any(String));
+    expect(values.updated_by).toBe("10000000-0000-4000-8000-000000000001");
+    expect(values).not.toHaveProperty("created_by");
+  });
+  it.each(["staff", "client"])(
+    "denies announcement creation and publication by %s",
+    async (role) => {
+      state.role = role;
+      const input = {
+        title: "Forbidden",
+        message: "Not an Admin.",
+        published: true,
+        isInterruption: false,
+      };
+      expect((await call("POST", "office/announcements", input)).status).toBe(
+        403,
+      );
+      expect(
+        (await call("PUT", `office/announcements/${id}`, input)).status,
+      ).toBe(403);
+      expect(
+        state.calls.some((c) => c.method === "insert" || c.method === "update"),
+      ).toBe(false);
+    },
+  );
   it("loads saved repairs from caller-scoped Supabase and ignores the obsolete API setting", async () => {
     state.tables.set("repair_tickets", { data: [rawTicket], error: null });
     const response = await call("GET", "workflow/tickets");
@@ -333,7 +419,7 @@ describe("Supabase office routes without a desktop server", () => {
         bill_number: "MWD-202611-1000000000",
         billing_period_start: "2026-11-01",
         billing_period_end: "2026-11-30",
-        due_date: "2026-12-01",
+        due_date: "2099-12-31",
         amount_due: "200.00",
         base_amount_due: "200.00",
         interest_amount: 0,
@@ -346,7 +432,8 @@ describe("Supabase office routes without a desktop server", () => {
       requestId: id,
       accountId,
       amountDue: "200.00",
-      dueDate: "2026-12-01",
+      dueDate: "2099-12-31",
+      releaseDate: todayInManila(),
       billNumber: "forged",
       createdBy: "forged",
     });
@@ -360,11 +447,70 @@ describe("Supabase office routes without a desktop server", () => {
           p_request_id: id,
           p_account_id: accountId,
           p_amount: "200.00",
-          p_due_date: "2026-12-01",
+          p_due_date: "2099-12-31",
+          p_release_date: todayInManila(),
         },
       ],
     });
     expect(state.calls.some((c) => c.method === "insert")).toBe(false);
+  });
+  it("saves the Admin's chosen recurring release date instead of a fixed day", async () => {
+    state.rpcResult = {
+      data: {
+        account_id: accountId,
+        monthly_amount: "250.00",
+        enabled: true,
+        next_issue_date: "2099-07-17",
+      },
+      error: null,
+    };
+    const response = await call("POST", "office/billing-plans", {
+      accountId,
+      monthlyAmount: "250.00",
+      enabled: true,
+      releaseDate: "2099-07-17",
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).nextIssueDate).toBe("2099-07-17");
+    expect(state.calls).toContainEqual({
+      table: "wd_billing_set_plan",
+      method: "rpc",
+      args: [
+        {
+          p_account_id: accountId,
+          p_monthly_amount: "250.00",
+          p_enabled: true,
+          p_release_date: "2099-07-17",
+        },
+      ],
+    });
+  });
+  it("rejects missing release dates and due dates before release without any writes", async () => {
+    const input = {
+      requestId: id,
+      accountId,
+      amountDue: "200.00",
+      dueDate: "2099-07-16",
+    };
+    expect((await call("POST", "office/bills", input)).status).toBe(422);
+    expect(
+      (
+        await call("POST", "office/bills", {
+          ...input,
+          releaseDate: "2099-07-17",
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await call("POST", "office/billing-plans", {
+          accountId,
+          monthlyAmount: "200.00",
+          enabled: true,
+        })
+      ).status,
+    ).toBe(422);
+    expect(state.calls).toEqual([]);
   });
   it("confirms a payment atomically and returns the generated reference", async () => {
     state.rpcResult = { data: { id: ticketId }, error: null };

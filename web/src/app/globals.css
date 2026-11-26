@@ -629,6 +629,15 @@ button.secondary {
   overflow: auto;
   max-width: 100%;
 }
+.billing-records-table {
+  min-width: 1150px;
+}
+.billing-records-table td:nth-child(2),
+.billing-records-table td:nth-child(3),
+.billing-records-table td a,
+.billing-records-table td button {
+  white-space: nowrap;
+}
 table {
   border-collapse: collapse;
   width: 100%;
