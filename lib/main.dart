@@ -3649,6 +3649,70 @@ abstract final class Heading {
   );
 }
 
+/// The district's drop mark, drawn from the same path the desktop app uses
+/// ("M12,2 C12,2 3,12 3,18 A9,9 0 0 0 21,18 C21,12 12,2 12,2 Z M7,18 Q7,23 12,23").
+class DistrictDropMark extends StatelessWidget {
+  const DistrictDropMark({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.color,
+    this.strokeWidth = 1.5,
+  });
+  final double width, height, strokeWidth;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: Size(width, height),
+      painter: _DropMarkPainter(color, strokeWidth),
+    ),
+  );
+}
+
+class _DropMarkPainter extends CustomPainter {
+  const _DropMarkPainter(this.color, this.strokeWidth);
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(12, 2)
+      ..cubicTo(12, 2, 3, 12, 3, 18)
+      ..arcToPoint(const Offset(21, 18),
+          radius: const Radius.circular(9), clockwise: false)
+      ..cubicTo(21, 12, 12, 2, 12, 2)
+      ..close()
+      ..moveTo(7, 18)
+      ..quadraticBezierTo(7, 23, 12, 23);
+    // Scale the 24-unit drawing uniformly into the box, centred (like
+    // Stretch="Uniform" on desktop), leaving room for the stroke.
+    final bounds = path.getBounds();
+    final inset = strokeWidth;
+    final scale = math.min((size.width - inset * 2) / bounds.width,
+        (size.height - inset * 2) / bounds.height);
+    canvas.translate(
+      (size.width - bounds.width * scale) / 2 - bounds.left * scale,
+      (size.height - bounds.height * scale) / 2 - bounds.top * scale,
+    );
+    canvas.scale(scale);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth / scale
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DropMarkPainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
+}
+
 /// Solid blue circle with a white line icon and a soft blue shadow.
 Widget circleIcon(IconData icon, {double diameter = 52, double iconSize = 24}) =>
     Container(
@@ -5193,23 +5257,21 @@ class _WaterStartupState extends State<WaterStartup>
                               animation: pulse,
                               builder: (_, child) => Transform.scale(
                                 scale: 1 + pulse.value * .06,
+                                // Same mark as the desktop sign-in: outline
+                                // drop in a white rounded square.
                                 child: Container(
-                                  width: 122,
-                                  height: 122,
+                                  width: 108,
+                                  height: 108,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withValues(alpha: .12),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: .22,
-                                      ),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    CupertinoIcons.drop_fill,
                                     color: Colors.white,
-                                    size: 64,
+                                    borderRadius: BorderRadius.circular(31),
+                                  ),
+                                  child: const DistrictDropMark(
+                                    width: 44,
+                                    height: 55,
+                                    color: royalBlue,
+                                    strokeWidth: 2.1,
                                   ),
                                 ),
                               ),

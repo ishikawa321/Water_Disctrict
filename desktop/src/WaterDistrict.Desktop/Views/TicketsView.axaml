@@ -12,12 +12,19 @@
    <Button Grid.Column="2" Content="Refresh" Command="{Binding LoadTicketsCommand}" />
   </Grid>
   <Grid ColumnDefinitions="260,*" ColumnSpacing="18" IsEnabled="{Binding !IsBusy}">
-   <ListBox ItemsSource="{Binding Tickets}" SelectedItem="{Binding SelectedTicket}" VerticalAlignment="Top" MinHeight="350" MaxHeight="650" Background="White">
-    <ListBox.ItemTemplate><DataTemplate x:DataType="app:TicketRecord"><StackPanel Spacing="7" Margin="4,8">
-     <TextBlock Text="{Binding AccountNumber}" Classes="muted" FontSize="12" /><TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
-     <views:StatusBadge Status="{Binding Status}" /><TextBlock Text="{Binding AssignedTo}" Classes="muted" TextWrapping="Wrap" />
-    </StackPanel></DataTemplate></ListBox.ItemTemplate>
-   </ListBox>
+   <Grid VerticalAlignment="Top">
+    <ListBox ItemsSource="{Binding Tickets}" SelectedItem="{Binding SelectedTicket}" VerticalAlignment="Top" MinHeight="350" MaxHeight="650" Background="White">
+     <ListBox.ItemTemplate><DataTemplate x:DataType="app:TicketRecord"><StackPanel Spacing="7" Margin="4,8">
+      <TextBlock Text="{Binding AccountNumber}" Classes="muted" FontSize="12" /><TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <views:StatusBadge Status="{Binding Status}" /><TextBlock Text="{Binding AssignedTo}" Classes="muted" TextWrapping="Wrap" />
+     </StackPanel></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <!-- The list fills from the database; say so when it is empty instead of showing a blank box. -->
+    <StackPanel IsVisible="{Binding !Tickets.Count}" IsHitTestVisible="False" Margin="24" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+     <TextBlock Text="No repair tickets to show" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
+     <TextBlock Classes="muted" Text="Press Refresh, or clear the search and filter." FontSize="13" TextAlignment="Center" TextWrapping="Wrap" />
+    </StackPanel>
+   </Grid>
    <Border Grid.Column="1" Classes="card">
     <StackPanel Spacing="14">
      <TextBlock Text="Ticket detail and timeline" Classes="section-title" />
