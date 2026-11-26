@@ -95,26 +95,16 @@ allowlist, and email delivery settings above.
 
 ## Interface and motion
 
-- Client and admin pages share the water-inspired design: light headers,
-  midnight balance and operations cards with fine aqua rings, cobalt actions,
-  white quick-action tiles with aqua icon wells, rounded records and fields,
-  and a floating navy navigation dock with an aqua active tab.
-  Bills, payments, concerns, repairs, notices, account records, dialogs, maps,
-  and forms use the same visual system. Sign-in and recovery share its palette
-  and controls while retaining the startup animation and login artwork.
-- User navigation links Home, Bills, Services, and Account. Admin navigation
-  links Home, Accounts, Services, and More; record pages return to the matching
-  dashboard destination. At large text sizes the dock uses two rows, content
-  stacks, and headers grow to keep their titles visible.
+- Signed-in client and admin screens use a scoped utility-service theme: compact
+  corners, neutral icons, white surfaces, restrained royal-blue actions, and
+  persistent navigation labels. Large text switches navigation to two rows.
+  Authentication, startup animation, and the location map retain their styling.
 - Dashboard branding uses the Maramag Water District logo. Desktop dashboards
   use two columns, while mobile and large-text layouts remain stacked. Service
-  advisories link to published notices, whose detail sheet shows publication dates;
+  advisories link to published notices and display their publication dates;
   the absence of a notice does not assert normal service. Request previews open
   the selected concern and its repair records. Unpaid client bills include
   payment guidance with account/bill references and verification requirements.
-- Browser loading, the startup screen, and startup errors use the same midnight,
-  cobalt, and aqua palette. Recent activity displays the latest payment record;
-  its empty message appears only after an empty successful response.
 - Splash waits at least three seconds while initialization runs, then slides left
   as sign-in enters. The sign-in label exits over 800 ms while authentication runs;
   a spinner covers longer requests and failed sign-ins restore the label.
