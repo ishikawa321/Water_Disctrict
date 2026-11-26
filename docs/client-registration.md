@@ -36,8 +36,8 @@ would restore the earlier automatic activation trigger. Both apps check
 
 Use Supabase's existing email confirmation settings and redirect allowlist.
 Approval does not bypass confirmation. Registration does not depend on the
-ASP.NET host; Next.js and desktop admin operations still require the configured
-WaterDistrict API. Redeploy the website/API and rebuild installed clients to
+ASP.NET host. The Next.js office uses Supabase directly; the connected desktop
+uses WaterDistrict API. Redeploy the website/API and rebuild installed clients to
 publish source changes.
 
 The account counter remains private. Only active admins can call

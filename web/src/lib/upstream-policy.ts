@@ -21,7 +21,7 @@ export function allowOfficeRequest(role: Role, method: string, path: string) {
     method === "GET" &&
     (path === "workflow/assignees" ||
       path === "admin/staff" ||
-      /^office\/(summary|accounts|registrations|bills|payments|announcements)$/.test(
+      /^office\/(summary|accounts|registrations|bills|payments|announcements|billing-plans|billing-status)$/.test(
         path,
       ))
   )
@@ -30,7 +30,7 @@ export function allowOfficeRequest(role: Role, method: string, path: string) {
     method === "POST" &&
     (new RegExp(`^office/registrations/${guid}/approve$`).test(path) ||
       path === "workflow/tickets" ||
-      /^office\/(bills|payments|announcements)$/.test(path))
+      /^office\/(bills|payments|announcements|billing-plans)$/.test(path))
   )
     return true;
   return (

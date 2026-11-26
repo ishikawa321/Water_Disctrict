@@ -23,6 +23,8 @@ import type {
 import { Badge, Card, Empty, Feedback, Field } from "./ui";
 import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
 import { PaymentTable } from "./payment-table";
+import { MonthlyBilling } from "./monthly-billing";
+import { nextBillingDueDate } from "@/lib/billing-dates";
 
 export function AccountsPage() {
   const records = useResource<Account[]>("/api/office/office/accounts", 30_000);
@@ -149,10 +151,8 @@ export function BillsPage() {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useDraft("office:add-bill", {
     accountId: "",
-    billNumber: "",
-    periodStart: "",
-    periodEnd: "",
-    dueDate: "",
+    requestId: crypto.randomUUID(),
+    dueDate: nextBillingDueDate(),
     amountDue: "",
   });
   const mutation = useMutation();
@@ -166,13 +166,9 @@ export function BillsPage() {
     event.preventDefault();
     void mutation.run(async () => {
       const amountDue = positiveMoney(draft.amountDue);
-      dateOnly(draft.periodStart);
-      dateOnly(draft.periodEnd);
       dateOnly(draft.dueDate);
-      if (draft.periodEnd < draft.periodStart)
-        throw new Error("The period end cannot precede the period start.");
       await save("/api/office/office/bills", { ...draft, amountDue });
-      setDraft({ ...draft, billNumber: "", amountDue: "" });
+      setDraft({ ...draft, requestId: crypto.randomUUID(), amountDue: "" });
       void records.reload();
     }, "Billing record created.");
   }
@@ -221,59 +217,22 @@ export function BillsPage() {
                     ))}
                 </select>
               </Field>
-              <div className="form-row">
-                <Field label="Bill number">
-                  <input
-                    value={draft.billNumber}
-                    onChange={(e) =>
-                      setDraft({ ...draft, billNumber: e.target.value })
-                    }
-                    required
-                    maxLength={100}
-                  />
-                </Field>
-                <Field label="District-computed amount (PHP)">
-                  <input
-                    inputMode="decimal"
-                    value={draft.amountDue}
-                    onChange={(e) =>
-                      setDraft({ ...draft, amountDue: e.target.value })
-                    }
-                    placeholder="0.00"
-                    required
-                  />
-                </Field>
-              </div>
-              <div className="form-row">
-                <Field label="Period start">
-                  <input
-                    type="date"
-                    min="2000-01-01"
-                    max="2100-12-31"
-                    value={draft.periodStart}
-                    onChange={(e) =>
-                      setDraft({ ...draft, periodStart: e.target.value })
-                    }
-                    required
-                  />
-                </Field>
-                <Field label="Period end">
-                  <input
-                    type="date"
-                    min={draft.periodStart || "2000-01-01"}
-                    max="2100-12-31"
-                    value={draft.periodEnd}
-                    onChange={(e) =>
-                      setDraft({ ...draft, periodEnd: e.target.value })
-                    }
-                    required
-                  />
-                </Field>
-              </div>
+              <p>A unique bill number is generated when this bill is saved.</p>
+              <Field label="District-computed amount (PHP)">
+                <input
+                  inputMode="decimal"
+                  value={draft.amountDue}
+                  onChange={(e) =>
+                    setDraft({ ...draft, amountDue: e.target.value })
+                  }
+                  placeholder="0.00"
+                  required
+                />
+              </Field>
               <Field label="Due date">
                 <input
                   type="date"
-                  min="2000-01-01"
+                  min={todayInManila()}
                   max="2100-12-31"
                   value={draft.dueDate}
                   onChange={(e) =>
@@ -293,6 +252,7 @@ export function BillsPage() {
           </form>
         </Card>
       )}
+      <MonthlyBilling accounts={accounts.data ?? []} />
       <Card>
         <div className="toolbar">
           <input
@@ -313,9 +273,10 @@ export function BillsPage() {
               <thead>
                 <tr>
                   <th>Bill / account</th>
-                  <th>Billing period</th>
                   <th>Due</th>
                   <th>Original</th>
+                  <th>Interest</th>
+                  <th>Total</th>
                   <th>Verified paid</th>
                   <th>Remaining</th>
                   <th>History</th>
@@ -328,11 +289,14 @@ export function BillsPage() {
                       {b.billNumber}
                       <small>{b.accountNumber}</small>
                     </td>
-                    <td>
-                      {dateLabel(b.periodStart)}
-                      <small>to {dateLabel(b.periodEnd)}</small>
-                    </td>
                     <td>{dateLabel(b.dueDate)}</td>
+                    <td className="amount">
+                      {money(b.baseAmount ?? b.amountDue)}
+                    </td>
+                    <td className="amount">
+                      {money(b.interestAmount ?? 0)}
+                      <small>{b.interestDays ?? 0} days</small>
+                    </td>
                     <td className="amount">{money(b.amountDue)}</td>
                     <td className="amount">{money(b.paid)}</td>
                     <td className="amount">{money(b.remaining)}</td>
@@ -369,12 +333,13 @@ export function PaymentsPage({
   const [show, setShow] = useState(false);
   const [draft, setDraft] = useDraft("office:add-payment", {
     billId: initialBillId,
-    receiptReference: "",
+    requestId: crypto.randomUUID(),
     paymentDate: todayInManila(),
     amountPaid: "",
     verified: false,
   });
   const mutation = useMutation();
+  const [confirmedReference, setConfirmedReference] = useState("");
   function submit(event: FormEvent) {
     event.preventDefault();
     void mutation.run(async () => {
@@ -384,10 +349,14 @@ export function PaymentsPage({
         throw new Error("The payment date cannot be in the future.");
       if (!draft.verified)
         throw new Error("Confirm verification against district records.");
-      await save("/api/office/office/payments", { ...draft, amountPaid });
+      const confirmed = await save<Payment>("/api/office/office/payments", {
+        ...draft,
+        amountPaid,
+      });
+      setConfirmedReference(confirmed.receiptReference);
       setDraft({
         ...draft,
-        receiptReference: "",
+        requestId: crypto.randomUUID(),
         amountPaid: "",
         verified: false,
       });
@@ -414,6 +383,11 @@ export function PaymentsPage({
         </button>
       </PageHeader>
       <Feedback error={mutation.error} success={mutation.success} />
+      {confirmedReference && (
+        <p role="status" className="feedback success">
+          Payment confirmed. Reference: <strong>{confirmedReference}</strong>
+        </p>
+      )}
       {show && (
         <Card title="Record a verified offline payment">
           <Feedback error={bills.error} />
@@ -436,16 +410,21 @@ export function PaymentsPage({
                   ))}
                 </select>
               </Field>
-              <Field label="Receipt / reference">
-                <input
-                  value={draft.receiptReference}
-                  onChange={(e) =>
-                    setDraft({ ...draft, receiptReference: e.target.value })
-                  }
-                  maxLength={150}
-                  required
-                />
-              </Field>
+              <p>
+                A unique 10-digit reference is generated after confirmation.
+              </p>
+              <button
+                type="button"
+                className="secondary"
+                disabled={!draft.billId}
+                onClick={() => {
+                  const bill = bills.data?.find((b) => b.id === draft.billId);
+                  if (bill)
+                    setDraft({ ...draft, amountPaid: String(bill.remaining) });
+                }}
+              >
+                Use full remaining balance
+              </button>
               <div className="form-row">
                 <Field label="Payment date">
                   <input
@@ -485,7 +464,7 @@ export function PaymentsPage({
                 </span>
               </label>
               <button className="primary" type="submit">
-                {mutation.busy ? "Saving…" : "Record verified payment"}
+                {mutation.busy ? "Saving…" : "Confirm payment"}
               </button>
             </fieldset>
             <small>
