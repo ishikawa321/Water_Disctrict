@@ -15,6 +15,7 @@ export const repairStates = [
   "Open",
   "Assigned",
   "In progress",
+  "Completed",
   "Resolved",
 ] as const;
 export const interruptionPrefix = "[Service interruption] ";
@@ -29,13 +30,15 @@ export function homeFor(role: Role) {
   return role === "client" ? "/portal" : "/office";
 }
 // Display choices only. Shared database guards validate transitions and assignment.
-export function ticketChoices(current: string): string[] {
+export function ticketChoices(current: string, role: Role = "admin"): string[] {
   return (
     (
       {
         Open: ["Open", "Assigned"],
         Assigned: ["Assigned", "In progress"],
-        "In progress": ["In progress", "Resolved"],
+        "In progress": ["In progress", "Completed"],
+        Completed:
+          role === "admin" ? ["Completed", "In progress", "Resolved"] : [],
         Resolved: [],
       } as Record<string, string[]>
     )[current] ?? []
@@ -69,7 +72,8 @@ export function canVisit(role: Role, section: string): boolean {
       "repairs",
       "staff",
     ].includes(section);
-  if (role === "staff") return ["concerns", "repairs"].includes(section);
+  if (role === "staff")
+    return ["concerns", "repairs", "bills", "payments"].includes(section);
   return [
     "bills",
     "payments",

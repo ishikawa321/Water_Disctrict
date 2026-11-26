@@ -13,6 +13,7 @@ import 'package:printing/printing.dart';
 
 import 'ui_components.dart';
 import 'concern_location.dart';
+import 'staff_workspace.dart';
 
 const projectUrl = 'https://kaeespcylucvsazfdaks.supabase.co';
 // Public client key; database access is still controlled by Supabase policies.
@@ -218,7 +219,8 @@ class _AccountPageState extends State<AccountPage>
       await labelExited;
       if (!mounted || screen != AccountScreen.login) return;
 
-      if (result == null || !['admin', 'client'].contains(result['role'])) {
+      if (result == null ||
+          !['admin', 'staff', 'client'].contains(result['role'])) {
         final registration = await supabase
             .from('client_registrations')
             .select('status')
@@ -547,11 +549,13 @@ class _AccountPageState extends State<AccountPage>
   Widget build(BuildContext context) {
     if (screen == AccountScreen.dashboard) {
       return ContentEntrance(
-        child: ModernDashboard(
-          profile: profile!,
-          onSignOut: returnToLogin,
-          signingOut: busy,
-        ),
+        child: profile!['role'] == 'staff'
+            ? StaffWorkspace(onSignOut: returnToLogin)
+            : ModernDashboard(
+                profile: profile!,
+                onSignOut: returnToLogin,
+                signingOut: busy,
+              ),
       );
     }
     final reset = screen == AccountScreen.resetPassword;
@@ -4748,7 +4752,12 @@ class _ModernDashboardState extends State<ModernDashboard> {
         repairs = await supabase
             .from('repair_tickets')
             .count(CountOption.exact)
-            .inFilter('status', ['Open', 'Assigned', 'In progress']);
+            .inFilter('status', [
+              'Open',
+              'Assigned',
+              'In progress',
+              'Completed',
+            ]);
       }
       if (!admin) {
         final uid = supabase.auth.currentUser?.id;
@@ -5788,7 +5797,13 @@ class _ModernDashboardState extends State<ModernDashboard> {
             quickAction(
               'Repairs',
               CupertinoIcons.wrench,
-              () => open(const RepairTicketsPage(isAdmin: true)),
+              () => open(
+                StaffWorkspace(
+                  onSignOut: widget.onSignOut,
+                  admin: true,
+                  initialTab: 1,
+                ),
+              ),
             ),
             quickAction(
               'Announcements',
@@ -5901,7 +5916,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
           'Repair updates',
           'Assignments and latest recorded updates',
           CupertinoIcons.wrench,
-          () => open(RepairTicketsPage(isAdmin: admin)),
+          () => open(
+            admin
+                ? StaffWorkspace(
+                    onSignOut: widget.onSignOut,
+                    admin: true,
+                    initialTab: 1,
+                  )
+                : const RepairTicketsPage(isAdmin: false),
+          ),
         ),
       ];
     }
@@ -6701,7 +6724,7 @@ class DesignRepairStages extends StatelessWidget {
   final String status;
   @override
   Widget build(BuildContext context) {
-    const stages = ['Open', 'Assigned', 'In progress', 'Resolved'];
+    const stages = ['Open', 'Assigned', 'In progress', 'Completed', 'Resolved'];
     final current = stages.indexOf(status);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),

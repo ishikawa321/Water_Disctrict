@@ -178,12 +178,7 @@ describe("Supabase office routes without a desktop server", () => {
       method: "eq",
       args: ["assigned_to_user_id", "10000000-0000-4000-8000-000000000001"],
     });
-    for (const path of [
-      "office/summary",
-      "office/accounts",
-      "office/bills",
-      "admin/staff",
-    ])
+    for (const path of ["office/summary", "office/accounts", "admin/staff"])
       expect((await call("GET", path)).status).toBe(403);
     expect((await call("POST", "workflow/tickets", {})).status).toBe(403);
   });
@@ -234,6 +229,22 @@ describe("Supabase office routes without a desktop server", () => {
       state.calls.some((c) => c.method === "insert" || c.method === "update"),
     ).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
+  });
+  it("identifies missing registration setup without recommending repair migrations or creating accounts directly", async () => {
+    state.rpcResult = { data: null, error: { code: "PGRST202" } };
+    const approval = await call("POST", `office/registrations/${id}/approve`);
+    expect(approval.status).toBe(503);
+    expect((await approval.json()).code).toBe("registration_setup_required");
+    state.tables.set("client_registrations", {
+      data: null,
+      error: { code: "PGRST205" },
+    });
+    const list = await call("GET", "office/registrations");
+    expect(list.status).toBe(503);
+    expect((await list.json()).code).toBe("registration_setup_required");
+    expect(
+      state.calls.some((c) => c.method === "insert" || c.method === "update"),
+    ).toBe(false);
   });
   it("sends the expected xmin to the locked review transaction, then reads the confirmed record", async () => {
     state.rpcResult = { data: { id }, error: null };

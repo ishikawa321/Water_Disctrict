@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:water_district_connect/main.dart';
+import 'package:water_district_connect/staff_workspace.dart';
 import 'package:water_district_connect/ui_components.dart';
 import 'package:water_district_connect/concern_location.dart';
 
@@ -908,7 +909,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final labels = ['Accounts', 'Add bill', 'Record payment', 'Concerns', 'Repairs', 'Announcements'];
     final types = [ServiceAccountsPage, AddBillPage, RecordPaymentPage, ConcernsPage,
-      RepairTicketsPage, AnnouncementsPage];
+      StaffWorkspace, AnnouncementsPage];
     for (var i = 0; i < labels.length; i++) {
       await tester.pumpWidget(app(ModernDashboard(
         profile: const {'display_name': 'Test Admin', 'role': 'admin'},

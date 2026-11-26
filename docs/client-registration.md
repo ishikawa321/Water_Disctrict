@@ -5,7 +5,7 @@ confirmation. Supabase Auth stores the password. On signup, the database saves
 the client details in `client_registrations` with status **Pending**, and creates
 an inactive client profile. No service account number is consumed yet.
 
-Admins open **Service accounts ? Pending registrations**, review the name,
+Admins open **Service accounts → Pending registrations**, review the name,
 email and address, then select **Approve registration**. This is available in
 Flutter mobile/web, Next.js Admin, and the connected desktop application
 `desktop/WaterDistrict.sln`. The separate `desktop/WaterDistrictConnect` prototype
@@ -39,6 +39,8 @@ Approval does not bypass confirmation. Registration does not depend on the
 ASP.NET host. The Next.js office uses Supabase directly; the connected desktop
 uses WaterDistrict API. Redeploy the website/API and rebuild installed clients to
 publish source changes.
+
+In Next.js, successful approval displays the actual assigned account number. Pending lists refresh every 30 seconds while visible and when the browser regains focus. Failed approval retains the pending entry for retry. Switching between signup and sign-in clears passwords, matching mobile behavior.
 
 The account counter remains private. Only active admins can call
 `approve_client_registration`; the database assigns the number and copies the

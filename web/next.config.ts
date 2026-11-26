@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/office/billing-pdf": [
+      "./public/fonts/DMSans-Regular.ttf",
+      "./public/fonts/DMSans-Bold.ttf",
+      "./public/brand/logo.png",
+    ],
+  },
   async headers() {
     return [
       {

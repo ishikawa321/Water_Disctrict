@@ -40,13 +40,7 @@ describe("money and calendar dates", () => {
 describe("role and route boundaries", () => {
   const id = "12345678-1234-4321-8123-123456789abc";
   it("denies admin pages and operations to Staff and consumers", () => {
-    for (const section of [
-      "accounts",
-      "bills",
-      "payments",
-      "announcements",
-      "staff",
-    ]) {
+    for (const section of ["accounts", "announcements", "staff"]) {
       expect(canVisit("staff", section)).toBe(false);
       expect(allowOfficeRequest("staff", "GET", `office/${section}`)).toBe(
         false,
@@ -55,6 +49,15 @@ describe("role and route boundaries", () => {
         false,
       );
     }
+    expect(canVisit("staff", "bills")).toBe(true);
+    expect(canVisit("staff", "payments")).toBe(true);
+    expect(allowOfficeRequest("staff", "GET", "office/bills")).toBe(true);
+    expect(allowOfficeRequest("staff", "GET", "office/payments")).toBe(true);
+    expect(allowOfficeRequest("staff", "POST", "office/payments")).toBe(true);
+    expect(allowOfficeRequest("staff", "POST", "office/bills")).toBe(false);
+    expect(allowOfficeRequest("staff", "POST", "admin/staff-invitations")).toBe(
+      false,
+    );
     expect(allowOfficeRequest("staff", "POST", "workflow/tickets")).toBe(false);
     expect(allowOfficeRequest("staff", "GET", "workflow/assignees")).toBe(
       false,

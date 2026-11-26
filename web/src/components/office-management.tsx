@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, FileDown } from "lucide-react";
 import { save } from "@/lib/client";
 import { useDraft, useResource } from "@/lib/hooks";
 import {
@@ -18,13 +18,13 @@ import type {
   Bill,
   Notice,
   Payment,
-  StaffMember,
 } from "@/lib/types";
 import { Badge, Card, Empty, Feedback, Field } from "./ui";
 import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
 import { PaymentTable } from "./payment-table";
 import { MonthlyBilling } from "./monthly-billing";
 import { nextBillingDueDate } from "@/lib/billing-dates";
+import { downloadBillingPdf } from "@/lib/billing-download";
 
 export function AccountsPage() {
   const records = useResource<Account[]>("/api/office/office/accounts", 30_000);
@@ -33,6 +33,7 @@ export function AccountsPage() {
     30_000,
   );
   const mutation = useMutation();
+  const [approvedNumber, setApprovedNumber] = useState("");
   function approve(id: string) {
     void mutation.run(async () => {
       const result = await save<{ accountNumber: string }>(
@@ -43,6 +44,7 @@ export function AccountsPage() {
         throw new Error(
           "Approval could not be confirmed. Refresh before retrying.",
         );
+      setApprovedNumber(result.accountNumber);
       void records.reload();
       void pending.reload();
     }, "Registration approved. The account number has been assigned. The client can sign in after email confirmation.");
@@ -68,7 +70,14 @@ export function AccountsPage() {
           busy={records.busy || pending.busy}
         />
       </PageHeader>
-      <Feedback error={mutation.error} success={mutation.success} />
+      <Feedback
+        error={mutation.error}
+        success={
+          mutation.success && approvedNumber
+            ? `Registration approved. Service account ${approvedNumber} assigned. The client can sign in after email confirmation.`
+            : mutation.success
+        }
+      />
       <Card title="Pending registrations">
         <DataState {...pending} loaded={!!pending.data}>
           {pending.data?.length === 0 && <p>No pending registrations.</p>}
@@ -144,9 +153,12 @@ export function AccountsPage() {
   );
 }
 
-export function BillsPage() {
+export function BillsPage({ staff = false }: { staff?: boolean }) {
+  const pdf = useMutation();
   const records = useResource<Bill[]>("/api/office/office/bills");
-  const accounts = useResource<Account[]>("/api/office/office/accounts");
+  const accounts = useResource<Account[]>(
+    staff ? null : "/api/office/office/accounts",
+  );
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useDraft("office:add-bill", {
@@ -178,6 +190,19 @@ export function BillsPage() {
         title="Billing records"
         subtitle="District-computed charges and verified remaining balances."
       >
+        <button
+          className="secondary"
+          disabled={pdf.busy || !visible.length}
+          onClick={() =>
+            void pdf.run(
+              () => downloadBillingPdf(visible.map((b) => b.id)),
+              "Billing list PDF downloaded.",
+            )
+          }
+        >
+          <FileDown size={16} />
+          {pdf.busy ? "Preparing PDF…" : "Download list PDF"}
+        </button>
         <Refresh
           onClick={() => {
             void records.reload();
@@ -185,13 +210,16 @@ export function BillsPage() {
           }}
           busy={records.busy || accounts.busy}
         />
-        <button className="primary" onClick={() => setShow(!show)}>
-          <Plus size={16} />
-          {show ? "Close form" : "New bill"}
-        </button>
+        {!staff && (
+          <button className="primary" onClick={() => setShow(!show)}>
+            <Plus size={16} />
+            {show ? "Close form" : "New bill"}
+          </button>
+        )}
       </PageHeader>
       <Feedback error={mutation.error} success={mutation.success} />
-      {show && (
+      <Feedback error={pdf.error} success={pdf.success} />
+      {!staff && show && (
         <Card title="Create a billing record">
           <Feedback error={accounts.error} />
           <form className="form" onSubmit={submit}>
@@ -252,7 +280,7 @@ export function BillsPage() {
           </form>
         </Card>
       )}
-      <MonthlyBilling accounts={accounts.data ?? []} />
+      {!staff && <MonthlyBilling accounts={accounts.data ?? []} />}
       <Card>
         <div className="toolbar">
           <input
@@ -280,6 +308,7 @@ export function BillsPage() {
                   <th>Verified paid</th>
                   <th>Remaining</th>
                   <th>History</th>
+                  <th>Download</th>
                 </tr>
               </thead>
               <tbody>
@@ -305,6 +334,22 @@ export function BillsPage() {
                         Payments
                       </Link>
                     </td>
+                    <td>
+                      <button
+                        className="secondary"
+                        aria-label={`Download PDF for bill ${b.billNumber}`}
+                        disabled={pdf.busy}
+                        onClick={() =>
+                          void pdf.run(
+                            () => downloadBillingPdf([b.id], true),
+                            "Bill PDF downloaded.",
+                          )
+                        }
+                      >
+                        <FileDown size={16} />
+                        PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -313,7 +358,8 @@ export function BillsPage() {
         </DataState>
         <p className="list-meta">
           Up to 1,000 bills, most recent due dates first. Search filters loaded
-          records.
+          records. Download list PDF includes only the currently displayed
+          matching records, using fresh saved balances.
         </p>
       </Card>
     </>
@@ -711,50 +757,4 @@ function NoticeForm({
     </Card>
   );
 }
-export function StaffDirectory() {
-  const records = useResource<StaffMember[]>("/api/office/admin/staff");
-  return (
-    <>
-      <PageHeader
-        title="Staff directory"
-        subtitle="Authorized, active office personnel."
-      >
-        <Refresh onClick={records.reload} busy={records.busy} />
-      </PageHeader>
-      <Card>
-        <DataState
-          {...records}
-          loaded={!!records.data}
-          empty={records.data?.length === 0}
-        >
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Access</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.data?.map((p) => (
-                  <tr key={p.userId}>
-                    <td>{p.displayName}</td>
-                    <td style={{ textTransform: "capitalize" }}>{p.role}</td>
-                    <td>
-                      <Badge>Active</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </DataState>
-        <p className="list-meta">
-          Read-only directory. Staff accounts are provisioned by an authorized
-          operator.
-        </p>
-      </Card>
-    </>
-  );
-}
+export { StaffDirectory } from "./staff-management";

@@ -36,6 +36,22 @@ export function OfficeDashboard({ profile }: { profile: Profile }) {
           : "Dispatch and coordinate work",
       Icon: Wrench,
     },
+    ...(profile.role === "staff"
+      ? [
+          {
+            href: "bills",
+            title: "Bills",
+            text: "View customer balances",
+            Icon: FileText,
+          },
+          {
+            href: "payments",
+            title: "Confirm payments",
+            text: "Verify and record payments",
+            Icon: CreditCard,
+          },
+        ]
+      : []),
     ...(profile.role === "admin"
       ? [
           {
@@ -78,7 +94,7 @@ export function OfficeDashboard({ profile }: { profile: Profile }) {
         subtitle={
           profile.role === "admin"
             ? "Receive concerns, manage district records and coordinate repairs."
-            : "Review concerns and update repairs assigned to you."
+            : "Review concerns, confirm payments and complete assigned repairs for Admin review."
         }
       />
       {profile.role === "admin" && (
@@ -109,7 +125,7 @@ export function OfficeDashboard({ profile }: { profile: Profile }) {
                 </div>
                 <p>Active repairs</p>
                 <strong>{summary.data?.activeRepairs ?? "—"}</strong>
-                <p>Open, Assigned and In progress</p>
+                <p>Open, Assigned, In progress and Completed</p>
                 <Link className="text-button" href="/office/repairs">
                   View repairs →
                 </Link>
