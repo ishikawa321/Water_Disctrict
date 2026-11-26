@@ -36,7 +36,7 @@ Office Data API lists: up to 1000. Office workflow concerns/tickets: up to 500 m
 - [x] 4. Consumer account, billing/payments, concerns/repairs, notices and help.
 - [x] 5. Admin management and read-only directory.
 - [x] 6. Office concern and repair API workflows, retained drafts and conflicts.
-- [ ] 7. TypeScript, lint, build, unit/contract and browser verification.
+- [x] 7. TypeScript, lint, build, unit/contract and browser verification.
 - [ ] 8. Vercel setup, shared API hosting instructions and landing-page handoff.
 
 External acceptance remains separate: deployed HTTPS API URL, Vercel account/project access, Supabase redirect configuration, and authorized application-user cross-platform acceptance. No real-user credentials are required for local isolated tests.
