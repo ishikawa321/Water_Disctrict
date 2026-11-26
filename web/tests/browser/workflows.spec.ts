@@ -552,7 +552,7 @@ test("Staff cannot visit or call Admin operations", async ({ page }) => {
   await page.goto("/office/accounts");
   await expect(page).toHaveURL(/\/office$/);
 });
-test("Admin dispatches, Staff completes, and only Admin confirms resolution", async ({
+test("Admin dispatches and assigned Staff resolves with matching client status", async ({
   page,
   request,
   browser,
@@ -615,7 +615,7 @@ test("Admin dispatches, Staff completes, and only Admin confirms resolution", as
   await expect(
     staff.getByRole("status").filter({ hasText: "Repair update saved" }),
   ).toBeVisible();
-  await staff.getByLabel("Repair status").selectOption("Completed");
+  await staff.getByLabel("Repair status").selectOption("Resolved");
   await staff
     .getByLabel("Update note (required)")
     .fill("Repair completed and verified.");
@@ -626,27 +626,22 @@ test("Admin dispatches, Staff completes, and only Admin confirms resolution", as
     staff.getByRole("heading", { name: "Record an update" }),
   ).toHaveCount(0);
   await expect(staff.locator(".timeline li")).toHaveCount(4);
-  await expect(
-    staff.getByText("Work completed. Awaiting Admin confirmation", {
-      exact: false,
-    }),
-  ).toBeVisible();
   await page.goto("/office/repairs");
   await page.getByRole("button", { name: /QA low pressure/ }).click();
-  await page.getByLabel("Repair status").selectOption("Resolved");
-  await page
-    .getByLabel("Update note (required)")
-    .fill("Admin verified the completed repair.");
-  await page
-    .getByRole("button", { name: "Save repair update", exact: true })
-    .click();
-  await expect(page.locator(".timeline li")).toHaveCount(5);
+  await expect(page.locator(".timeline li")).toHaveCount(4);
+  await expect(page.getByLabel("Repair status")).toHaveCount(0);
+  const clientContext = await page.context().browser()!.newContext();
+  const client = await clientContext.newPage();
+  await login(client, "client");
+  await client.goto("/portal/repairs");
+  await client.getByRole("button", { name: /QA low pressure/ }).click();
   await expect(
-    page.getByRole("heading", {
-      name: "Confirm repair resolution",
-      exact: true,
-    }),
+    client.locator(".repair-stages").getByText("Completed", { exact: true }),
   ).toHaveCount(0);
+  await expect(client.locator(".repair-stages .current")).toContainText(
+    "Resolved",
+  );
+  await clientContext.close();
 
   await staffContext.close();
 });

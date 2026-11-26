@@ -119,7 +119,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Assigned leak'), findsOneWidget);
-      expect(find.text('Awaiting Admin confirmation'), findsOneWidget);
+      expect(find.text('Awaiting final resolution'), findsOneWidget);
       expect(
         queries.single,
         contains('assigned_to_user_id=eq.10000000-0000-4000-8000-000000000002'),

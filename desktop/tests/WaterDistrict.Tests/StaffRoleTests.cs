@@ -46,6 +46,38 @@ public sealed class StaffRoleTests
         await Change(db.Admin.UserId, "Resolved"); Assert.Equal("Resolved", (await Raw(db, $"select jsonb_build_object('status',status)::text from public.service_concerns where id='{concern}'")).GetProperty("status").GetString());
         Assert.Equal(5, (await As(db, db.Staff.UserId, $"select public.wd_web_ticket_history('{id}')::text")).GetArrayLength());
     }
+    [Theory]
+    [InlineData("Assigned", false)]
+    [InlineData("In progress", false)]
+    [InlineData("Completed", false)]
+    [InlineData("Assigned", true)]
+    [InlineData("In progress", true)]
+    [InlineData("Completed", true)]
+    public async Task Direct_resolution_updates_concern_and_history(string from, bool admin)
+    {
+        await using var db = await PostgresDatabase.CreateAsync(verifiedSchema: true); await Install(db);
+        var migration = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "allow_staff_repair_resolution.sql"), Token);
+        await db.SqlAsync(migration); await db.SqlAsync(migration);
+        var concern = Guid.NewGuid();
+        await As(db, db.Staff.UserId, $"select public.wd_web_workflow('intake','{concern}',null,'{{\"accountId\":\"{db.AccountId}\",\"category\":\"Repair request\",\"subject\":\"Direct resolution\",\"description\":\"Repair\"}}')::text");
+        async Task<long> Version(string table, Guid key) => (await Raw(db, $"select jsonb_build_object('v',xmin::text::bigint)::text from public.{table} where id='{key}'")).GetProperty("v").GetInt64();
+        await As(db, db.Staff.UserId, $"select public.wd_web_workflow('review','{concern}',{await Version("service_concerns", concern)},'{{\"status\":\"Under review\"}}')::text");
+        var ticket = await As(db, db.Admin.UserId, $"select public.wd_web_workflow('dispatch','{concern}',{await Version("service_concerns", concern)},'{{\"note\":\"Dispatch\"}}')::text"); var id = ticket.GetProperty("id").GetGuid();
+        async Task Change(Guid actor, string status, string note = "Saved update") => await As(db, actor, $"select public.wd_web_workflow('update_ticket','{id}',{await Version("repair_tickets", id)},'{{\"status\":\"{status}\",\"note\":\"{note}\",\"assignedToUserId\":\"{db.Staff.UserId}\"}}')::text");
+        await Change(db.Admin.UserId, "Assigned");
+        if (from != "Assigned") await Change(db.Staff.UserId, "In progress");
+        if (from == "Completed") await Change(db.Staff.UserId, "Completed");
+        Assert.Equal("42501", (await Assert.ThrowsAsync<PostgresException>(() => Change(db.OtherClientId, "Resolved"))).SqlState);
+        var other = Guid.NewGuid(); await db.SqlAsync($"insert into auth.users(id) values('{other}');insert into public.profiles(user_id,display_name,role,active) values('{other}','Other Staff','staff',true)");
+        await Assert.ThrowsAsync<PostgresException>(() => Change(other, "Resolved"));
+        var actor = admin ? db.Admin.UserId : db.Staff.UserId;
+        await Assert.ThrowsAsync<PostgresException>(() => Change(actor, "Resolved", ""));
+        await Change(actor, "Resolved");
+        Assert.Equal("Resolved", (await Raw(db, $"select jsonb_build_object('status',status)::text from public.service_concerns where id='{concern}'")).GetProperty("status").GetString());
+        var history = await As(db, db.Staff.UserId, $"select public.wd_web_ticket_history('{id}')::text");
+        Assert.Contains(history.EnumerateArray(), e => e.GetProperty("status").GetString() == "Resolved" && e.GetProperty("changedBy").GetString() == (admin ? "Admin test" : "Staff test"));
+        await Assert.ThrowsAsync<PostgresException>(() => Change(actor, "In progress"));
+    }
     [Fact]
     public async Task Only_admin_invites_and_email_confirmation_activates_invited_staff_without_customer_link()
     {

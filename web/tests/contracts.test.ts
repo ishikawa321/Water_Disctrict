@@ -6,7 +6,14 @@ import {
   money,
   positiveMoney,
 } from "@/lib/format";
-import { canVisit, interruptionPrefix, noticeTitle } from "@/lib/policy";
+import {
+  canVisit,
+  interruptionPrefix,
+  noticeTitle,
+  ticketChoices,
+  clientRepairStates,
+  clientRepairStatus,
+} from "@/lib/policy";
 import { allowOfficeRequest } from "@/lib/upstream-policy";
 import { HttpError, requireSameOrigin, readBody } from "@/lib/server/http";
 
@@ -152,5 +159,29 @@ describe("mutation request boundary", () => {
         }),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("repair resolution", () => {
+  it.each(["staff", "admin"] as const)(
+    "allows %s to resolve assigned, active and legacy repairs",
+    (role) => {
+      for (const state of ["Assigned", "In progress", "Completed"]) {
+        expect(ticketChoices(state, role)).toContain("Resolved");
+        expect(ticketChoices(state, role)).not.toContain("Completed");
+      }
+      expect(ticketChoices("Resolved", role)).toEqual([]);
+    },
+  );
+  it("uses four client steps and maps legacy completion to pending resolution", () => {
+    expect(clientRepairStates).toEqual([
+      "Open",
+      "Assigned",
+      "In progress",
+      "Resolved",
+    ]);
+    expect(clientRepairStatus("Completed")).toBe("In progress");
+    expect(clientRepairStatus("Resolved")).toBe("Resolved");
+    expect(ticketChoices("Assigned", "client")).toEqual([]);
   });
 });

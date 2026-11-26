@@ -774,15 +774,14 @@ void main() {
     expect(find.text('Low water pressure'), findsOneWidget);
     await screenshot(tester, 'admin-dashboard');
     refreshGate = Completer<void>();
-    final refresh = tester
-        .widget<RefreshIndicator>(find.byType(RefreshIndicator))
-        .onRefresh();
+    await tester.tap(find.byTooltip('Refresh home'));
     await tester.pump();
     expect(find.text('Low water pressure'), findsOneWidget);
     expect(find.byType(LoadingCards), findsNothing);
+    expect(tester.widget<IconButton>(find.byWidgetPredicate((w) => w is IconButton && w.tooltip == 'Refresh home')).onPressed, isNull);
     failRefresh = true;
     refreshGate!.complete();
-    await tester.runAsync(() => refresh);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds:150)));
     await tester.pump();
     expect(find.text('Low water pressure'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
