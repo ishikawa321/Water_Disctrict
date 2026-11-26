@@ -45,20 +45,65 @@ Tests use a fake HTTP service and do not send emails or change real accounts.
 Live delivery and the email-to-app round trip require the public key, redirect
 allowlist, and email delivery settings above.
 
+## Concern locations
+
+- Run `database/add_concern_locations.sql` in Supabase SQL Editor. It adds the
+  nullable location columns, a coordinate-pair/range constraint, and authenticated
+  INSERT permission on the three location columns. Existing concerns remain valid
+  and row access policies stay unchanged. If the columns were added manually and
+  submission returns access denied, run
+  `database/fix_concern_location_permissions.sql` to apply and verify that grant.
+- Client: **Report issue → Choose location**. Tap the map, optionally use
+  **Use my location**, add a landmark, then **Confirm location**. The pin is saved
+  with the concern only when the concern is submitted. Cancelling the picker
+  preserves the previous selection. Locations are optional for billing inquiries
+  and other concerns that do not need a repair location.
+- Flutter admin: **Service concerns → Details & response → View location**, or
+  open the concern review form. The saved location is read-only. Reviewing a
+  concern updates its status/response without replacing the client's coordinates.
+  Old concerns show **No location provided**.
+- GPS permission is requested only after **Use my location**. Manual selection
+  remains available if GPS is disabled, denied, or times out. Browser geolocation
+  requires localhost or HTTPS; it can return an approximate position, so clients
+  should confirm or adjust the pin. Android and Apple permission metadata is
+  included; no background location tracking is used.
+- Maps use OpenStreetMap tiles with visible linked attribution, a distinct app
+  identifier, and flutter_map's default caching. Follow the
+  [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+  `MAP_TILE_URL` can override the tile template at build time; changing providers
+  also requires reviewing the displayed attribution and provider terms.
+- The separate `desktop/` office workspace currently has no concern-review UI.
+  Its future concern screen can read the same `latitude`, `longitude`, and
+  `location_note` fields from Supabase.
+
 ## Interface and motion
 
+- Signed-in client and admin screens use a scoped utility-service theme: compact
+  corners, neutral icons, white surfaces, restrained royal-blue actions, and
+  persistent navigation labels. Large text switches navigation to two rows.
+  Authentication, startup animation, and the location map retain their styling.
+- Dashboard branding uses the Maramag Water District logo. Desktop dashboards
+  use two columns, while mobile and large-text layouts remain stacked. Service
+  advisories link to published notices and display their publication dates;
+  the absence of a notice does not assert normal service. Request previews open
+  the selected concern and its repair records. Unpaid client bills include
+  payment guidance with account/bill references and verification requirements.
 - Splash waits at least three seconds while initialization runs, then slides left
   as sign-in enters. The sign-in label exits over 800 ms while authentication runs;
   a spinner covers longer requests and failed sign-ins restore the label.
-- Dashboard content enters once and tabs crossfade. Cards respond to presses;
-  bill and concern details expand. Refresh keeps existing records visible.
+- Client home prioritizes the balance, due date, and three quick actions. Admin
+  home prioritizes pending concerns, repairs, and management actions. The profile
+  uses one account card with a compact help action. Refresh keeps records visible.
+- Bills, payments, concerns, repairs, and notices reveal supporting details on
+  demand. Important amounts, dates, and statuses stay visible. Large-text layouts
+  stack content, and currency amounts stay on one line.
 - Status badges use text, icons, and color. Repair progress highlights only the
   recorded current status; it does not imply unrecorded stages were completed.
 - Authors can mark an announcement as **Service interruption**. To work with the
   existing database schema, this choice is stored as a `[Service interruption] `
   prefix in the title. The app hides the prefix and shows a badge instead. The
-  dashboard prioritizes marked interruptions among the ten most recent published
-  notices, displaying up to two notices. Older notices remain in Announcements.
+  dashboard shows the latest published notice, opening its full message on tap.
+  Interruption badges remain visible, and all notices remain in Announcements.
 - Reduced-motion settings suppress decorative transitions and pulsing placeholders.
   Login artwork shrinks when the keyboard opens; field errors appear by the input.
 
@@ -66,6 +111,29 @@ Widget coverage includes splash timing, concurrent sign-in and animation,
 authentication failure recovery, password recovery, retained dashboard records,
 bill disclosure, a 320-pixel keyboard layout, and reduced motion. Tests use mock
 records. UI preview images are written to `build/ui-review/` by `test/ui_test.dart`.
+
+## Web release
+
+The signed-in visual audit covers 23 page variants at 320, 390, 768, and 1280
+logical pixels with 100% and 200% text scaling, plus loading, empty, and error
+states for data-backed pages. Screenshots use mock data; they do not certify
+live database authorization or email delivery.
+
+```powershell
+flutter test
+flutter analyze
+flutter build web --release
+```
+
+Deploy the contents of `build/web/` to HTTPS static hosting. Set Supabase's
+Site URL and allowed recovery redirect to the final deployed origin; localhost
+configuration alone does not enable production password recovery. Complete the
+live client/admin and recovery checks against that origin before release.
+Map selection is preserved, and browser GPS requires HTTPS outside localhost.
+
+Android store distribution is separate: `android/app/build.gradle.kts` still
+uses an example application ID and debug signing for release builds. Configure
+the district's application ID and release signing before distributing to a store.
 
 
 ## Admin and Staff desktop

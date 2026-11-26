@@ -35,6 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.18.3
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.2
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   http: ^1.6.0
@@ -60,6 +64,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/maramag-water-district-logo.png
+    - assets/fonts/OFL.txt
+    - assets/fonts/OFL-NotoSans.txt
   fonts:
     - family: DM Sans
       fonts:
@@ -70,6 +76,10 @@ flutter:
         - asset: assets/fonts/DMSans-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
+    - family: Currency Symbols
+      fonts:
+        - asset: assets/fonts/CurrencySymbols.ttf
           weight: 700
 
   # To add assets to your application, add an assets section, like this:

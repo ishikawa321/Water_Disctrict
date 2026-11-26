@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ui_components.dart';
+import 'concern_location.dart';
 
 const projectUrl = 'https://kaeespcylucvsazfdaks.supabase.co';
 // Public client key; database access is still controlled by Supabase policies.
@@ -740,9 +741,9 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Water-service accounts'),
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
+        title: const Text('Service accounts'),
         actions: [
           IconButton(
             tooltip: 'Refresh accounts',
@@ -913,9 +914,9 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Add water-service account')),
-        body: Center(
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(title: const Text('Add account')),
+        body: Align(alignment: Alignment.topCenter,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -926,7 +927,7 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Use demo records for testing. Link client access separately.',
+                      'Enter the registered service details. Client access is linked separately.',
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
@@ -943,7 +944,7 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
                       enabled: !saving,
                       validator: requiredField,
                       decoration: const InputDecoration(
-                        labelText: 'Registered holder name',
+                        labelText: 'Holder name',
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1048,14 +1049,14 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
 
   void showHelp() => showDialog<void>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => UtilitySurface(child: AlertDialog(
       title: const Text('Account help'),
       content: const Text(
         'Contact authorized district personnel to correct your account details '
         'or request assistance. Representatives need district verification.',
       ),
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
-    ),
+    )),
   );
 
   @override
@@ -1064,9 +1065,9 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
     final holder = record?['holder_name'] as String? ?? '';
     final initials = holder.split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
         .take(2).map((s) => s[0]).join().toUpperCase();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My profile', style: TextStyle(fontWeight: FontWeight.w600)),
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
+        title: const Text('My profile'),
         actions: [IconButton(tooltip: 'Refresh', onPressed: loading ? null : loadAccount,
           icon: const Icon(CupertinoIcons.arrow_clockwise))],
       ),
@@ -1074,7 +1075,7 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
       body: loading ? const SingleChildScrollView(child: LoadingCards(count: 1)) : Align(
         alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1087,19 +1088,21 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
               else Card(child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Center(child: CircleAvatar(radius: 34, backgroundColor: accentTint,
-                    foregroundColor: royalBlue,
-                    child: Text(initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)))),
+                  Align(alignment: Alignment.centerLeft, child: Container(
+                    width: 48, height: 48, alignment: Alignment.center,
+                    decoration: BoxDecoration(color: const Color(0xFFF2F5F9),
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Text(initials, style: const TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w700)))),
                   const SizedBox(height: 16),
-                  Text(holder, textAlign: TextAlign.center,
+                  Text(holder, textAlign: TextAlign.left,
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
                   const Divider(height: 36),
                   DesignValue('Account number', '${record['account_number']}', strong: true),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   const Text('Service address', style: TextStyle(color: muted, fontSize: 14)),
-                  const SizedBox(height: 6),
-                  Text('${record['service_address']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 8),
+                  Text('${record['service_address']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 16),
                   Row(children: [
                     const Expanded(child: Text('Account status', style: TextStyle(color: muted))),
                     StatusBadge(record['active'] == true ? 'Active' : 'Inactive'),
@@ -1118,8 +1121,10 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                       Navigator.of(context).popUntil((r) => r.isFirst);
                     }
                   } catch (_) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not sign out. Please retry.')));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not sign out. Please retry.')));
+                    }
                   }
                 },
               ),
@@ -1223,8 +1228,8 @@ class _BillsPageState extends State<BillsPage> {
               moneyCentavos(bill['amount_due']) > billPayments(bill),
         )
         .toList();
-    return Scaffold(
-      appBar: AppBar(
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
         title: Text(widget.isAdmin ? 'Manage bills' : 'My bills'),
         actions: [
           IconButton(
@@ -1342,17 +1347,22 @@ class _BillsPageState extends State<BillsPage> {
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                           Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
                             spacing: 8, children: [
-                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                             StatusBadge(status),
                           ]),
                           const SizedBox(height: 8),
-                          Text('₱${formatCentavos(remaining)}',
-                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -.8, color: ink)),
+                          AmountText('₱${formatCentavos(remaining)}', color: ink),
                           const SizedBox(height: 4),
                           Text('Due ${recordDate(bill['due_date'])}', style: const TextStyle(color: muted)),
                           if (excess > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text(
                             'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.')),
                         ]),
+                        action: !widget.isAdmin && remaining > 0 ? OutlinedButton.icon(
+                          onPressed: () => showPaymentGuidance(context,
+                            accountNumber: '${account?['account_number'] ?? 'Unavailable'}',
+                            billNumber: '${bill['bill_number']}'),
+                          icon: const Icon(CupertinoIcons.info_circle, size: 18),
+                          label: const Text('View payment instructions')) : null,
                         detailsLabel: 'Billing details',
                         details: [
                           DesignValue('Original bill', '₱${formatCentavos(billed)}'),
@@ -1440,6 +1450,7 @@ class _AddBillPageState extends State<AddBillPage> {
         : dueDate;
     final selected = await showDatePicker(
       context: context,
+      builder: (context, child) => UtilitySurface(child: child!),
       initialDate: current ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
@@ -1511,11 +1522,11 @@ class _AddBillPageState extends State<AddBillPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Add bill')),
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(title: const Text('Add bill')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Center(
+            : Align(alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -1526,7 +1537,7 @@ class _AddBillPageState extends State<AddBillPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'Enter the amount already computed by the district. Use fictional bills for testing.',
+                            'Enter the amount already computed by the district.',
                           ),
                           const SizedBox(height: 20),
                           if (accounts.isEmpty) ...[
@@ -1538,8 +1549,10 @@ class _AddBillPageState extends State<AddBillPage> {
                           ],
                           DropdownButtonFormField<String>(
                             isExpanded: true,
+                            isDense: false,
+                            itemHeight: null,
                             decoration: const InputDecoration(
-                              labelText: 'Water-service account',
+                              labelText: 'Account',
                             ),
                             items: accounts
                                 .map(
@@ -1577,7 +1590,7 @@ class _AddBillPageState extends State<AddBillPage> {
                               decimal: true,
                             ),
                             decoration: const InputDecoration(
-                              labelText: 'District-computed amount (PHP)',
+                              labelText: 'Amount (PHP)',
                             ),
                             validator: (v) =>
                                 RegExp(r'^\d{1,10}(\.\d{1,2})?$')
@@ -1592,12 +1605,14 @@ class _AddBillPageState extends State<AddBillPage> {
                               'Period start: ${periodStart == null ? 'Choose date' : dateText(periodStart!)}',
                             ),
                           ),
+                          const SizedBox(height: 8),
                           OutlinedButton(
                             onPressed: saving ? null : () => pickDate(1),
                             child: Text(
                               'Period end: ${periodEnd == null ? 'Choose date' : dateText(periodEnd!)}',
                             ),
                           ),
+                          const SizedBox(height: 8),
                           OutlinedButton(
                             onPressed: saving ? null : () => pickDate(2),
                             child: Text(
@@ -1708,10 +1723,10 @@ class _PaymentsPageState extends State<PaymentsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
         title: Text(
-          widget.isAdmin ? 'Verified offline payments' : 'My payments',
+          widget.isAdmin ? 'Verified payments' : 'My payments',
         ),
         actions: [
           IconButton(
@@ -1791,7 +1806,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const StatusBadge('Verified'),
-                          Text('₱$amount', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -.8, color: ink)),
+                          AmountText('₱$amount', color: ink),
                           const SizedBox(height: 8),
                           Text(recordDate(payment['payment_date']), style: const TextStyle(color: muted)),
                         ]),
@@ -1874,6 +1889,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
     final now = DateTime.now();
     final selected = await showDatePicker(
       context: context,
+      builder: (context, child) => UtilitySurface(child: child!),
       initialDate: paymentDate ?? now,
       firstDate: DateTime(2000),
       lastDate: now,
@@ -1932,11 +1948,11 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Record offline payment')),
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(title: const Text('Record payment')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Center(
+            : Align(alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -1948,7 +1964,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
                         children: [
                           const Text(
                             'Record payments only after checking district records. '
-                            'For prototype testing, use fictional receipts. One receipt applies to one bill.',
+                            'One receipt applies to one bill.',
                           ),
                           const SizedBox(height: 20),
                           if (bills.isEmpty) ...[
@@ -1960,6 +1976,8 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
                           ],
                           DropdownButtonFormField<String>(
                             isExpanded: true,
+                            isDense: false,
+                            itemHeight: null,
                             decoration: const InputDecoration(
                               labelText: 'Bill',
                             ),
@@ -1986,7 +2004,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
                             controller: receipt,
                             enabled: !saving,
                             decoration: const InputDecoration(
-                              labelText: 'Receipt/reference number',
+                              labelText: 'Receipt/reference',
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Enter the receipt/reference.'
@@ -2000,7 +2018,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
                               decimal: true,
                             ),
                             decoration: const InputDecoration(
-                              labelText: 'Verified amount paid (PHP)',
+                              labelText: 'Amount paid (PHP)',
                             ),
                             validator: (v) {
                               final text = v?.trim() ?? '';
@@ -2063,8 +2081,9 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
 }
 
 class ConcernsPage extends StatefulWidget {
-  const ConcernsPage({super.key, required this.isAdmin});
+  const ConcernsPage({super.key, required this.isAdmin, this.concernId});
   final bool isAdmin;
+  final String? concernId;
   @override
   State<ConcernsPage> createState() => _ConcernsPageState();
 }
@@ -2085,13 +2104,15 @@ class _ConcernsPageState extends State<ConcernsPage> {
       error = null;
     });
     try {
-      final rows = await supabase
+      var query = supabase
           .from('service_concerns')
           .select(
             'id, account_id, category, subject, description, status, admin_response, '
-            'created_at, reviewed_at, service_accounts(account_number)',
-          )
-          .order('created_at', ascending: false);
+            'created_at, reviewed_at, latitude, longitude, location_note, '
+            'service_accounts(account_number)',
+          );
+      if (widget.concernId != null) query = query.eq('id', widget.concernId!);
+      final rows = await query.order('created_at', ascending: false);
       if (mounted) setState(() => concerns = rows);
     } catch (_) {
       if (mounted) {
@@ -2121,8 +2142,8 @@ class _ConcernsPageState extends State<ConcernsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
         title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
         actions: [
           IconButton(
@@ -2197,19 +2218,20 @@ class _ConcernsPageState extends State<ConcernsPage> {
                           c['service_accounts'] as Map<String, dynamic>?;
                       return Card(
                         child: Padding(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 '${c['subject']}',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                               ),
                               StatusBadge('${c['status']}'),
                               Text(
                                 'Account: ${account?['account_number'] ?? 'Unavailable'}',
                               ),
                               ExpansionTile(
+                                initiallyExpanded: widget.concernId != null,
                                 tilePadding: EdgeInsets.zero,
                                 expandedCrossAxisAlignment:
                                     CrossAxisAlignment.start,
@@ -2219,10 +2241,16 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 children: [
                                   Text('Category: ${c['category']}'),
                                   Text(
-                                    'Submitted: ${DateTime.parse(c['created_at'] as String).toLocal().toString().split('.').first}',
+                                    'Submitted: ${recordDate(c['created_at'])}',
                                   ),
                                   const SizedBox(height: 12),
                                   Text('${c['description']}'),
+                                  ConcernLocationDetails(concern: c),
+                                  if (!widget.isAdmin) TextButton.icon(
+                                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => RepairTicketsPage(isAdmin: false, concernId: '${c['id']}'))),
+                                    icon: const Icon(CupertinoIcons.wrench, size: 18),
+                                    label: const Text('Track repair')),
                                   const Divider(height: 24),
                                   Text(
                                     'District response',
@@ -2240,7 +2268,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                   ),
                                   if (c['reviewed_at'] != null)
                                     Text(
-                                      'Reviewed: ${DateTime.parse(c['reviewed_at'] as String).toLocal().toString().split('.').first}',
+                                      'Reviewed: ${recordDate(c['reviewed_at'])}',
                                     ),
                                 ],
                               ),
@@ -2265,8 +2293,9 @@ class _ConcernsPageState extends State<ConcernsPage> {
 }
 
 class ConcernFormPage extends StatefulWidget {
-  const ConcernFormPage({super.key, this.concern});
+  const ConcernFormPage({super.key, this.concern, this.locationPicker = pickConcernLocation});
   final Map<String, dynamic>? concern;
+  final ConcernLocationPicker locationPicker;
   @override
   State<ConcernFormPage> createState() => _ConcernFormPageState();
 }
@@ -2281,6 +2310,38 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
   String? accountId, accountNumber, error;
   bool loading = true, saving = false;
   bool get reviewing => widget.concern != null;
+  ConcernLocation? selectedLocation;
+
+  Future<void> chooseLocation() async {
+    final location = await widget.locationPicker(context, selectedLocation);
+    if (mounted && location != null) setState(() => selectedLocation = location);
+  }
+
+  Widget locationField() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const Text('Issue location (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        if (selectedLocation == null)
+          const Text('Choose the exact spot that needs attention.')
+        else ...[
+          if (selectedLocation!.note.isNotEmpty) Text(selectedLocation!.note),
+          Text(selectedLocation!.coordinates),
+        ],
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: saving ? null : chooseLocation,
+          icon: const Icon(CupertinoIcons.map),
+          label: Text(selectedLocation == null ? 'Choose location' : 'Change location'),
+        ),
+        if (selectedLocation != null) TextButton(
+          onPressed: saving ? null : () => setState(() => selectedLocation = null),
+          child: const Text('Remove location'),
+        ),
+      ]),
+    ),
+  );
 
   @override
   void initState() {
@@ -2374,6 +2435,10 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
           'category': category,
           'subject': subject.text.trim(),
           'description': description.text.trim(),
+          'latitude': selectedLocation?.latitude,
+          'longitude': selectedLocation?.longitude,
+          'location_note': selectedLocation?.note.trim().isNotEmpty == true
+              ? selectedLocation!.note.trim() : null,
         });
       }
     } on PostgrestException catch (e) {
@@ -2400,8 +2465,8 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(
           title: Text(reviewing ? 'Review concern' : 'Submit concern'),
                   ),
         bottomNavigationBar: reviewing ? null : const ClientDesignNav(index: 2),
@@ -2425,11 +2490,15 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             ),
                             const SizedBox(height: 12),
                             Text('${widget.concern!['description']}'),
+                            ConcernLocationDetails(concern: widget.concern!),
                             const SizedBox(height: 24),
                             DropdownButtonFormField<String>(
+                              isExpanded: true,
+                            isDense: false,
+                              itemHeight: null,
                               initialValue: status,
                               decoration: const InputDecoration(
-                                labelText: 'Concern status',
+                                labelText: 'Status',
                               ),
                               items:
                                   [
@@ -2457,7 +2526,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                               maxLines: 8,
                               maxLength: 3000,
                               decoration: const InputDecoration(
-                                labelText: 'Response to client',
+                                labelText: 'Response',
                               ),
                               validator: (v) =>
                                   (status == 'Resolved' ||
@@ -2472,9 +2541,12 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
+                              isExpanded: true,
+                            isDense: false,
+                              itemHeight: null,
                               initialValue: category,
                               decoration: const InputDecoration(
-                                labelText: 'What is your concern?',
+                                labelText: 'Category',
                               ),
                               items:
                                   [
@@ -2518,12 +2590,14 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                                 labelText: 'Description',
                                 helperText:
                                     'Describe the issue and when it started.',
-                                helperMaxLines: 2,
+                                helperMaxLines: 8,
                               ),
                               validator: (v) => v == null || v.trim().isEmpty
                                   ? 'Describe your concern.'
                                   : null,
                             ),
+                            const SizedBox(height: 16),
+                            locationField(),
                             if (accountId == null)
                               TextButton(
                                 onPressed: loadAccount,
@@ -2569,8 +2643,9 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
 }
 
 class RepairTicketsPage extends StatefulWidget {
-  const RepairTicketsPage({super.key, required this.isAdmin});
+  const RepairTicketsPage({super.key, required this.isAdmin, this.concernId});
   final bool isAdmin;
+  final String? concernId;
   @override
   State<RepairTicketsPage> createState() => _RepairTicketsPageState();
 }
@@ -2591,13 +2666,14 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
       error = null;
     });
     try {
-      final rows = await supabase
+      var query = supabase
           .from('repair_tickets')
           .select(
             'id, concern_id, assigned_to, status, latest_update, updated_at, '
             'service_concerns(subject, service_accounts(account_number))',
-          )
-          .order('updated_at', ascending: false);
+          );
+      if (widget.concernId != null) query = query.eq('concern_id', widget.concernId!);
+      final rows = await query.order('updated_at', ascending: false);
       if (mounted) setState(() => tickets = rows);
     } catch (_) {
       if (mounted) {
@@ -2623,10 +2699,10 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
         title: Text(
-          widget.isAdmin ? 'Manage repair tickets' : 'Repair updates',
+          widget.isAdmin ? 'Repair tickets' : 'Repair updates',
         ),
         actions: [
           IconButton(
@@ -2705,7 +2781,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('${concern?['subject'] ?? 'Repair ticket'}',
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                           StatusBadge('${t['status']}'),
                           Text('${t['latest_update']}', maxLines: 2, overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: muted, height: 1.4)),
@@ -2868,15 +2944,15 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(
           title: Text(
-            editing ? 'Update repair ticket' : 'Create repair ticket',
+            editing ? 'Update repair' : 'Create repair',
           ),
         ),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Center(
+            : Align(alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -2889,8 +2965,10 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                           if (!editing) ...[
                             DropdownButtonFormField<String>(
                               isExpanded: true,
+                            isDense: false,
+                              itemHeight: null,
                               decoration: const InputDecoration(
-                                labelText: 'Concern requiring repair',
+                                labelText: 'Concern',
                               ),
                               items: concerns.map((c) {
                                 final account =
@@ -2924,9 +3002,12 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                             const SizedBox(height: 16),
                           ],
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            isDense: false,
+                            itemHeight: null,
                             initialValue: status,
                             decoration: const InputDecoration(
-                              labelText: 'Ticket status',
+                              labelText: 'Status',
                             ),
                             items:
                                 ['Open', 'Assigned', 'In progress', 'Resolved']
@@ -2947,7 +3028,7 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                             enabled: !saving,
                             maxLength: 150,
                             decoration: const InputDecoration(
-                              labelText: 'Assigned personnel or team',
+                              labelText: 'Assigned team',
                             ),
                             validator: (v) =>
                                 ['Assigned', 'In progress'].contains(status) &&
@@ -2963,7 +3044,7 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                             maxLines: 10,
                             maxLength: 3000,
                             decoration: const InputDecoration(
-                              labelText: 'Latest update visible to the client',
+                              labelText: 'Client update',
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Enter a progress update or resolution.'
@@ -3060,9 +3141,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isAdmin ? 'Manage announcements' : 'Announcements'),
+    return UtilityScaffold(
+      appBar: UtilityAppBar(
+        title: Text(widget.isAdmin ? 'District notices' : 'Notices'),
         actions: [
           IconButton(
             tooltip: 'Refresh announcements',
@@ -3075,7 +3156,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ? FloatingActionButton.extended(
               onPressed: loading ? null : () => editAnnouncement(),
               icon: const Icon(CupertinoIcons.add),
-              label: const Text('Create announcement'),
+              label: const Text('Create notice'),
             )
           : null,
       body: Column(
@@ -3121,7 +3202,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     title: 'No notices yet',
                     message: 'District notices and service interruptions will appear here.',
                     icon: CupertinoIcons.speaker_2,
-                    actionLabel: widget.isAdmin ? 'Create announcement' : null,
+                    actionLabel: widget.isAdmin ? 'Create notice' : null,
                     onAction: widget.isAdmin ? () => editAnnouncement() : null,
                   )
                 : ListView.separated(
@@ -3132,7 +3213,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                       final a = announcements[index];
                       return RecordCard(
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                           if (isInterruption(a['title'])) const StatusBadge('Service interruption'),
                           if (widget.isAdmin) StatusBadge(a['published'] == true ? 'Published' : 'Draft'),
                           const SizedBox(height: 8),
@@ -3142,7 +3223,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                             style: const TextStyle(color: muted, height: 1.5)),
                         ]),
                         detailsLabel: 'Read notice',
-                        details: [Text('${a['message']}', style: const TextStyle(fontSize: 16, height: 1.6))],
+                        details: [Text('${a['message']}', style: const TextStyle(fontSize: 15, height: 1.6))],
                         action: widget.isAdmin ? FilledButton.tonal(
                           onPressed: () => editAnnouncement(a), child: const Text('Edit notice')) : null,
                       );
@@ -3246,15 +3327,15 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
-      child: Scaffold(
-        appBar: AppBar(
+      child: UtilityScaffold(
+        appBar: UtilityAppBar(
           title: Text(
             widget.announcement == null
-                ? 'Create announcement'
-                : 'Edit announcement',
+                ? 'Create notice'
+                : 'Edit notice',
           ),
         ),
-        body: Center(
+        body: Align(alignment: Alignment.topCenter,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -3265,7 +3346,7 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Clearly label fictional notices as prototype samples during testing.',
+                      'Include the affected areas, schedule, and any action clients need to take.',
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -3293,7 +3374,7 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
                       maxLines: 15,
                       maxLength: 5000,
                       decoration: const InputDecoration(
-                        labelText: 'Announcement message',
+                        labelText: 'Message',
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Enter an announcement message.'
@@ -3359,10 +3440,11 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
 }
 
 const royalBlue = Color(0xFF2563EB);
+const utilityBlue = Color(0xFF1A4FD6);
 const ink = Color(0xFF111827);
 const muted = Color(0xFF6B7280);
 const accentTint = Color(0xFFEFF4FF);
-const hairline = Color(0xFFE5E7EB);
+const hairline = UtilityStyle.border;
 
 /// Solid blue circle with a white line icon and a soft blue shadow.
 Widget circleIcon(IconData icon, {double diameter = 52, double iconSize = 24}) =>
@@ -3418,6 +3500,7 @@ ThemeData waterTheme() {
   return ThemeData(
     useMaterial3: true,
     fontFamily: 'DM Sans',
+    fontFamilyFallback: const ['Currency Symbols'],
     splashFactory: InkRipple.splashFactory,
     snackBarTheme: const SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
@@ -3438,6 +3521,7 @@ ThemeData waterTheme() {
     textTheme: softTextTheme(
       ThemeData.light().textTheme.apply(
         fontFamily: 'DM Sans',
+        fontFamilyFallback: const ['Currency Symbols'],
         bodyColor: ink,
         displayColor: ink,
       ),
@@ -3864,7 +3948,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
       final concernsQuery = supabase
           .from('service_concerns')
           .select(
-            'subject, status, created_at, service_accounts(account_number)',
+            'id, subject, status, admin_response, created_at, reviewed_at, service_accounts(account_number)',
           );
       final concernRows =
           await (admin
@@ -3925,7 +4009,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
         pendingConcerns = pending;
         activeRepairs = repairs;
         recent = concernRows;
-        notices = noticeRows.take(1).toList();
+        notices = noticeRows;
         accountNumber = number;
         remaining = balance;
         billCount = count;
@@ -3956,64 +4040,80 @@ class _ModernDashboardState extends State<ModernDashboard> {
   }
 
   Widget iconBubble(IconData icon) =>
-      circleIcon(icon, diameter: 44, iconSize: 21);
+      Icon(icon, size: 22, color: muted);
 
   Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
     builder: (context, constraints) {
       final count = MediaQuery.textScalerOf(context).scale(14) > 20
           ? 1 : constraints.maxWidth < 280 ? 2 : columns;
-      return Wrap(spacing: 12, runSpacing: 12, children: [
+      return Container(
+        decoration: const BoxDecoration(color: Colors.white,
+          border: Border(top: BorderSide(color: hairline), bottom: BorderSide(color: hairline))),
+        child: Wrap(spacing: 12, runSpacing: 12, children: [
         for (final action in actions)
           SizedBox(width: (constraints.maxWidth - 12 * (count - 1)) / count, child: action),
-      ]);
+      ]));
     },
   );
 
   Widget quickAction(String label, IconData icon, VoidCallback action) => PressFeedback(
-    child: Card(child: InkWell(
+    child: Material(color: Colors.white, child: InkWell(
       onTap: action,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
-        child: Column(children: [
-          circleIcon(icon),
-          const SizedBox(height: 14),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(constraints: const BoxConstraints(minHeight: 88),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 24, color: ink),
+          const SizedBox(height: 12),
           Text(label, textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
         ])),
     )),
   );
 
   Widget rowTile(String title, String subtitle, IconData icon, VoidCallback action,
-      {bool showSubtitle = false}) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: PressFeedback(child: Card(child: InkWell(
-      onTap: action, borderRadius: BorderRadius.circular(18),
-      child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-        iconBubble(icon), const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
-          if (showSubtitle) ...[
-            const SizedBox(height: 6),
-            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
-          ],
-        ])),
-        const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
-      ])),
+      {bool showSubtitle = false, Widget? footer}) => Padding(
+    padding: EdgeInsets.zero,
+    child: PressFeedback(child: Material(color: Colors.white,
+      shape: const Border(bottom: BorderSide(color: hairline)), child: InkWell(
+      onTap: action,
+      child: Padding(padding: const EdgeInsets.all(16), child: LayoutBuilder(
+        builder: (context, constraints) {
+          final content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            if (showSubtitle) ...[
+              const SizedBox(height: 8),
+              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
+            ],
+            if (footer != null) ...[const SizedBox(height: 8), footer],
+          ]);
+          if (MediaQuery.textScalerOf(context).scale(16) > 23) {
+            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [iconBubble(icon), const Spacer(),
+                const Icon(CupertinoIcons.chevron_right, color: muted, size: 20)]),
+              const SizedBox(height: 16), content,
+            ]);
+          }
+          return Row(children: [
+            iconBubble(icon), const SizedBox(width: 16), Expanded(child: content),
+            const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
+          ]);
+        },
+      )),
     ))),
   );
 
-  Widget sectionTitle(String title, VoidCallback action) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-      ),
-      TextButton(onPressed: action, child: const Text('View all')),
-    ],
-  );
+  Widget sectionTitle(String title, VoidCallback action) {
+    final heading = Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600));
+    final button = TextButton(onPressed: action, child: const Text('View all'));
+    if (MediaQuery.textScalerOf(context).scale(18) > 26) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        heading, Align(alignment: Alignment.centerRight, child: button),
+      ]);
+    }
+    return Row(children: [Expanded(child: heading), button]);
+  }
 
   Widget requests() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4025,52 +4125,30 @@ class _ModernDashboardState extends State<ModernDashboard> {
       if (initialLoading)
         const LoadingCards(count: 1)
       else if (hasLoaded && recent.isEmpty)
-        const Card(child: Padding(padding: EdgeInsets.all(20),
+        const Card(child: Padding(padding: EdgeInsets.all(16),
           child: Text('No open requests', style: TextStyle(color: muted))))
       else if (hasLoaded)
         for (final c in (admin ? recent : recent.take(1)))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () => open(ConcernsPage(isAdmin: admin)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      iconBubble(CupertinoIcons.chat_bubble),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${c['subject']}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            if (admin) Text(
-                              'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? '—'}',
-                              style: const TextStyle(
-                                color: muted,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            StatusBadge('${c['status']}'),
-                          ],
-                        ),
-                      ),
-                      const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          rowTile(
+            '${c['subject']}',
+            'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? 'Unavailable'}',
+            CupertinoIcons.chat_bubble,
+            () => open(ConcernsPage(isAdmin: admin, concernId: c['id'] as String?)),
+            showSubtitle: admin,
+            footer: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              StatusBadge('${c['status']}'),
+              Text('${c['reviewed_at'] != null ? 'Reviewed' : 'Submitted'} ${recordDate(c['reviewed_at'] ?? c['created_at'])}',
+                style: const TextStyle(color: muted, fontSize: 12)),
+              if ('${c['admin_response'] ?? ''}'.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('${c['admin_response']}', maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
+              ],
+              const SizedBox(height: 8),
+              Text(admin ? 'Review concern' : '${c['admin_response'] ?? ''}'.trim().isNotEmpty
+                ? 'Read response' : 'Track request',
+                style: const TextStyle(color: utilityBlue, fontWeight: FontWeight.w600, fontSize: 12)),
+            ]),
           ),
     ],
   );
@@ -4080,7 +4158,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: Colors.white,
-    builder: (context) => SafeArea(
+    builder: (context) => UtilitySurface(child: SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
         child: SingleChildScrollView(
@@ -4090,7 +4168,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
             if (isInterruption(notice['title'])) const StatusBadge('Service interruption'),
             const SizedBox(height: 8),
-            Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 13)),
+            Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
             const SizedBox(height: 20),
             Text('${notice['message']}', style: const TextStyle(fontSize: 16, height: 1.6)),
             const SizedBox(height: 24),
@@ -4098,14 +4176,14 @@ class _ModernDashboardState extends State<ModernDashboard> {
           ]),
         ),
       ),
-    ),
+    )),
   );
 
   Widget announcements() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       sectionTitle(
-        'Announcements',
+        'Latest notice',
         () => open(AnnouncementsPage(isAdmin: admin)),
       ),
       if (hasLoaded && notices.isEmpty)
@@ -4114,7 +4192,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
           style: TextStyle(color: muted),
         ),
       if (hasLoaded)
-        for (final n in notices) ...[
+        for (final n in notices.take(1)) ...[
           if (isInterruption(n['title']))
             const StatusBadge('Service interruption'),
           rowTile(
@@ -4131,19 +4209,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
   );
 
   Widget adminOverview() => Container(
-    margin: const EdgeInsets.only(bottom: 20),
+    margin: const EdgeInsets.only(bottom: 24),
     clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(10),
       color: Colors.white,
       border: Border.all(color: hairline),
     ),
     child: Stack(children: [
-      Padding(padding: const EdgeInsets.all(20), child: Column(
+      Padding(padding: const EdgeInsets.all(16), child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Row(children: [Icon(CupertinoIcons.doc_plaintext, color: royalBlue, size: 21),
+        const Row(children: [Icon(CupertinoIcons.doc_plaintext, color: utilityBlue, size: 21),
           SizedBox(width: 10), Expanded(child: Text('District overview',
-            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w500, letterSpacing: -.2)))]),
+            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -.2)))]),
         const SizedBox(height: 16),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: overviewMetric(pendingConcerns, 'Pending concerns',
@@ -4154,7 +4232,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ]),
         if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
           child: Text('Overview could not refresh. Pull down to retry.',
-            style: TextStyle(color: muted, fontSize: 13))),
+            style: TextStyle(color: muted, fontSize: 12))),
       ])),
     ]),
   );
@@ -4175,23 +4253,23 @@ class _ModernDashboardState extends State<ModernDashboard> {
     padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(10),
       border: Border.all(color: hairline),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Outstanding balance', style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
+      const Text('Outstanding balance', style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w600)),
       const SizedBox(height: 12),
       AnimatedSwitcher(duration: motionDuration(context, 200), child: Align(
         key: ValueKey('$initialLoading/$hasLoaded/$remaining'), alignment: Alignment.centerLeft,
-        child: Text(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
+        child: AmountText(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
           : '₱${formatCentavos(remaining)}',
-          style: const TextStyle(color: ink, fontSize: 42, fontWeight: FontWeight.w600, letterSpacing: -1.4)),
+          fontSize: 42, color: ink, letterSpacing: -1.4),
       )),
       const SizedBox(height: 8),
       Text(initialLoading ? 'Updating records' : !hasLoaded && error != null ? 'Please refresh'
         : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}' : billCount == 0 ? 'No bills yet' : 'All paid',
         style: const TextStyle(color: muted, fontSize: 14)),
-      const SizedBox(height: 22),
+      const SizedBox(height: 24),
       FilledButton.icon(
         onPressed: () => open(const BillsPage(isAdmin: false)),
         icon: const Icon(CupertinoIcons.doc_text, size: 20), label: const Text('View bill'),
@@ -4199,33 +4277,73 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ]),
   );
 
-  List<Widget> homeContent() => admin ? [
-    adminOverview(),
-    requests(),
+  Widget serviceAdvisory() {
+    final interruptions = notices.where((n) => isInterruption(n['title']));
+    final notice = interruptions.isEmpty ? null : interruptions.first;
+    final message = !hasLoaded ? (loading ? 'Checking published notices' : 'Service updates unavailable')
+      : notice != null ? 'Published ${recordDate(notice['updated_at'])}. View affected areas and schedule.'
+      : 'No interruption notice in the latest district updates. Live service status is not available.';
+    return Material(color: notice != null ? const Color(0xFFFFFAF0) : Colors.white,
+      shape: const Border(left: BorderSide(color: Color(0xFFE1E6EB), width: 3)),
+      child: InkWell(onTap: !hasLoaded ? null : notice != null ? () => showNotice(notice)
+        : () => open(AnnouncementsPage(isAdmin: admin)),
+        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Icon(notice != null ? CupertinoIcons.exclamationmark_triangle : CupertinoIcons.info_circle,
+              size: 20, color: notice != null ? const Color(0xFF78520A) : muted),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(notice != null ? 'Read service advisory' : 'Service updates',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              const SizedBox(height: 8), Text(message, style: UtilityStyle.metadata),
+            ])),
+            if (hasLoaded) ...[const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, size: 16, color: muted)],
+          ])),
+      ));
+  }
+
+  Widget dashboardColumns(List<Widget> primary, List<Widget> secondary) => LayoutBuilder(
+    builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 840 && MediaQuery.textScalerOf(context).scale(16) <= 24;
+      if (!wide) {
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [...primary, const SizedBox(height: 24), ...secondary]);
+      }
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: primary)),
+        const SizedBox(width: 28),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: secondary)),
+      ]);
+    },
+  );
+
+  List<Widget> homeContent() => [
+    serviceAdvisory(),
     const SizedBox(height: 24),
-    const Text('Manage district', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-    const SizedBox(height: 16),
-    actionGrid([
-      quickAction('Accounts', CupertinoIcons.person_2, () => open(const ServiceAccountsPage())),
-      quickAction('Add bill', CupertinoIcons.plus_rectangle, () => open(const AddBillPage())),
-      quickAction('Record payment', CupertinoIcons.creditcard, () => open(const RecordPaymentPage())),
-      quickAction('Concerns', CupertinoIcons.chat_bubble, () => open(const ConcernsPage(isAdmin: true))),
-      quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: true))),
-      quickAction('Announcements', CupertinoIcons.speaker_2, () => open(const AnnouncementsPage(isAdmin: true))),
-    ], columns: 2),
-  ] : [
-    balanceCard(),
-    const Padding(padding: EdgeInsets.symmetric(vertical: 14),
-      child: Text('Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 12))),
-    actionGrid([
-      quickAction('Bills', CupertinoIcons.doc_text, () => open(const BillsPage(isAdmin: false))),
-      quickAction('Report issue', CupertinoIcons.plus_bubble, () => open(const ConcernFormPage())),
-      quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: false))),
-    ]),
-    const SizedBox(height: 24),
-    requests(),
-    const SizedBox(height: 16),
-    announcements(),
+    if (admin) dashboardColumns([
+      adminOverview(), requests(),
+    ], [
+      const Text('Manage district', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 16),
+      actionGrid([
+        quickAction('Accounts', CupertinoIcons.person_2, () => open(const ServiceAccountsPage())),
+        quickAction('Add bill', CupertinoIcons.plus_rectangle, () => open(const AddBillPage())),
+        quickAction('Record payment', CupertinoIcons.creditcard, () => open(const RecordPaymentPage())),
+        quickAction('Concerns', CupertinoIcons.chat_bubble, () => open(const ConcernsPage(isAdmin: true))),
+        quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: true))),
+        quickAction('Announcements', CupertinoIcons.speaker_2, () => open(const AnnouncementsPage(isAdmin: true))),
+      ], columns: 2),
+      const SizedBox(height: 24), announcements(),
+    ]) else dashboardColumns([
+      balanceCard(),
+      const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text(
+        'Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 12))),
+      actionGrid([
+        quickAction('Bills', CupertinoIcons.doc_text, () => open(const BillsPage(isAdmin: false))),
+        quickAction('Report issue', CupertinoIcons.plus_bubble, () => open(const ConcernFormPage())),
+        quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: false))),
+      ]),
+    ], [requests(), const SizedBox(height: 16), announcements()]),
   ];
 
   List<Widget> tabContent() {
@@ -4340,8 +4458,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
         : admin
         ? 'More'
         : 'My account';
-    return Scaffold(
-      extendBody: true,
+    return UtilityScaffold(
+      extendBody: false,
       bottomNavigationBar: PillNavBar(
         selected: tab,
         onSelect: (value) => setState(() => tab = value),
@@ -4360,24 +4478,6 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ],
       ),
       body: Stack(children: [
-        // Soft haze behind the header, fading into the page background.
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 340,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFE3ECFD), Color(0xFFF8F9FB)],
-                ),
-              ),
-            ),
-          ),
-        ),
         SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -4387,7 +4487,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
+                  constraints: const BoxConstraints(maxWidth: 1120),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
                       20, 12, 20, 24 + MediaQuery.paddingOf(context).bottom),
@@ -4396,18 +4496,17 @@ class _ModernDashboardState extends State<ModernDashboard> {
                       children: [
                         Row(
                           children: [
-                            const HeaderBubble(
-                              child: Icon(CupertinoIcons.drop_fill,
-                                  color: royalBlue, size: 20),
-                            ),
-                            const Expanded(child: Text('Water District Connect',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontWeight: FontWeight.w500,
+                            Image.asset('assets/images/maramag-water-district-logo.png',
+                              width: 40, height: 40, semanticLabel: 'Maramag Water District logo'),
+                            const SizedBox(width: 10),
+                            const Expanded(child: Text('Maramag Water District',
+                              textAlign: TextAlign.left,
+                              style: TextStyle(fontWeight: FontWeight.w600,
                                   fontSize: 15, color: ink))),
                             Tooltip(
                               message: admin ? 'Account menu' : 'My profile',
                               child: InkWell(
-                                customBorder: const CircleBorder(),
+                                borderRadius: BorderRadius.circular(8),
                                 onTap: () {
                                   if (admin) {
                                     setState(() => tab = 3);
@@ -4419,7 +4518,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                                   child: Text(
                                     initials,
                                     style: const TextStyle(
-                                      color: royalBlue,
+                                      color: utilityBlue,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -4429,9 +4528,9 @@ class _ModernDashboardState extends State<ModernDashboard> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         Text(heading, style: const TextStyle(
-                          fontSize: 30, fontWeight: FontWeight.w600, letterSpacing: -.9)),
+                          fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -.9)),
                         if (!admin && accountNumber != null) ...[
                           const SizedBox(height: 8),
                           Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),
@@ -4476,22 +4575,20 @@ class _ModernDashboardState extends State<ModernDashboard> {
   }
 }
 
-/// White circle with a hairline edge and a soft shadow, used in the header.
+/// Compact, neutral profile control in the signed-in header.
 class HeaderBubble extends StatelessWidget {
   const HeaderBubble({super.key, required this.child});
   final Widget child;
   @override
   Widget build(BuildContext context) => Container(
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: Colors.white,
-      shape: BoxShape.circle,
+      borderRadius: BorderRadius.circular(8),
       border: Border.all(color: const Color(0xFFEEF0F3)),
-      boxShadow: const [
-        BoxShadow(color: Color(0x0F111827), blurRadius: 16, offset: Offset(0, 6)),
-      ],
+
     ),
     child: child,
   );
@@ -4720,80 +4817,53 @@ class PillNavItem {
   final String label;
 }
 
-/// Floating white pill with icon-only tabs; the selected tab sits on a soft
-/// gray capsule. Labels stay available as tooltips and screen-reader text.
+/// Persistent navigation with visible labels and a restrained active marker.
 class PillNavBar extends StatelessWidget {
-  const PillNavBar({
-    super.key,
-    required this.items,
-    required this.selected,
-    required this.onSelect,
-  });
+  const PillNavBar({super.key, required this.items, required this.selected,
+    required this.onSelect});
   final List<PillNavItem> items;
   final int selected;
   final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    minimum: const EdgeInsets.only(bottom: 16),
-    child: Center(
-      heightFactor: 1,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 32),
-        constraints: const BoxConstraints(maxWidth: 340),
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: const Color(0xFFEEF0F3)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14111827),
-              blurRadius: 30,
-              offset: Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (var i = 0; i < items.length; i++)
-              Tooltip(
-                message: items[i].label,
-                child: Semantics(
-                  button: true,
-                  selected: i == selected,
-                  label: items[i].label,
-                  excludeSemantics: true,
-                  child: InkWell(
-                    customBorder: const StadiumBorder(),
-                    onTap: i == selected ? null : () => onSelect(i),
-                    child: AnimatedContainer(
-                      duration: motionDuration(context, 200),
-                      curve: Curves.easeOut,
-                      width: 58,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: i == selected ? accentTint : Colors.transparent,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Icon(
-                        i == selected
-                            ? items[i].selectedIcon ?? items[i].icon
-                            : items[i].icon,
-                        size: 22,
-                        color: i == selected ? royalBlue : muted,
-                      ),
-                    ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(color: Colors.white,
+      border: Border(top: BorderSide(color: hairline))),
+    child: SafeArea(top: false, child: Center(heightFactor: 1,
+      child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640),
+        child: LayoutBuilder(builder: (context, constraints) {
+        final largeText = MediaQuery.textScalerOf(context).scale(11) > 16;
+        final columns = largeText ? 2 : items.length;
+        return Wrap(children: [
+          for (var i = 0; i < items.length; i++)
+            SizedBox(width: constraints.maxWidth / columns, child: Tooltip(message: items[i].label,
+              child: Semantics(button: true, selected: i == selected,
+                label: items[i].label, excludeSemantics: true,
+                child: InkWell(onTap: i == selected ? null : () => onSelect(i),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 72),
+                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 10),
+                    decoration: BoxDecoration(border: Border(top: BorderSide(
+                      width: 2, color: i == selected
+                        ? const Color(0xFF1A4FD6) : Colors.transparent))),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(i == selected ? items[i].selectedIcon ?? items[i].icon
+                        : items[i].icon, size: 22,
+                        color: i == selected ? const Color(0xFF1A4FD6) : muted),
+                      const SizedBox(height: 6),
+                      Text(items[i].label, textAlign: TextAlign.center,
+                        style: TextStyle(fontFamily: 'DM Sans', fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: i == selected ? const Color(0xFF1A4FD6) : muted)),
+                    ]),
                   ),
                 ),
               ),
-          ],
-        ),
+            )),
+        ]);
+        }),
       ),
-    ),
+    )),
   );
 }
 
@@ -4802,32 +4872,20 @@ class DesignValue extends StatelessWidget {
   final String label, value;
   final bool strong;
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: strong ? ink : muted,
-            fontSize: 16,
-            fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Flexible(
-        child: Text(
-          value,
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
-          ),
-        ),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
+    final stacked = MediaQuery.textScalerOf(context).scale(16) > 23 || constraints.maxWidth < 220;
+    final labelText = Text(label, style: TextStyle(color: strong ? ink : muted,
+      fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w400));
+    final valueText = Text(value, textAlign: stacked ? TextAlign.left : TextAlign.right,
+      style: TextStyle(fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w600));
+    if (stacked) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [labelText, const SizedBox(height: 6), valueText]);
+    }
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: labelText), const SizedBox(width: 12), Flexible(child: valueText),
+    ]);
+  });
 }
 
 class DesignHelp extends StatelessWidget {
