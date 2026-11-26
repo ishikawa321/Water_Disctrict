@@ -14,6 +14,10 @@ Compared and merged main `dbdc382` first, then detected and merged freshly pushe
 - Visual review: consumer dashboard and mobile concern/location-picker screenshots use isolated QA records. The midnight/aqua palette, rounded disclosure cards, ripple balance/office surfaces, official logo, mobile dock and peso glyph render. Auth and branded loading use the latest theme; the original landing keeps its design.
 - No live operational record, grant, migration, account or role was changed. The local test cluster was stopped after verification. Office production acceptance remains blocked by the unhosted API and operational location-grant verification.
 
+Production publication: deployment `dpl_AGBWKZdujDo1yHiBnGULmyJUw2ZX` is Ready and aliased to https://maramag-waterdistrict-web.vercel.app. The source includes upstream `3336607`, web implementation `26ccd5d`, and artifact exclusions `ed46d5c`. Vercel inspection confirmed Singapore (`sin1`) functions. Flutter build/cache/test artifacts are excluded from the upload.
+
+A Chrome check against the public production alias verified all three original landing demo actions reach clean `/login`, Back to the website returns to `/`, midnight auth styling renders, the peso font returns HTTP 200, and a 320-pixel login fits without horizontal overflow. Anonymous session, recent-activity, concern and office-capability endpoints return HTTP 401 with no-store headers. No browser page errors occurred. Screenshots and the JSON result are saved under ignored `web/test-results/production-smoke/`; no real-user sign-in or customer write was performed.
+
 The historical checks below describe earlier web releases.
 
 ## Landing-first follow-up
