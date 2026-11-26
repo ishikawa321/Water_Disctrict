@@ -4541,52 +4541,60 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ],
   );
 
-  Widget adminOverview() => Container(
-    margin: const EdgeInsets.only(bottom: 24),
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(10),
-      color: Colors.white,
-      border: Border.all(color: hairline),
-    ),
-    child: Stack(children: [
-      Padding(padding: const EdgeInsets.all(16), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Row(children: [Icon(CupertinoIcons.doc_plaintext, color: utilityBlue, size: 21),
-          SizedBox(width: 10), Expanded(child: Text('District overview',
-            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -.2)))]),
-        const SizedBox(height: 16),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: overviewMetric(pendingConcerns, 'Pending concerns',
-            () => open(const ConcernsPage(isAdmin: true)))),
-          Container(height: 58, width: 1, color: hairline),
-          Expanded(child: overviewMetric(activeRepairs, 'Active repairs',
-            () => open(const RepairTicketsPage(isAdmin: true)))),
-        ]),
-        if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
-          child: Text('Overview could not refresh. Pull down to retry.',
-            style: TextStyle(color: muted, fontSize: 12))),
-      ])),
-    ]),
+  /// Admin Home: the same two-tile layout as the client Home and desktop.
+  Widget adminOverview() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      sectionTitle('District overview', null,
+        guide: 'What needs attention right now.'),
+      tilePair(
+        homeTile(
+          blue: true,
+          icon: CupertinoIcons.chat_bubble,
+          label: 'Pending concerns',
+          hint: 'Opens service concerns',
+          onTap: () => open(const ConcernsPage(isAdmin: true)),
+          value: Text(pendingConcerns?.toString() ?? '—', style: const TextStyle(
+            color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -1)),
+          caption: 'Waiting for review',
+        ),
+        homeTile(
+          blue: false,
+          icon: CupertinoIcons.wrench,
+          label: 'Active repairs',
+          hint: 'Opens repair tickets',
+          onTap: () => open(const RepairTicketsPage(isAdmin: true)),
+          value: Text(activeRepairs?.toString() ?? '—', style: const TextStyle(
+            color: ink, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -1)),
+          caption: 'Assigned or in progress',
+        ),
+      ),
+      if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
+        child: Text('Overview could not refresh. Pull down to retry.',
+          style: TextStyle(color: muted, fontSize: 13))),
+      const SizedBox(height: 28),
+    ],
   );
 
-  Widget overviewMetric(int? value, String label, VoidCallback action) => InkWell(
-    onTap: action,
-    borderRadius: BorderRadius.circular(12),
-    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Column(children: [
-      Text(value?.toString() ?? '—', style: const TextStyle(
-        color: ink, fontSize: 38, fontWeight: FontWeight.w600, letterSpacing: -1)),
-      const SizedBox(height: 3),
-      Text(label, textAlign: TextAlign.center,
-        style: const TextStyle(color: muted, fontSize: 14)),
-    ])),
+  /// Two tiles side by side; stacked on narrow screens or with large text.
+  Widget tilePair(Widget first, Widget second) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stack = constraints.maxWidth < 300 ||
+          MediaQuery.textScalerOf(context).scale(16) > 22;
+      if (stack) {
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, const SizedBox(height: 12), second]);
+      }
+      return IntrinsicHeight(child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [Expanded(child: first), const SizedBox(width: 12), Expanded(child: second)],
+      ));
+    },
   );
 
   /// Home's two headline tiles: what the customer owes (royal blue) and
   /// new announcements (white). They stack on narrow screens or large text.
-  Widget summaryTiles() => LayoutBuilder(builder: (context, constraints) {
-    final stack = constraints.maxWidth < 300 ||
-        MediaQuery.textScalerOf(context).scale(16) > 22;
+  Widget summaryTiles() {
     final caption = initialLoading ? 'Updating records'
         : !hasLoaded && error != null ? 'Please refresh'
         : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}'
@@ -4632,19 +4640,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
           ? (unreadNotices == 1 ? 'Notice to read' : 'Notices to read')
           : 'You are up to date',
     );
-    if (stack) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [balance, const SizedBox(height: 12), news]);
-    }
-    return IntrinsicHeight(child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: balance),
-        const SizedBox(width: 12),
-        Expanded(child: news),
-      ],
-    ));
-  });
+    return tilePair(balance, news);
+  }
 
   /// One headline tile: icon box and arrow on top, label, then a big value.
   Widget homeTile({

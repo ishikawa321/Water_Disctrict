@@ -3,7 +3,7 @@
  x:Class="WaterDistrict.Desktop.Views.TicketsView" x:DataType="vm:WorkflowViewModel">
  <StackPanel Spacing="18">
   <TextBlock Classes="page-title" Text="Repair tickets" />
-  <TextBlock Classes="muted" Text="Staff see their assigned work. Progress reflects recorded updates from authorized personnel." TextWrapping="Wrap" />
+  <TextBlock Classes="guide" Text="Staff see their assigned work. Progress reflects recorded updates from authorized personnel." />
   <ProgressBar Height="3" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
   <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
   <Grid ColumnDefinitions="*,150,Auto" ColumnSpacing="10" IsEnabled="{Binding !IsBusy}">
@@ -20,7 +20,7 @@
    </ListBox>
    <Border Grid.Column="1" Classes="card">
     <StackPanel Spacing="14">
-     <TextBlock Text="Ticket detail and timeline" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
+     <TextBlock Text="Ticket detail and timeline" Classes="section-title" />
      <TextBlock Classes="muted" Text="Select a ticket to retrieve its saved status and history." TextWrapping="Wrap" />
      <StackPanel Spacing="12" IsVisible="{Binding HasTicket}">
       <TextBlock Text="{Binding SelectedTicket.Subject}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
@@ -29,7 +29,7 @@
       <Button Content="Reload saved detail and history" Command="{Binding LoadSelectedTicketCommand}" />
       <Border BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,14,0,0">
        <StackPanel Spacing="10">
-        <TextBlock Text="Record an update" FontSize="18" FontWeight="SemiBold" />
+        <TextBlock Text="Record an update" FontSize="17" FontWeight="Bold" />
         <TextBlock Text="Status" /><ComboBox ItemsSource="{Binding NextTicketStates}" SelectedItem="{Binding TicketStatus}" HorizontalAlignment="Stretch" IsEnabled="{Binding CanEditTicket}" />
         <StackPanel Spacing="10" IsVisible="{Binding IsAdmin}">
          <TextBlock Text="Assign active staff" />
@@ -41,7 +41,7 @@
         <Button Classes="primary" Content="Save ticket update" Command="{Binding SaveTicketCommand}" />
        </StackPanel>
       </Border>
-      <TextBlock Text="Recorded history" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Text="Recorded history" Classes="section-title" />
       <ItemsControl ItemsSource="{Binding History}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:HistoryRecord">
        <Border BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="0,12"><StackPanel Spacing="6">
         <views:StatusBadge Status="{Binding Status}" />
