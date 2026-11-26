@@ -111,9 +111,11 @@ test("client can register with matching passwords and receive email confirmation
 }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/login");
+  await page.getByLabel("Password", { exact: true }).fill("old-login-password");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
   await page.getByLabel("Full name", { exact: true }).fill("QA New Client");
   await page
     .getByLabel("Service address", { exact: true })
@@ -1117,14 +1119,41 @@ test("pending client cannot sign in until an admin approves the registration", a
   await expect(
     admin.getByText("Pending service address", { exact: true }),
   ).toBeVisible();
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { failNextWrite: true },
+  });
+  await admin
+    .getByRole("button", { name: "Approve registration", exact: true })
+    .click();
+  await expect(admin.locator(".feedback.error")).toBeVisible();
+  await expect(
+    admin.getByText("Pending service address", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    admin.getByRole("cell", { name: "MWD-001250", exact: true }),
+  ).toHaveCount(0);
   await admin
     .getByRole("button", { name: "Approve registration", exact: true })
     .click();
   await expect(admin.getByText("No pending registrations.")).toBeVisible();
   await expect(
+    admin.getByRole("status").filter({ hasText: "Registration approved." }),
+  ).toContainText("MWD-001250");
+  await expect(
     admin.getByRole("cell", { name: "MWD-001250", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/portal$/);
+  await page.goto("/portal/profile");
+  await expect(page.getByText("MWD-001250", { exact: true })).toBeVisible();
+  await page.goto("/portal/bills");
+  await expect(
+    page.getByRole("heading", { name: "No records yet", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("QA-BILL-001", { exact: false })).toHaveCount(0);
+  await page.screenshot({
+    path: test.info().outputPath("approved-client-bills.png"),
+    fullPage: true,
+  });
   await adminContext.close();
 });

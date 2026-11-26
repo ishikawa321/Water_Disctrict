@@ -33,6 +33,7 @@ export function AccountsPage() {
     30_000,
   );
   const mutation = useMutation();
+  const [approvedNumber, setApprovedNumber] = useState("");
   function approve(id: string) {
     void mutation.run(async () => {
       const result = await save<{ accountNumber: string }>(
@@ -43,6 +44,7 @@ export function AccountsPage() {
         throw new Error(
           "Approval could not be confirmed. Refresh before retrying.",
         );
+      setApprovedNumber(result.accountNumber);
       void records.reload();
       void pending.reload();
     }, "Registration approved. The account number has been assigned. The client can sign in after email confirmation.");
@@ -68,7 +70,14 @@ export function AccountsPage() {
           busy={records.busy || pending.busy}
         />
       </PageHeader>
-      <Feedback error={mutation.error} success={mutation.success} />
+      <Feedback
+        error={mutation.error}
+        success={
+          mutation.success && approvedNumber
+            ? `Registration approved. Service account ${approvedNumber} assigned. The client can sign in after email confirmation.`
+            : mutation.success
+        }
+      />
       <Card title="Pending registrations">
         <DataState {...pending} loaded={!!pending.data}>
           {pending.data?.length === 0 && <p>No pending registrations.</p>}

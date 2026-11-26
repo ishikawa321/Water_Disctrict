@@ -1,5 +1,24 @@
 # App-to-web update comparison
 
+## Latest synchronization: client registration and approval
+
+Compared published web `2e2d52a` / branch `98caf96` with new upstream main `c44b8bf` (registration feature `8190ca5`). Main includes the billing/desktop-separation work already merged through PRs #3 and #4. It was integrated by fast-forward, preserving the shared source and its existing web implementation.
+
+| New app behavior | Current web behavior |
+|---|---|
+| Client signup | Create account from sign-in; full name, service address, email and matching passwords. Details go to Supabase Auth and the shared pending-registration trigger. No user-supplied role or account number is trusted. |
+| Pending approval | Pending clients receive approval guidance and no workspace access. Email confirmation remains necessary. Signup success clears the form and gives confirmation/approval instructions. |
+| Admin approval | Service accounts shows pending registrations with saved name, email, address and confirmation status. Approval invokes the existing atomic Supabase function; its returned MWD number is displayed immediately and the account/pending lists refresh. |
+| Automatic account assignment | Approval creates and links one new sequential service account, activates the client profile and records the approving Admin. Retry/concurrent approvals do not duplicate the account. Manual account creation is removed. |
+| Refreshed account list | Pending requests and service accounts poll every 30 seconds while visible and refresh on focus; manual Refresh is retained. |
+| Role boundaries | Staff and Consumers cannot list/approve registrations. Existing identities, role checks, links, billing, payments, maps and repair workflow remain in place. |
+
+Additional web refinements: switching login/signup/recovery clears password fields and hides passwords, matching mobile; missing registration setup reports the registration requirement; the approval message displays its returned account number even if that account falls outside the loaded list limit.
+
+The live anonymous `client_registration_approval_available()` probe returned HTTP 200 / `true`; the upstream registration setup is available. No live signup, email, approval, account or role mutation was performed. Existing Supabase Auth redirect/email settings remain required. The new client registration source is preserved; the already published APK is not rebuilt by this web-only synchronization. See [registration behavior](client-registration.md) and [verification evidence](web-verification.md).
+
+The sections below describe the previous mobile/UI synchronization.
+
 **Architecture follow-up:** the current website no longer needs the hosted API described in this historical comparison. Office records use caller-scoped Supabase; atomic repair functions and Staff policies are in [web Supabase office setup](web-supabase-office.md). Desktop source remains separate.
 
 Source audit: 26 November 2026, Asia/Manila. Compared the published web baseline `49abbfd` with upstream main `3336607` (including `e560a93` concern locations/service UI and `7d089af` standalone desktop). Main was merged first at `7cba6e1`; a second fetch found the newly pushed midnight/aqua update `3336607`, merged at `b375354` before final publication.

@@ -16,6 +16,14 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [visible, setVisible] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  function clearPasswords() {
+    for (const name of ["password", "confirm"]) {
+      const input = formRef.current?.elements.namedItem(name);
+      if (input instanceof HTMLInputElement) input.value = "";
+    }
+    setVisible(false);
+  }
   const [error, setError] = useState<string | null>(
     reason === "registration_pending"
       ? "Your registration is awaiting administrator approval."
@@ -118,7 +126,12 @@ export function AuthForm({
                   : "Sign in to access your district services."}
           </p>
           <Feedback error={error} success={success} />
-          <form className="form" onSubmit={submit} aria-busy={busy}>
+          <form
+            ref={formRef}
+            className="form"
+            onSubmit={submit}
+            aria-busy={busy}
+          >
             {register && (
               <>
                 <Field label="Full name">
@@ -206,6 +219,7 @@ export function AuthForm({
                 className="text-button"
                 style={{ alignSelf: "flex-end", marginTop: -9 }}
                 onClick={() => {
+                  clearPasswords();
                   setRecover(true);
                   setError(null);
                   setSuccess(null);
@@ -236,6 +250,7 @@ export function AuthForm({
                 className="text-button"
                 disabled={busy}
                 onClick={() => {
+                  clearPasswords();
                   setRegister(true);
                   setError(null);
                   setSuccess(null);
@@ -250,6 +265,7 @@ export function AuthForm({
                 className="text-button row"
                 disabled={busy}
                 onClick={() => {
+                  clearPasswords();
                   setRecover(false);
                   setRegister(false);
                   setError(null);

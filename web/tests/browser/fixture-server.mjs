@@ -331,12 +331,17 @@ createServer(async (request, response) => {
   const table = url.pathname.split("/").pop();
   if (table === "approve_client_registration") {
     if (role !== "admin") return fail(response, "Admin only");
+    if (state.failNextWrite) {
+      state.failNextWrite = false;
+      return fail(response, "Simulated approval failure", 503);
+    }
     const registration = state.registrations.find(
       (r) => r.userId === body.registration_user_id,
     );
     if (!registration) return fail(response, "Not found", 404);
     if (registration.status !== "Approved") {
       registration.status = "Approved";
+      state.clientAccountId = ids.other;
       state.accounts.push({
         id: ids.other,
         accountNumber: "MWD-001250",
@@ -376,7 +381,13 @@ createServer(async (request, response) => {
       response,
       state.unlinked || role === "other"
         ? []
-        : [{ account_id: ids.account, user_id: ids[role], active: true }],
+        : [
+            {
+              account_id: state.clientAccountId ?? ids.account,
+              user_id: ids[role],
+              active: true,
+            },
+          ],
       url,
     );
   if (url.pathname.startsWith("/rest/v1/rpc/")) {

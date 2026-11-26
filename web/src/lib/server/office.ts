@@ -22,6 +22,14 @@ import { billingCall, refreshBilling } from "./billing";
 
 type Row = Record<string, unknown>;
 type Context = { supabase: SupabaseClient; profile: Profile };
+function registrationSetup(error: PostgrestError | null) {
+  if (error && ["PGRST202", "PGRST205", "42P01"].includes(error.code))
+    throw new HttpError(
+      503,
+      "Client registration approval is not set up yet. Apply the client registration migrations in Supabase, then refresh this list.",
+      "registration_setup_required",
+    );
+}
 const accountFields = "id,account_number,holder_name,service_address,active";
 const concernFields =
   "id,xmin,account_id,category,subject,description,status,admin_response,created_at,reviewed_at,repair_dispatched_at,latitude,longitude,location_note,service_accounts!inner(account_number,holder_name),repair_tickets(id)";
@@ -354,6 +362,7 @@ export async function officeRequest(
       .eq("status", "Pending")
       .order("submitted_at")
       .limit(1000);
+    registrationSetup(error);
     check(error);
     return rows(data).map((r) => ({
       userId: text(r.user_id),
@@ -372,6 +381,7 @@ export async function officeRequest(
     const { data, error } = await supabase.rpc("approve_client_registration", {
       registration_user_id: uuid(approval[1]),
     });
+    registrationSetup(error);
     check(error);
     const saved = rows(data);
     if (saved.length !== 1)
