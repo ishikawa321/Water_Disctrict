@@ -1,0 +1,788 @@
+"use client";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { Plus, X } from "lucide-react";
+import { save } from "@/lib/client";
+import { useDraft, useResource } from "@/lib/hooks";
+import {
+  dateLabel,
+  money,
+  positiveMoney,
+  dateOnly,
+  todayInManila,
+} from "@/lib/format";
+import { interruptionPrefix, noticeTitle } from "@/lib/policy";
+import type { Account, Bill, Notice, Payment, StaffMember } from "@/lib/types";
+import { Badge, Card, Empty, Feedback, Field } from "./ui";
+import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
+import { PaymentTable } from "./payment-table";
+
+export function AccountsPage() {
+  const records = useResource<Account[]>("/api/office/office/accounts");
+  const [show, setShow] = useState(false);
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useDraft("office:add-account", {
+    accountNumber: "",
+    holderName: "",
+    serviceAddress: "",
+  });
+  const mutation = useMutation();
+  const visible =
+    records.data?.filter((r) =>
+      `${r.accountNumber} ${r.holderName} ${r.serviceAddress}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    ) ?? [];
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void mutation.run(async () => {
+      await save("/api/office/office/accounts", draft);
+      setDraft({ accountNumber: "", holderName: "", serviceAddress: "" });
+      void records.reload();
+    }, "Service account created.");
+  }
+  return (
+    <>
+      <PageHeader
+        title="Service accounts"
+        subtitle="Keep account details ready for every service interaction."
+      >
+        <Refresh onClick={records.reload} busy={records.busy} />
+        <button className="primary" onClick={() => setShow(!show)}>
+          {show ? <X size={16} /> : <Plus size={16} />}
+          {show ? "Close form" : "New account"}
+        </button>
+      </PageHeader>
+      <Feedback error={mutation.error} success={mutation.success} />
+      {show && (
+        <Card title="Create a service account">
+          <form className="form" onSubmit={submit}>
+            <fieldset disabled={mutation.busy}>
+              <div className="form-row">
+                <Field label="Account number">
+                  <input
+                    value={draft.accountNumber}
+                    onChange={(e) =>
+                      setDraft({ ...draft, accountNumber: e.target.value })
+                    }
+                    maxLength={80}
+                    required
+                  />
+                </Field>
+                <Field label="Holder name">
+                  <input
+                    value={draft.holderName}
+                    onChange={(e) =>
+                      setDraft({ ...draft, holderName: e.target.value })
+                    }
+                    maxLength={200}
+                    required
+                  />
+                </Field>
+              </div>
+              <Field label="Service address">
+                <textarea
+                  value={draft.serviceAddress}
+                  onChange={(e) =>
+                    setDraft({ ...draft, serviceAddress: e.target.value })
+                  }
+                  maxLength={500}
+                  required
+                />
+              </Field>
+              <button className="primary" type="submit">
+                {mutation.busy ? "Saving…" : "Create account"}
+              </button>
+            </fieldset>
+            <small>
+              New accounts are active. Closing this form keeps your draft.
+            </small>
+          </form>
+        </Card>
+      )}
+      <Card>
+        <div className="toolbar">
+          <input
+            className="search-input"
+            aria-label="Search loaded accounts"
+            placeholder="Search account number, holder or address"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <DataState
+          {...records}
+          loaded={!!records.data}
+          empty={!!records.data && !visible.length}
+        >
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Account number</th>
+                  <th>Account holder</th>
+                  <th>Service address</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.accountNumber}</td>
+                    <td>{r.holderName}</td>
+                    <td>{r.serviceAddress}</td>
+                    <td>
+                      <Badge>{r.active ? "Active" : "Inactive"}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DataState>
+        <p className="list-meta">
+          {visible.length} shown · Up to 1,000 accounts. Search filters the
+          loaded list.
+        </p>
+      </Card>
+    </>
+  );
+}
+
+export function BillsPage() {
+  const records = useResource<Bill[]>("/api/office/office/bills");
+  const accounts = useResource<Account[]>("/api/office/office/accounts");
+  const [show, setShow] = useState(false);
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useDraft("office:add-bill", {
+    accountId: "",
+    billNumber: "",
+    periodStart: "",
+    periodEnd: "",
+    dueDate: "",
+    amountDue: "",
+  });
+  const mutation = useMutation();
+  const visible =
+    records.data?.filter((r) =>
+      `${r.billNumber} ${r.accountNumber}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    ) ?? [];
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void mutation.run(async () => {
+      const amountDue = positiveMoney(draft.amountDue);
+      dateOnly(draft.periodStart);
+      dateOnly(draft.periodEnd);
+      dateOnly(draft.dueDate);
+      if (draft.periodEnd < draft.periodStart)
+        throw new Error("The period end cannot precede the period start.");
+      await save("/api/office/office/bills", { ...draft, amountDue });
+      setDraft({ ...draft, billNumber: "", amountDue: "" });
+      void records.reload();
+    }, "Billing record created.");
+  }
+  return (
+    <>
+      <PageHeader
+        title="Billing records"
+        subtitle="District-computed charges and verified remaining balances."
+      >
+        <Refresh
+          onClick={() => {
+            void records.reload();
+            void accounts.reload();
+          }}
+          busy={records.busy || accounts.busy}
+        />
+        <button className="primary" onClick={() => setShow(!show)}>
+          <Plus size={16} />
+          {show ? "Close form" : "New bill"}
+        </button>
+      </PageHeader>
+      <Feedback error={mutation.error} success={mutation.success} />
+      {show && (
+        <Card title="Create a billing record">
+          <Feedback error={accounts.error} />
+          <form className="form" onSubmit={submit}>
+            <fieldset disabled={mutation.busy}>
+              <Field
+                label="Active service account"
+                hint="Up to 1,000 loaded accounts. Refresh if an account was recently created."
+              >
+                <select
+                  required
+                  value={draft.accountId}
+                  onChange={(e) =>
+                    setDraft({ ...draft, accountId: e.target.value })
+                  }
+                >
+                  <option value="">Select an active account</option>
+                  {accounts.data
+                    ?.filter((a) => a.active)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.accountNumber} / {a.holderName}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+              <div className="form-row">
+                <Field label="Bill number">
+                  <input
+                    value={draft.billNumber}
+                    onChange={(e) =>
+                      setDraft({ ...draft, billNumber: e.target.value })
+                    }
+                    required
+                    maxLength={100}
+                  />
+                </Field>
+                <Field label="District-computed amount (PHP)">
+                  <input
+                    inputMode="decimal"
+                    value={draft.amountDue}
+                    onChange={(e) =>
+                      setDraft({ ...draft, amountDue: e.target.value })
+                    }
+                    placeholder="0.00"
+                    required
+                  />
+                </Field>
+              </div>
+              <div className="form-row">
+                <Field label="Period start">
+                  <input
+                    type="date"
+                    min="2000-01-01"
+                    max="2100-12-31"
+                    value={draft.periodStart}
+                    onChange={(e) =>
+                      setDraft({ ...draft, periodStart: e.target.value })
+                    }
+                    required
+                  />
+                </Field>
+                <Field label="Period end">
+                  <input
+                    type="date"
+                    min={draft.periodStart || "2000-01-01"}
+                    max="2100-12-31"
+                    value={draft.periodEnd}
+                    onChange={(e) =>
+                      setDraft({ ...draft, periodEnd: e.target.value })
+                    }
+                    required
+                  />
+                </Field>
+              </div>
+              <Field label="Due date">
+                <input
+                  type="date"
+                  min="2000-01-01"
+                  max="2100-12-31"
+                  value={draft.dueDate}
+                  onChange={(e) =>
+                    setDraft({ ...draft, dueDate: e.target.value })
+                  }
+                  required
+                />
+              </Field>
+              <button className="primary" type="submit">
+                {mutation.busy ? "Saving…" : "Create bill"}
+              </button>
+            </fieldset>
+            <small>
+              Enter the amount computed by the district. This form does not
+              calculate tariffs.
+            </small>
+          </form>
+        </Card>
+      )}
+      <Card>
+        <div className="toolbar">
+          <input
+            className="search-input"
+            aria-label="Search loaded bills"
+            placeholder="Search bill or account number"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <DataState
+          {...records}
+          loaded={!!records.data}
+          empty={!!records.data && !visible.length}
+        >
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bill / account</th>
+                  <th>Billing period</th>
+                  <th>Due</th>
+                  <th>Original</th>
+                  <th>Verified paid</th>
+                  <th>Remaining</th>
+                  <th>History</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((b) => (
+                  <tr key={b.id}>
+                    <td>
+                      {b.billNumber}
+                      <small>{b.accountNumber}</small>
+                    </td>
+                    <td>
+                      {dateLabel(b.periodStart)}
+                      <small>to {dateLabel(b.periodEnd)}</small>
+                    </td>
+                    <td>{dateLabel(b.dueDate)}</td>
+                    <td className="amount">{money(b.amountDue)}</td>
+                    <td className="amount">{money(b.paid)}</td>
+                    <td className="amount">{money(b.remaining)}</td>
+                    <td>
+                      <Link href={`/office/payments?billId=${b.id}`}>
+                        Payments
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DataState>
+        <p className="list-meta">
+          Up to 1,000 bills, most recent due dates first. Search filters loaded
+          records.
+        </p>
+      </Card>
+    </>
+  );
+}
+
+export function PaymentsPage({
+  initialBillId = "",
+}: {
+  initialBillId?: string;
+}) {
+  const bills = useResource<Bill[]>("/api/office/office/bills");
+  const [filter, setFilter] = useState(initialBillId);
+  const records = useResource<Payment[]>(
+    `/api/office/office/payments${filter ? `?billId=${encodeURIComponent(filter)}` : ""}`,
+  );
+  const [show, setShow] = useState(false);
+  const [draft, setDraft] = useDraft("office:add-payment", {
+    billId: initialBillId,
+    receiptReference: "",
+    paymentDate: todayInManila(),
+    amountPaid: "",
+    verified: false,
+  });
+  const mutation = useMutation();
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void mutation.run(async () => {
+      const amountPaid = positiveMoney(draft.amountPaid);
+      dateOnly(draft.paymentDate);
+      if (draft.paymentDate > todayInManila())
+        throw new Error("The payment date cannot be in the future.");
+      if (!draft.verified)
+        throw new Error("Confirm verification against district records.");
+      await save("/api/office/office/payments", { ...draft, amountPaid });
+      setDraft({
+        ...draft,
+        receiptReference: "",
+        amountPaid: "",
+        verified: false,
+      });
+      void records.reload();
+      void bills.reload();
+    }, "Verified offline payment recorded.");
+  }
+  return (
+    <>
+      <PageHeader
+        title="Verified payments"
+        subtitle="A clear record of payments verified against district records."
+      >
+        <Refresh
+          onClick={() => {
+            void records.reload();
+            void bills.reload();
+          }}
+          busy={records.busy || bills.busy}
+        />
+        <button className="primary" onClick={() => setShow(!show)}>
+          <Plus size={16} />
+          {show ? "Close form" : "Record payment"}
+        </button>
+      </PageHeader>
+      <Feedback error={mutation.error} success={mutation.success} />
+      {show && (
+        <Card title="Record a verified offline payment">
+          <Feedback error={bills.error} />
+          <form className="form" onSubmit={submit}>
+            <fieldset disabled={mutation.busy}>
+              <Field label="Bill">
+                <select
+                  required
+                  value={draft.billId}
+                  onChange={(e) =>
+                    setDraft({ ...draft, billId: e.target.value })
+                  }
+                >
+                  <option value="">Select a bill</option>
+                  {bills.data?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.billNumber} / {b.accountNumber} / {money(b.remaining)}{" "}
+                      remaining
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Receipt / reference">
+                <input
+                  value={draft.receiptReference}
+                  onChange={(e) =>
+                    setDraft({ ...draft, receiptReference: e.target.value })
+                  }
+                  maxLength={150}
+                  required
+                />
+              </Field>
+              <div className="form-row">
+                <Field label="Payment date">
+                  <input
+                    type="date"
+                    min="2000-01-01"
+                    max={todayInManila()}
+                    value={draft.paymentDate}
+                    onChange={(e) =>
+                      setDraft({ ...draft, paymentDate: e.target.value })
+                    }
+                    required
+                  />
+                </Field>
+                <Field label="Verified amount (PHP)">
+                  <input
+                    inputMode="decimal"
+                    value={draft.amountPaid}
+                    onChange={(e) =>
+                      setDraft({ ...draft, amountPaid: e.target.value })
+                    }
+                    required
+                    placeholder="0.00"
+                  />
+                </Field>
+              </div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={draft.verified}
+                  onChange={(e) =>
+                    setDraft({ ...draft, verified: e.target.checked })
+                  }
+                  required
+                />
+                <span>
+                  I have verified this offline payment against district records.
+                </span>
+              </label>
+              <button className="primary" type="submit">
+                {mutation.busy ? "Saving…" : "Record verified payment"}
+              </button>
+            </fieldset>
+            <small>
+              Verification identity and time are recorded by the shared service.
+            </small>
+          </form>
+        </Card>
+      )}
+      <Card>
+        <Feedback error={bills.error} />
+        <div className="toolbar">
+          <label className="field" style={{ width: "100%" }}>
+            <span>Payment history</span>
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">All loaded history</option>
+              {filter && !bills.data?.some((b) => b.id === filter) && (
+                <option value={filter}>Selected bill</option>
+              )}
+              {bills.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.billNumber} / {b.accountNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <DataState
+          {...records}
+          loaded={!!records.data}
+          empty={records.data?.length === 0}
+        >
+          {records.data && <PaymentTable payments={records.data} />}
+        </DataState>
+        <p className="list-meta">
+          Up to 1,000 payments
+          {filter ? " for the selected bill" : ", newest first"}. These are
+          verified offline records.
+        </p>
+      </Card>
+    </>
+  );
+}
+
+export function AnnouncementEditor() {
+  const records = useResource<Notice[]>("/api/office/office/announcements");
+  const [selected, setSelected] = useState<Notice | null>(null);
+  const [show, setShow] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  return (
+    <>
+      <PageHeader
+        title="Announcements"
+        subtitle="Keep consumers informed with district news and service notices."
+      >
+        <Refresh onClick={records.reload} busy={records.busy || saving} />
+        <button
+          className="primary"
+          disabled={saving}
+          onClick={() => {
+            setSelected(null);
+            setShow(true);
+          }}
+        >
+          <Plus size={16} />
+          New notice
+        </button>
+      </PageHeader>
+      <Feedback success={savedMessage} />
+      <div className="split">
+        <Card title="District notices">
+          <DataState
+            {...records}
+            loaded={!!records.data}
+            empty={records.data?.length === 0}
+          >
+            <div className="record-list">
+              {records.data?.map((n) => (
+                <button
+                  key={n.id}
+                  disabled={saving}
+                  className={`record-button ${selected?.id === n.id ? "selected" : ""}`}
+                  onClick={() => {
+                    setSelected(n);
+                    setShow(true);
+                  }}
+                >
+                  <div className="row spread">
+                    <Badge>{n.published ? "Published" : "Draft"}</Badge>
+                    {n.title.startsWith(interruptionPrefix) && (
+                      <Badge>Service interruption</Badge>
+                    )}
+                  </div>
+                  <h3>{noticeTitle(n.title)}</h3>
+                  <p>{dateLabel(n.updatedAt)}</p>
+                </button>
+              ))}
+            </div>
+          </DataState>
+          <p className="list-meta">
+            Up to 1,000 notices, most recently updated first.
+          </p>
+        </Card>
+        {show ? (
+          <NoticeForm
+            key={selected?.id ?? "new"}
+            notice={selected}
+            onClose={() => setShow(false)}
+            onBusy={setSaving}
+            onSave={(saved) => {
+              setSelected(saved);
+              setSavedMessage(
+                saved.published
+                  ? "Published notice saved."
+                  : "Draft saved. Consumers cannot see this draft.",
+              );
+              void records.reload();
+            }}
+          />
+        ) : (
+          <Card>
+            <Empty title="Choose a notice">
+              Select a saved notice to edit, or create a new draft.
+            </Empty>
+          </Card>
+        )}
+      </div>
+    </>
+  );
+}
+function NoticeForm({
+  notice,
+  onClose,
+  onSave,
+  onBusy,
+}: {
+  notice: Notice | null;
+  onClose: () => void;
+  onSave: (saved: Notice) => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  const [draft, setDraft] = useDraft(`notice:${notice?.id ?? "new"}`, {
+    savedId: notice?.id ?? null,
+    title: notice ? noticeTitle(notice.title) : "",
+    message: notice?.message ?? "",
+    published: notice?.published ?? false,
+    isInterruption: notice?.title.startsWith(interruptionPrefix) ?? false,
+  });
+  const savedId = draft.savedId;
+  const mutation = useMutation();
+  const limit = 150 - (draft.isInterruption ? interruptionPrefix.length : 0);
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onBusy(true);
+    void mutation
+      .run(
+        async () => {
+          if (draft.title.trim().length > limit)
+            throw new Error(
+              `The title must fit ${limit} characters including the interruption setting.`,
+            );
+          const saved = await save<Notice>(
+            `/api/office/office/announcements${savedId ? `/${savedId}` : ""}`,
+            draft,
+            savedId ? "PUT" : "POST",
+          );
+          setDraft(
+            notice
+              ? { ...draft, savedId: saved.id }
+              : {
+                  savedId: null,
+                  title: "",
+                  message: "",
+                  published: false,
+                  isInterruption: false,
+                },
+          );
+          onSave(saved);
+        },
+        draft.published
+          ? "Published notice saved."
+          : "Draft saved. Consumers cannot see this draft.",
+      )
+      .finally(() => onBusy(false));
+  }
+  return (
+    <Card title={savedId ? "Edit notice" : "New district notice"}>
+      <Feedback error={mutation.error} success={mutation.success} />
+      <form className="form" onSubmit={submit}>
+        <fieldset disabled={mutation.busy}>
+          <Field
+            label="Title"
+            hint={`${draft.title.length} / ${limit} characters available`}
+          >
+            <input
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              maxLength={150}
+              required
+            />
+          </Field>
+          <Field label="Message">
+            <textarea
+              value={draft.message}
+              onChange={(e) => setDraft({ ...draft, message: e.target.value })}
+              maxLength={5000}
+              required
+              rows={7}
+            />
+          </Field>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={draft.isInterruption}
+              onChange={(e) =>
+                setDraft({ ...draft, isInterruption: e.target.checked })
+              }
+            />
+            Service interruption notice
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={draft.published}
+              onChange={(e) =>
+                setDraft({ ...draft, published: e.target.checked })
+              }
+            />
+            Published — visible to consumers
+          </label>
+          <div className="row wrap">
+            <button className="primary" type="submit">
+              {mutation.busy ? "Saving…" : "Save notice"}
+            </button>
+            <button className="secondary" type="button" onClick={onClose}>
+              Close editor
+            </button>
+          </div>
+        </fieldset>
+        <small>
+          Closing keeps your unsaved draft in this signed-in session.
+        </small>
+      </form>
+    </Card>
+  );
+}
+export function StaffDirectory() {
+  const records = useResource<StaffMember[]>("/api/office/admin/staff");
+  return (
+    <>
+      <PageHeader
+        title="Staff directory"
+        subtitle="Authorized, active office personnel."
+      >
+        <Refresh onClick={records.reload} busy={records.busy} />
+      </PageHeader>
+      <Card>
+        <DataState
+          {...records}
+          loaded={!!records.data}
+          empty={records.data?.length === 0}
+        >
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.data?.map((p) => (
+                  <tr key={p.userId}>
+                    <td>{p.displayName}</td>
+                    <td style={{ textTransform: "capitalize" }}>{p.role}</td>
+                    <td>
+                      <Badge>Active</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DataState>
+        <p className="list-meta">
+          Read-only directory. Staff accounts are provisioned by an authorized
+          operator.
+        </p>
+      </Card>
+    </>
+  );
+}
