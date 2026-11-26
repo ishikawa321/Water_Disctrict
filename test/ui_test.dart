@@ -13,6 +13,7 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:water_district_connect/main.dart';
 import 'package:water_district_connect/ui_components.dart';
+import 'package:water_district_connect/concern_location.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,12 @@ void main() {
   var failAuth = true;
   var failRefresh = false;
   var multipleUpdates = false;
+  Map<String, dynamic>? submittedConcern, reviewedConcern;
+  var selectedLocationColumns = false;
+  var interruptionPublished = true;
+  String? concernFilter, repairFilter;
+  var emptyRecords = false, failRecords = false;
+  Completer<void>? recordsGate;
   final boundaryKey = GlobalKey();
   final user = {
     'id': 'test-user',
@@ -60,6 +67,10 @@ void main() {
           .then((bytes) => ByteData.sublistView(bytes)));
     }
     await dmSans.load();
+    await (FontLoader('Currency Symbols')..addFont(
+      File('assets/fonts/CurrencySymbols.ttf').readAsBytes()
+          .then((bytes) => ByteData.sublistView(bytes)),
+    )).load();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/shared_preferences'),
@@ -74,8 +85,31 @@ void main() {
         autoRefreshToken: false,
       ),
       httpClient: MockClient((request) async {
+        if (request.url.path.startsWith('/rest/v1/') &&
+            (request.method == 'GET' || request.method == 'HEAD')) {
+          if (recordsGate != null) await recordsGate!.future;
+          if (failRecords) {
+            return http.Response(
+              '{"message":"Connection unavailable"}', 503, request: request,
+              headers: {'content-type': 'application/json'});
+          }
+        }
+        if (request.url.path.endsWith('/service_concerns')) {
+          if (request.method == 'POST') {
+            submittedConcern = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response('', 201, request: request,
+              headers: {'content-type': 'application/json'});
+          }
+          if (request.method == 'PATCH') {
+            reviewedConcern = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response('{"id":"test-concern"}', 200, request: request,
+              headers: {'content-type': 'application/json'});
+          }
+          selectedLocationColumns = request.url.queryParameters['select']?.contains('latitude,longitude,location_note') == true;
+          concernFilter = request.url.queryParameters['id'];
+        }
         if (request.method == 'HEAD') {
-          return http.Response('', 200, headers: {'content-range': '0-1/2'}, request: request);
+          return http.Response('', 200, headers: {'content-range': emptyRecords ? '*/0' : '0-1/2'}, request: request);
         }
         Object body = [];
         var code = 200;
@@ -125,6 +159,8 @@ void main() {
                 'description': 'Low pressure near the service address.',
                 'admin_response': 'The district is reviewing this concern.',
                 'reviewed_at': null,
+                'latitude': 7.7633, 'longitude': 125.0058,
+                'location_note': 'Beside the school',
                 'service_accounts': {'account_number': 'WD-001'},
               },
               if (multipleUpdates) {
@@ -170,6 +206,7 @@ void main() {
             'bills': {'bill_number': 'B-001', 'service_accounts': {'account_number': 'WD-001'}},
           }];
         } else if (request.url.path.endsWith('/repair_tickets')) {
+          repairFilter = request.url.queryParameters['concern_id'];
           body = [{
             'id': 'test-repair', 'concern_id': 'test-concern', 'status': 'Assigned',
             'assigned_to': 'District crew', 'latest_update': 'Inspection scheduled.',
@@ -180,7 +217,7 @@ void main() {
           body = [
             {
               'id': 'test-notice', 'published': true,
-              'title': '${interruptionPrefix}Scheduled maintenance',
+              'title': '${interruptionPublished ? interruptionPrefix : ''}Scheduled maintenance',
               'message':
                   'Water service will pause during scheduled maintenance.',
               'updated_at': '2026-10-23',
@@ -193,6 +230,7 @@ void main() {
         } else if (request.url.path.endsWith('/logout')) {
           body = {};
         }
+        if (emptyRecords && request.url.path.startsWith('/rest/v1/') && request.method == 'GET') body = [];
         return http.Response(
           jsonEncode(body),
           code,
@@ -213,6 +251,15 @@ void main() {
     failAuth = true;
     failRefresh = false;
     multipleUpdates = false;
+    submittedConcern = null;
+    reviewedConcern = null;
+    selectedLocationColumns = false;
+    interruptionPublished = true;
+    concernFilter = null;
+    repairFilter = null;
+    emptyRecords = false;
+    failRecords = false;
+    recordsGate = null;
   });
 
   Widget app(Widget child, {double textScale = 1}) => MaterialApp(
@@ -244,7 +291,7 @@ void main() {
       email: 'user@example.com', password: 'password123'));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     for (final role in ['admin', 'client']) {
-      for (final width in [320.0, 768.0]) {
+      for (final width in [320.0, 390.0, 768.0, 1280.0]) {
         for (final scale in [1.0, 2.0]) {
           await tester.binding.setSurfaceSize(Size(width, 844));
           await tester.pumpWidget(app(ModernDashboard(
@@ -268,6 +315,170 @@ void main() {
         }
       }
     }
+  });
+
+  Map<String, Widget Function()> auditPages() {
+    const concern = <String, dynamic>{
+      'id': 'test-concern', 'account_id': 'test-service-account',
+      'subject': 'Low water pressure', 'category': 'Water pressure',
+      'description': 'Low pressure near the service address.', 'status': 'Submitted',
+      'created_at': '2026-01-01', 'admin_response': null, 'reviewed_at': null,
+      'service_accounts': {'account_number': 'WD-001'},
+    };
+    return {
+      for (final admin in [false, true]) ...{
+        '${admin ? 'admin' : 'client'}-dashboard': () => ModernDashboard(
+          profile: {'display_name': 'Alexandria Marie Dela Cruz', 'role': admin ? 'admin' : 'client'},
+          onSignOut: () async {}, signingOut: false),
+        '${admin ? 'admin' : 'client'}-bills': () => BillsPage(isAdmin: admin),
+        '${admin ? 'admin' : 'client'}-payments': () => PaymentsPage(isAdmin: admin),
+        '${admin ? 'admin' : 'client'}-concerns': () => ConcernsPage(isAdmin: admin),
+        '${admin ? 'admin' : 'client'}-repairs': () => RepairTicketsPage(isAdmin: admin),
+        '${admin ? 'admin' : 'client'}-notices': () => AnnouncementsPage(isAdmin: admin),
+      },
+      'client-profile': () => const ClientAccountPage(),
+      'client-new-concern': () => const ConcernFormPage(),
+      'admin-accounts': () => const ServiceAccountsPage(),
+      'admin-new-account': () => const AddServiceAccountPage(),
+      'admin-new-bill': () => const AddBillPage(),
+      'admin-record-payment': () => const RecordPaymentPage(),
+      'admin-review': () => const ConcernFormPage(concern: concern),
+      'admin-new-repair': () => const RepairTicketFormPage(),
+      'admin-edit-repair': () => const RepairTicketFormPage(ticket: {
+        'id': 'test-repair', 'concern_id': 'test-concern', 'status': 'Assigned',
+        'assigned_to': 'District crew', 'latest_update': 'Inspection scheduled.'}),
+      'admin-new-notice': () => const AnnouncementFormPage(),
+      'admin-edit-notice': () => const AnnouncementFormPage(announcement: {
+        'id': 'test-notice', 'title': 'Scheduled maintenance', 'message': 'District service notice.',
+        'published': true}),
+    };
+  }
+
+  testWidgets('signed-in visual audit covers every page at all target sizes', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 390.0, 768.0, 1280.0]) {
+      for (final scale in [1.0, 2.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 900));
+        for (final entry in auditPages().entries) {
+          await tester.pumpWidget(app(entry.value(), textScale: scale));
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull,
+            reason: '${entry.key}, width=$width, text=$scale');
+          final bar = find.byType(UtilityAppBar);
+          if (bar.evaluate().isNotEmpty) {
+            final title = find.descendant(of: bar, matching: find.byType(Text)).first;
+            final barRect = tester.getRect(bar);
+            final titleRect = tester.getRect(title);
+            expect(titleRect.top, greaterThanOrEqualTo(barRect.top), reason: '${entry.key} title top');
+            expect(titleRect.bottom, lessThanOrEqualTo(barRect.bottom), reason: '${entry.key} title bottom');
+          }
+          await screenshot(tester, 'audit-${entry.key}-${width.toInt()}-${scale.toInt()}x');
+          final scrolls = find.byType(Scrollable);
+          if (scrolls.evaluate().isNotEmpty) {
+            // Inspect lower form controls and records as well as their first viewport.
+            await tester.drag(scrolls.first, const Offset(0, -1600));
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull, reason: '${entry.key} after scrolling');
+            if (width == 320 && scale == 2) await screenshot(tester, 'audit-${entry.key}-bottom');
+          }
+          await tester.pumpWidget(const SizedBox());
+        }
+      }
+    }
+  }, timeout: const Timeout(Duration(minutes: 6)));
+
+  testWidgets('signed-in data pages handle loading empty and error states', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(320, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final state in ['loading', 'empty', 'error']) {
+      emptyRecords = state == 'empty';
+      failRecords = state == 'error';
+      final cases = auditPages()..removeWhere((name, _) =>
+        name.contains('edit-') || name == 'admin-new-account' ||
+        name == 'admin-new-notice' || name == 'admin-review');
+      for (final entry in cases.entries) {
+        if (state == 'loading') recordsGate = Completer<void>();
+        await tester.pumpWidget(app(entry.value(), textScale: 2));
+        await tester.pump();
+        if (state == 'loading') {
+          await tester.pump(const Duration(milliseconds: 200));
+        } else {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull, reason: '${entry.key}: $state');
+        await screenshot(tester, 'audit-${entry.key}-$state');
+        await tester.pumpWidget(const SizedBox());
+        recordsGate?.complete();
+        recordsGate = null;
+        await tester.pump();
+      }
+    }
+  }, timeout: const Timeout(Duration(minutes: 4)));
+
+  testWidgets('request preview opens its response and filters repair tracking', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.pumpWidget(app(ModernDashboard(
+      profile: const {'display_name': 'Test Client', 'role': 'client'},
+      onSignOut: () async {}, signingOut: false)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(find.text('Maramag Water District'), findsOneWidget);
+    // Wide screens put billing and requests side by side.
+    expect(tester.getTopLeft(find.text('Recent request')).dx,
+      greaterThan(tester.getTopLeft(find.text('Outstanding balance')).dx + 300));
+    await tester.ensureVisible(find.text('Read response'));
+    await tester.tap(find.text('Read response'));
+    await tester.pumpAndSettle();
+    expect(concernFilter, 'eq.test-concern');
+    expect(find.text('District response'), findsOneWidget);
+    await tester.ensureVisible(find.text('Track repair'));
+    await tester.tap(find.text('Track repair'));
+    await tester.pumpAndSettle();
+    expect(repairFilter, 'eq.test-concern');
+    expect(find.text('Inspection scheduled.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('absence of a published interruption does not imply normal service', (tester) async {
+    interruptionPublished = false;
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.pumpWidget(app(ModernDashboard(
+      profile: const {'display_name': 'Test Client', 'role': 'client'},
+      onSignOut: () async {}, signingOut: false)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Live service status is not available.'), findsOneWidget);
+    expect(find.text('Normal service'), findsNothing);
+    expect(find.text('Read service advisory'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('payment instructions show bill references and verification next steps', (tester) async {
+    await tester.pumpWidget(app(const BillsPage(isAdmin: false)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View payment instructions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Account WD-001'), findsOneWidget);
+    expect(find.text('Bill B-001'), findsWidgets);
+    expect(find.textContaining('after district personnel verify'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets(
@@ -582,9 +793,94 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
       await tester.pumpAndSettle();
       expect(find.byType(types[i]), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      expect(tester.takeException(), isNull, reason: 'Route: ${labels[i]}');
       await tester.pumpWidget(const SizedBox());
     }
+  });
+
+  for (final withLocation in [true, false]) {
+    testWidgets('concern submission saves ${withLocation ? 'confirmed coordinates' : 'an optional empty location'}', (tester) async {
+      failAuth = false;
+      await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+        email: 'user@example.com', password: 'password123'));
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var pickerCalls = 0;
+      await tester.pumpWidget(app(Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ConcernFormPage(locationPicker: (_, initial) async {
+            pickerCalls++;
+            expect(initial, isNull);
+            return const ConcernLocation(latitude: 7.7633, longitude: 125.0058, note: '  Beside the school  ');
+          }),
+        )), child: const Text('Open report'),
+      )))));
+      await tester.tap(find.text('Open report'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'Leaking water pipe');
+      await tester.enterText(find.byType(TextFormField).last, 'Water has been leaking beside the school since this morning.');
+      if (withLocation) {
+        await tester.ensureVisible(find.text('Choose location'));
+        await tester.tap(find.text('Choose location'));
+        await tester.pumpAndSettle();
+        expect(pickerCalls, 1);
+        expect(find.text('7.763300, 125.005800'), findsOneWidget);
+      }
+      final submit = find.widgetWithText(FilledButton, 'Submit concern');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pumpAndSettle();
+      expect(submittedConcern, isNotNull);
+      expect(submittedConcern!['account_id'], 'test-service-account');
+      expect(submittedConcern!['submitted_by'], 'test-user');
+      expect(submittedConcern!['latitude'], withLocation ? 7.7633 : null);
+      expect(submittedConcern!['longitude'], withLocation ? 125.0058 : null);
+      expect(submittedConcern!['location_note'], withLocation ? 'Beside the school' : null);
+      expect(find.textContaining('Could not save the concern.'), findsNothing);
+      expect(find.textContaining('Save could not be confirmed.'), findsNothing);
+      expect(find.byType(ConcernFormPage), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('admin fetches the saved pin and review leaves its coordinates unchanged', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(const ConcernsPage(isAdmin: true)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(selectedLocationColumns, isTrue);
+    await tester.tap(find.text('Details & response'));
+    await tester.pumpAndSettle();
+    expect(find.text('7.763300, 125.005800'), findsOneWidget);
+    expect(find.text('View location'), findsOneWidget);
+    await tester.ensureVisible(find.text('Review concern'));
+    await tester.tap(find.text('Review concern'));
+    await tester.pumpAndSettle();
+    expect(find.text('View location'), findsOneWidget);
+    expect(find.text('Choose location'), findsNothing);
+    await tester.enterText(find.byType(TextFormField), 'Crew assigned to inspect the leak.');
+    await tester.ensureVisible(find.text('Save review'));
+    await tester.tap(find.text('Save review'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(reviewedConcern!['admin_response'], 'Crew assigned to inspect the leak.');
+    expect(reviewedConcern!.containsKey('latitude'), isFalse);
+    expect(reviewedConcern!.containsKey('longitude'), isFalse);
+    expect(reviewedConcern!.containsKey('location_note'), isFalse);
+    expect(find.byType(ConcernFormPage), findsNothing);
+    expect(find.byType(ConcernsPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets(

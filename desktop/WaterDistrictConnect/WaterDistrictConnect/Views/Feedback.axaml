@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:v="using:WaterDistrictConnect.Views" x:Class="WaterDistrictConnect.Views.Feedback" IsVisible="{Binding HasFeedback}">
+  <StackPanel Spacing="8">
+    <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="True" Height="4" Foreground="{StaticResource Primary}"/>
+    <TextBlock Text="Working…" IsVisible="{Binding IsBusy}" Classes="muted"/>
+    
+
+    <Border Background="{StaticResource ErrorBackground}" Padding="16" CornerRadius="8" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Text="{Binding Error}" Foreground="{StaticResource Error}"/>
+    </Border>
+    
+
+    <Border Background="{StaticResource SuccessBackground}" Padding="16" CornerRadius="8" IsVisible="{Binding Success, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Text="{Binding Success}" Foreground="{StaticResource Success}"/>
+    </Border>
+  </StackPanel>
+</UserControl>
