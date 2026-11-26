@@ -11,6 +11,8 @@ import 'package:water_district_connect/staff_workspace.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   var active = true;
+  var admin = false;
+  Map<String, dynamic>? workflow;
   var denied = false;
   final queries = <String>[];
   final user = {
@@ -61,7 +63,7 @@ void main() {
         } else if (r.url.path.endsWith('/profiles')) {
           body = active
               ? [
-                  {'role': 'staff', 'active': true},
+                  {'role': admin ? 'admin' : 'staff', 'active': true},
                 ]
               : [];
         } else if (r.url.path.endsWith('/repair_tickets')) {
@@ -82,11 +84,16 @@ void main() {
             {
               'id': 'concern',
               'subject': 'Customer concern',
-              'status': 'Submitted',
+              'status': admin ? 'Under review' : 'Submitted',
+              'xmin': '41',
+              'repair_dispatched_at': null,
               'description': 'Low pressure',
               'service_accounts': {'account_number': 'MWD-001'},
             },
           ];
+        } else if (r.url.path.endsWith('/rpc/wd_web_workflow')) {
+          workflow = jsonDecode(r.body) as Map<String, dynamic>;
+          body = {'id': 'saved-repair'};
         }
         return http.Response(
           jsonEncode(body),
@@ -102,6 +109,24 @@ void main() {
     );
   });
   tearDownAll(() => Supabase.instance.dispose());
+  testWidgets('Admin can dispatch a reviewed concern from the embedded native services page', (tester) async {
+    active = true; admin = true;
+    await tester.pumpWidget(MaterialApp(home: StaffWorkspace(onSignOut: () {}, admin: true, embedded: true)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.tap(find.text('Dispatch repair'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Inspect the leak');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+    expect(workflow, {'p_action': 'dispatch', 'p_id': 'concern', 'p_version': 41, 'p_payload': {'note': 'Inspect the leak'}});
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    admin = false;
+  });
   testWidgets(
     'Staff workspace scopes repairs and clears records when access is disabled',
     (tester) async {

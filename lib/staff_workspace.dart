@@ -49,10 +49,12 @@ class StaffWorkspace extends StatefulWidget {
     required this.onSignOut,
     this.admin = false,
     this.initialTab = 0,
+    this.embedded = false,
   });
   final VoidCallback onSignOut;
   final bool admin;
   final int initialTab;
+  final bool embedded;
   @override
   State<StaffWorkspace> createState() => _StaffWorkspaceState();
 }
@@ -275,6 +277,30 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
     }
   }
 
+  Future<void> dispatch(Map<String, dynamic> concern) async {
+    if (!widget.admin ||
+        concern['status'] != 'Under review' ||
+        concern['repair_dispatched_at'] != null) {
+      return;
+    }
+    await openForm(
+      'Dispatch repair',
+      [const OfficeInput('note', 'Dispatch note', max: 3000)],
+      (values) async {
+        await client.rpc(
+          'wd_web_workflow',
+          params: {
+            'p_action': 'dispatch',
+            'p_id': concern['id'],
+            'p_version': int.parse(concern['xmin'].toString()),
+            'p_payload': {'note': values['note']},
+          },
+        );
+        return 'Repair dispatched. Open Repairs to assign active Staff.';
+      },
+    );
+  }
+
   Future<void> updateTicket(Map<String, dynamic> t) async {
     final choices = staffRepairChoices(t['status'], admin: widget.admin);
     if (choices.isEmpty) {
@@ -451,57 +477,73 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
   Widget build(BuildContext context) {
     const labels = ['Concerns', 'Assigned repairs', 'Bills', 'Payments'];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.admin ? 'Admin repair review' : 'Staff workspace'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh records',
-            onPressed: loading ? null : load,
-            icon: const Icon(Icons.refresh),
-          ),
-          if (!widget.admin)
-            IconButton(
-              tooltip: 'Sign out',
-              onPressed: () async {
-                await client.auth.signOut(scope: SignOutScope.local);
-                widget.onSignOut();
-              },
-              icon: const Icon(Icons.logout),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(widget.admin ? 'Admin workspace' : 'Staff workspace'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh records',
+                  onPressed: loading ? null : load,
+                  icon: const Icon(Icons.refresh),
+                ),
+                if (!widget.admin)
+                  IconButton(
+                    tooltip: 'Sign out',
+                    onPressed: () async {
+                      await client.auth.signOut(scope: SignOutScope.local);
+                      widget.onSignOut();
+                    },
+                    icon: const Icon(Icons.logout),
+                  ),
+              ],
             ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: loading
-            ? null
-            : (i) {
-                setState(() {
-                  tab = i;
-                  records = [];
-                });
-                load();
-              },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Concerns',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.build_outlined),
-            label: 'Repairs',
-          ),
-          NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Bills'),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            label: 'Payments',
-          ),
-        ],
-      ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: loading
+                  ? null
+                  : (i) {
+                      setState(() {
+                        tab = i;
+                        records = [];
+                      });
+                      load();
+                    },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  label: 'Concerns',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.build_outlined),
+                  label: 'Repairs',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long),
+                  label: 'Bills',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.payments_outlined),
+                  label: 'Payments',
+                ),
+              ],
+            ),
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.embedded)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: 'Refresh records',
+                  onPressed: loading ? null : load,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
             Text(
               widget.admin && tab == 1 ? 'Repair review' : labels[tab],
               style: Theme.of(context).textTheme.headlineSmall,
@@ -553,6 +595,13 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
                               onPressed: () => review(r),
                               child: const Text('Review concern'),
                             ),
+                            if (widget.admin &&
+                                r['status'] == 'Under review' &&
+                                r['repair_dispatched_at'] == null)
+                              TextButton(
+                                onPressed: () => dispatch(r),
+                                child: const Text('Dispatch repair'),
+                              ),
                           ],
                         )
                       : tab == 1

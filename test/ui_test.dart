@@ -27,6 +27,9 @@ void main() {
   var failRefresh = false;
   var multipleUpdates = false;
   Map<String, dynamic>? submittedConcern, reviewedConcern;
+  final billingWrites = <Map<String, dynamic>>[];
+  final paymentWrites = <Map<String, dynamic>>[];
+  var failBillWrite = false;
   var selectedLocationColumns = false;
   var interruptionPublished = true;
   String? concernFilter, repairFilter;
@@ -77,6 +80,17 @@ void main() {
         autoRefreshToken: false,
       ),
       httpClient: MockClient((request) async {
+        if (request.url.path.endsWith('/rpc/wd_billing_confirm_payment')) {
+          paymentWrites.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response('{"id":"saved-payment","receipt_reference":"1000000001"}', 200,
+            request: request, headers: {'content-type': 'application/json'});
+        }
+        if (request.url.path.endsWith('/rpc/wd_billing_create_bill')) {
+          billingWrites.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(failBillWrite ? '{"message":"Temporary failure"}' : '{"id":"saved-bill"}', failBillWrite ? 503 : 200,
+            request: request, headers: {'content-type': 'application/json'});
+        }
+        if (request.url.path.endsWith('/user')) return http.Response(jsonEncode(user), 200, request: request, headers: {'content-type': 'application/json'});
         if (request.url.path.endsWith('/rpc/client_registration_approval_available')) {
           return http.Response(registrationReady ? 'true' : '{"message":"Not installed"}',
             registrationReady ? 200 : 404, request: request,
@@ -146,7 +160,7 @@ void main() {
           body=pendingClient?[{'status':'Pending'}]:[];
         } else if (request.url.path.endsWith('/profiles')) {
           body = pendingClient?[]:[
-            {'display_name': 'Test Admin', 'role': 'admin'},
+            {'display_name': 'Test Admin', 'role': 'admin', 'active': true},
           ];
         } else if (request.url.path.endsWith('/service_concerns')) {
           if (refreshGate != null) await refreshGate!.future;
@@ -711,7 +725,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(app(ModernDashboard(
-      profile: const {'display_name': 'Test Admin', 'role': 'admin'},
+      profile: const {'display_name': 'Test Admin', 'role': 'admin', 'active': true},
       onSignOut: () async {},
       signingOut: false,
     )));
@@ -760,7 +774,7 @@ void main() {
     await tester.pumpWidget(
       app(
         ModernDashboard(
-          profile: const {'display_name': 'Test Admin', 'role': 'admin'},
+          profile: const {'display_name': 'Test Admin', 'role': 'admin', 'active': true},
           onSignOut: () async {},
           signingOut: false,
         ),
@@ -926,15 +940,86 @@ void main() {
     }
   });
 
+  testWidgets('Admin mobile confirms payment through the atomic RPC with an automatic reference', (tester) async {
+    paymentWrites.clear(); failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(Scaffold(body: Builder(builder: (context) => TextButton(
+      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RecordPaymentPage())), child: const Text('Open payment'),
+    )))));
+    await tester.tap(find.text('Open payment')); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150))); await tester.pumpAndSettle();
+    expect(find.text('Receipt/reference'), findsNothing);
+    await tester.tap(find.byType(DropdownButtonFormField<String>)); await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('B-001').last); await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '100.00');
+    await tester.ensureVisible(find.text('Record verified payment')); await tester.tap(find.text('Record verified payment')); await tester.pump();
+    expect(paymentWrites, isEmpty);
+    await tester.ensureVisible(find.byType(CheckboxListTile)); await tester.tap(find.byType(CheckboxListTile)); await tester.pump();
+    await tester.ensureVisible(find.text('Record verified payment')); await tester.tap(find.text('Record verified payment')); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150))); await tester.pumpAndSettle();
+    expect(paymentWrites.single['p_bill_id'], 'test-bill');
+    expect(paymentWrites.single['p_amount'], '100.00');
+    expect(paymentWrites.single.containsKey('receipt_reference'), isFalse);
+    expect(find.byType(RecordPaymentPage), findsNothing); expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Admin mobile schedules a bill with generated numbering and retries the same request safely', (tester) async {
+    billingWrites.clear(); failBillWrite = true;
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(Scaffold(body: Builder(builder: (context) => TextButton(
+      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddBillPage())), child: const Text('Open billing'),
+    )))));
+    await tester.tap(find.text('Open billing'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(find.text('Bill number'), findsNothing);
+    expect(find.textContaining('Period start'), findsNothing);
+    expect(find.textContaining('Period end'), findsNothing);
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MWD-001245 - Test Client').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '0');
+    await tester.ensureVisible(find.text('Save bill')); await tester.tap(find.text('Save bill')); await tester.pump();
+    expect(billingWrites, isEmpty);
+    await tester.enterText(find.byType(TextFormField), '750.00');
+    await tester.ensureVisible(find.textContaining('Release bill date:'));
+    await tester.tap(find.textContaining('Release bill date:')); await tester.pumpAndSettle();
+    tester.widget<CalendarDatePicker>(find.byType(CalendarDatePicker)).onDateChanged(DateTime(2099, 7, 17));
+    await tester.tap(find.text('OK')); await tester.pumpAndSettle();
+    expect(find.text('Release bill date: 2099-07-17'), findsOneWidget);
+    expect(find.text('Due date: 2099-07-20'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save bill')); await tester.tap(find.text('Save bill')); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(billingWrites.single, containsPair('p_release_date', '2099-07-17'));
+    expect(billingWrites.single, containsPair('p_due_date', '2099-07-20'));
+    expect(billingWrites.single.keys, unorderedEquals(['p_request_id','p_account_id','p_amount','p_due_date','p_release_date']));
+    expect(find.textContaining('Could not confirm the bill.'), findsOneWidget);
+    failBillWrite = false;
+    await tester.ensureVisible(find.text('Save bill')); await tester.tap(find.text('Save bill')); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(billingWrites, hasLength(2)); expect(billingWrites[0], billingWrites[1]);
+    expect(find.byType(AddBillPage), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('admin quick actions retain all management routes', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final labels = ['Accounts', 'Add bill', 'Record payment', 'Concerns', 'Repairs', 'Announcements'];
-    final types = [ServiceAccountsPage, AddBillPage, RecordPaymentPage, ConcernsPage,
+    final types = [ServiceAccountsPage, AddBillPage, RecordPaymentPage, StaffWorkspace,
       StaffWorkspace, AnnouncementsPage];
     for (var i = 0; i < labels.length; i++) {
       await tester.pumpWidget(app(ModernDashboard(
-        profile: const {'display_name': 'Test Admin', 'role': 'admin'},
+        profile: const {'display_name': 'Test Admin', 'role': 'admin', 'active': true},
         onSignOut: () async {}, signingOut: false,
       )));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));

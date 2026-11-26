@@ -418,7 +418,7 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
       {!staff && (
         <details className="card record-details">
           <summary>Recurring monthly plans (choose release date)</summary>
-          <MonthlyBilling accounts={accounts.data ?? []} />
+          <MonthlyBilling accounts={accounts.data ?? []} onSaved={records.reload} />
         </details>
       )}
     </>

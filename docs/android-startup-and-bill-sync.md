@@ -15,3 +15,11 @@ Recurring plans have their own **Next monthly release date**. That selected day 
 Verification uses isolated HTTP/browser fixtures and an emulator created only for this task. Regression checks cover a bill added after the Consumer screen was already open, future due dates, active account scoping, payment totals beyond 500 receipts and retry after a startup failure. No production bill, payment, account link or profile is changed during these checks.
 
 Released as Android 1.0.4 build 5 from main commit `11b76dd`. The actual signed APK reached sign-in after upgrading the failing version and after resetting the isolated emulator's app data; no missing-method exception appeared in corrected-release logcat. All 49 Flutter tests and 23 web browser workflows passed, along with 80 web unit checks, analysis/lint/type checks and the production build. The localhost Flutter sign-in and published website download were checked in Chrome. Production APK bytes and checksum matched the signed artifact.
+
+## Merged 1.0.5 source
+
+All remote branch tips (`main`, `UI-Redesign`, `feature/web-platform-parity`, and `feature/desktop-admin-staff`) are ancestors of the final merged source. The latest main branch's direct assigned-Staff repair resolution and Consumer home refresh are retained.
+
+The Android Admin bill form now uses the atomic bill RPC with an explicit release date, a due date defaulting to release plus three calendar days, an automatically generated bill number, and a retained request UUID for safe retries. Manual bill-number and billing-period inputs are removed. Admin payment confirmation also uses the atomic RPC and generated 10-digit reference. Admin concern shortcuts and the Services tab use the authenticated native workspace for review, dispatch and repair assignment rather than the old desktop handoff. Staff actions retain database role/assignment restrictions.
+
+The project operator reported successful execution of both `allow_staff_repair_resolution.sql` and `billing-release-dates.sql` during this update. Regression verification uses isolated data: 24 browser workflows, 89 web unit checks, 13 PostgreSQL role/workflow/release-date tests, 52 tests in the full Flutter suite plus the added focused Admin payment test, and clean Flutter analysis and web production build. No live financial or announcement records were written for testing.

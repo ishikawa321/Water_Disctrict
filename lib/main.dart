@@ -1853,11 +1853,12 @@ class AddBillPage extends StatefulWidget {
 
 class _AddBillPageState extends State<AddBillPage> {
   final form = GlobalKey<FormState>();
-  final billNumber = TextEditingController();
   final amount = TextEditingController();
+  final requestId = staffRequestId();
   List<Map<String, dynamic>> accounts = [];
   String? accountId;
-  DateTime? periodStart, periodEnd, dueDate;
+  late DateTime releaseDate = DateTime.parse(staffToday());
+  late DateTime dueDate = releaseDate.add(const Duration(days: 3));
   bool loading = true, saving = false;
   String? error;
 
@@ -1869,7 +1870,6 @@ class _AddBillPageState extends State<AddBillPage> {
 
   @override
   void dispose() {
-    billNumber.dispose();
     amount.dispose();
     super.dispose();
   }
@@ -1898,26 +1898,19 @@ class _AddBillPageState extends State<AddBillPage> {
   }
 
   String dateText(DateTime date) => date.toIso8601String().split('T').first;
-
-  Future<void> pickDate(int field) async {
-    final current = field == 0
-        ? periodStart
-        : field == 1
-        ? periodEnd
-        : dueDate;
+  Future<void> pickDate(bool release) async {
     final selected = await showDatePicker(
       context: context,
       builder: (context, child) => UtilitySurface(child: child!),
-      initialDate: current ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      initialDate: release ? releaseDate : dueDate,
+      firstDate: release ? DateTime.parse(staffToday()) : releaseDate,
+      lastDate: release ? DateTime(2100, 12, 28) : DateTime(2100, 12, 31),
     );
     if (selected == null || !mounted) return;
     setState(() {
-      if (field == 0) {
-        periodStart = selected;
-      } else if (field == 1) {
-        periodEnd = selected;
+      if (release) {
+        releaseDate = selected;
+        dueDate = selected.add(const Duration(days: 3));
       } else {
         dueDate = selected;
       }
@@ -1926,17 +1919,8 @@ class _AddBillPageState extends State<AddBillPage> {
 
   Future<void> saveBill() async {
     if (saving || !form.currentState!.validate()) return;
-    if (periodStart == null || periodEnd == null || dueDate == null) {
-      setState(() => error = 'Select all three dates.');
-      return;
-    }
-    if (periodEnd!.isBefore(periodStart!)) {
-      setState(() => error = 'The period end cannot precede the period start.');
-      return;
-    }
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      setState(() => error = 'Your session has ended. Sign in again.');
+    if (dueDate.isBefore(releaseDate)) {
+      setState(() => error = 'The due date must be on or after release.');
       return;
     }
     setState(() {
@@ -1944,31 +1928,37 @@ class _AddBillPageState extends State<AddBillPage> {
       error = null;
     });
     try {
-      await supabase.from('bills').insert({
-        'account_id': accountId,
-        'bill_number': billNumber.text.trim(),
-        'billing_period_start': dateText(periodStart!),
-        'billing_period_end': dateText(periodEnd!),
-        'due_date': dateText(dueDate!),
-        'amount_due': amount.text.trim(),
-        'created_by': user.id,
-      });
+      final result = await supabase.rpc(
+        'wd_billing_create_bill',
+        params: {
+          'p_request_id': requestId,
+          'p_account_id': accountId,
+          'p_amount': amount.text.trim(),
+          'p_due_date': dateText(dueDate),
+          'p_release_date': dateText(releaseDate),
+        },
+      );
+      if (result is! Map || result['id'] is! String) {
+        throw const FormatException('Missing saved bill');
+      }
     } on PostgrestException catch (e) {
       if (!mounted) return;
       setState(() {
         saving = false;
-        error = e.code == '23505'
-            ? 'This bill number already exists.'
-            : e.code == '42501'
-            ? 'Access denied. Only active administrators can add bills.'
-            : 'Could not save the bill. Check the database setup and entered values.';
+        error = e.code == '42501'
+            ? 'Only active administrators can add bills.'
+            : e.code == 'PGRST202'
+            ? 'The billing release-date database update is required. Contact the administrator.'
+            : e.code == '40001'
+            ? 'This request already saved different details. Return to the bills list and refresh.'
+            : 'Could not confirm the bill. Retry the same details safely or refresh the bills list.';
       });
       return;
     } catch (_) {
       if (!mounted) return;
       setState(() {
         saving = false;
-        error = 'Save could not be confirmed. Return to the bills list and refresh before retrying.';
+        error = 'Save could not be confirmed. Retry the same details safely or refresh the bills list.';
       });
       return;
     }
@@ -1976,136 +1966,127 @@ class _AddBillPageState extends State<AddBillPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !saving,
-      child: UtilityScaffold(
-        appBar: UtilityAppBar(title: const Text('Add bill')),
-        body: loading
-            ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(
-                alignment: Alignment.topCenter,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Form(
-                      key: form,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text(
-                            'Enter the amount already computed by the district.',
+  Widget build(BuildContext context) => PopScope(
+    canPop: !saving,
+    child: UtilityScaffold(
+      appBar: UtilityAppBar(title: const Text('Add bill')),
+      body: loading
+          ? const Center(child: LoadingCards())
+          : Align(
+              alignment: Alignment.topCenter,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Form(
+                    key: form,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Choose today to release the bill now, or schedule a future release. Consumers can view it from the release date, even before it is due.',
+                        ),
+                        const SizedBox(height: 20),
+                        if (accounts.isEmpty) ...[
+                          const Text('No active accounts are available.'),
+                          TextButton(
+                            onPressed: loadAccounts,
+                            child: const Text('Reload accounts'),
                           ),
-                          const SizedBox(height: 20),
-                          if (accounts.isEmpty) ...[
-                            const Text('No active accounts are available.'),
-                            TextButton(
-                              onPressed: loadAccounts,
-                              child: const Text('Reload accounts'),
-                            ),
-                          ],
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            isDense: false,
-                            itemHeight: null,
-                            decoration: const InputDecoration(
-                              labelText: 'Account',
-                            ),
-                            items: accounts
-                                .map(
-                                  (a) => DropdownMenuItem<String>(
-                                    value: a['id'] as String,
-                                    child: Text(
-                                      '${a['account_number']} - ${a['holder_name']}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                        ],
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          isDense: false,
+                          itemHeight: null,
+                          decoration: const InputDecoration(
+                            labelText: 'Account',
+                          ),
+                          items: accounts
+                              .map(
+                                (a) => DropdownMenuItem<String>(
+                                  value: a['id'] as String,
+                                  child: Text(
+                                    '${a['account_number']} - ${a['holder_name']}',
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                )
-                                .toList(),
-                            onChanged: saving
-                                ? null
-                                : (value) => setState(() => accountId = value),
-                            validator: (_) =>
-                                accountId == null ? 'Choose an account.' : null,
+                                ),
+                              )
+                              .toList(),
+                          onChanged: saving
+                              ? null
+                              : (v) => setState(() => accountId = v),
+                          validator: (_) =>
+                              accountId == null ? 'Choose an account.' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'A unique bill number is generated when saved.',
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: amount,
+                          enabled: !saving,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: billNumber,
-                            enabled: !saving,
-                            decoration: const InputDecoration(
-                              labelText: 'Bill number',
-                            ),
-                            validator: (v) => v == null || v.trim().isEmpty
-                                ? 'Enter a bill number.'
-                                : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Amount (PHP)',
                           ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: amount,
-                            enabled: !saving,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'Amount (PHP)',
-                            ),
-                            validator: (v) =>
-                                RegExp(r'^\d{1,10}(\.\d{1,2})?$')
-                                    .hasMatch(v?.trim() ?? '')
-                                ? null
-                                : 'Enter a nonnegative amount with up to two decimal places.',
+                          validator: (v) {
+                            try {
+                              final cents = staffCents(v?.trim() ?? '');
+                              if (cents > 0 && cents <= 999999999999) {
+                                return null;
+                              }
+                            } catch (_) {
+                              /* Show the same validation message below. */
+                            }
+                            return 'Enter a positive amount with up to two decimal places.';
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton(
+                          onPressed: saving ? null : () => pickDate(true),
+                          child: Text(
+                            'Release bill date: ${dateText(releaseDate)}',
                           ),
-                          const SizedBox(height: 16),
-                          OutlinedButton(
-                            onPressed: saving ? null : () => pickDate(0),
-                            child: Text(
-                              'Period start: ${periodStart == null ? 'Choose date' : dateText(periodStart!)}',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          OutlinedButton(
-                            onPressed: saving ? null : () => pickDate(1),
-                            child: Text(
-                              'Period end: ${periodEnd == null ? 'Choose date' : dateText(periodEnd!)}',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          OutlinedButton(
-                            onPressed: saving ? null : () => pickDate(2),
-                            child: Text(
-                              'Due date: ${dueDate == null ? 'Choose date' : dateText(dueDate!)}',
-                            ),
-                          ),
-                          if (error != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Semantics(
-                                liveRegion: true,
-                                child: Text(
-                                  error!,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error,
-                                  ),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton(
+                          onPressed: saving ? null : () => pickDate(false),
+                          child: Text('Due date: ${dateText(dueDate)}'),
+                        ),
+                        const Text(
+                          'Dates use Manila time. The default due date is three days after release.',
+                        ),
+                        if (error != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                error!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 16),
-                          FilledButton(
-                            onPressed: saving || accounts.isEmpty
-                                ? null
-                                : saveBill,
-                            child: Text(saving ? 'Saving...' : 'Save bill'),
                           ),
-                        ],
-                      ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: saving || accounts.isEmpty
+                              ? null
+                              : saveBill,
+                          child: Text(saving ? 'Saving...' : 'Save bill'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-      ),
-    );
-  }
+            ),
+    ),
+  );
 }
 
 class PaymentsPage extends StatefulWidget {
@@ -2322,11 +2303,11 @@ class RecordPaymentPage extends StatefulWidget {
 
 class _RecordPaymentPageState extends State<RecordPaymentPage> {
   final form = GlobalKey<FormState>();
-  final receipt = TextEditingController();
+  final requestId = staffRequestId();
   final amount = TextEditingController();
   List<Map<String, dynamic>> bills = [];
   String? billId;
-  DateTime? paymentDate;
+  DateTime? paymentDate = DateTime.parse(staffToday());
   bool loading = true, saving = false, verified = false;
   String? error;
 
@@ -2338,7 +2319,6 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
 
   @override
   void dispose() {
-    receipt.dispose();
     amount.dispose();
     super.dispose();
   }
@@ -2366,7 +2346,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
   String dateText(DateTime date) => date.toIso8601String().split('T').first;
 
   Future<void> chooseDate() async {
-    final now = DateTime.now();
+    final now = DateTime.parse(staffToday());
     final selected = await showDatePicker(
       context: context,
       builder: (context, child) => UtilitySurface(child: child!),
@@ -2395,13 +2375,11 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
       error = null;
     });
     try {
-      await supabase.from('offline_payments').insert({
-        'bill_id': billId,
-        'receipt_reference': receipt.text.trim(),
-        'payment_date': dateText(paymentDate!),
-        'amount_paid': amount.text.trim(),
-        'verified_by': user.id,
+      final result = await supabase.rpc('wd_billing_confirm_payment', params: {
+        'p_request_id': requestId, 'p_bill_id': billId,
+        'p_payment_date': dateText(paymentDate!), 'p_amount': amount.text.trim(),
       });
+      if (result is! Map || result['id'] is! String) { throw const FormatException('Missing saved payment'); }
     } on PostgrestException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -2481,16 +2459,7 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
                                 billId == null ? 'Choose a bill.' : null,
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: receipt,
-                            enabled: !saving,
-                            decoration: const InputDecoration(
-                              labelText: 'Receipt/reference',
-                            ),
-                            validator: (v) => v == null || v.trim().isEmpty
-                                ? 'Enter the receipt/reference.'
-                                : null,
-                          ),
+                          const Text('A unique 10-digit reference is generated after confirmation.'),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: amount,
@@ -4925,9 +4894,11 @@ class _ModernDashboardState extends State<ModernDashboard>
           : ['My concerns', 'Repair updates'];
       view = servicesView.clamp(0, 1);
       pick = (v) => setState(() => servicesView = v);
-      page = view == 0
-          ? ConcernsPage(embedded: true, isAdmin: admin)
-          : RepairTicketsPage(embedded: true, isAdmin: admin);
+      page = admin
+          ? StaffWorkspace(key: ValueKey('admin-service-$view'), onSignOut: widget.onSignOut,
+              admin: true, initialTab: view, embedded: true)
+          : view == 0 ? const ConcernsPage(embedded: true, isAdmin: false)
+          : const RepairTicketsPage(embedded: true, isAdmin: false);
     } else {
       views = const [];
       view = 0;
@@ -5168,12 +5139,16 @@ class _ModernDashboardState extends State<ModernDashboard>
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: row);
   }
 
+  Widget concernPage({String? concernId}) => admin
+      ? StaffWorkspace(onSignOut: widget.onSignOut, admin: true)
+      : ConcernsPage(isAdmin: false, concernId: concernId);
+
   Widget requests() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       sectionTitle(
         admin ? 'Needs attention' : 'Recent request',
-        () => open(ConcernsPage(isAdmin: admin)),
+        () => open(concernPage()),
         guide: admin
             ? 'New concerns waiting for review.'
             : 'The latest problem you reported.',
@@ -5194,7 +5169,7 @@ class _ModernDashboardState extends State<ModernDashboard>
             'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? 'Unavailable'}',
             CupertinoIcons.chat_bubble,
             () => open(
-              ConcernsPage(isAdmin: admin, concernId: c['id'] as String?),
+              concernPage(concernId: c['id'] as String?),
             ),
             showSubtitle: admin,
             footer: Column(
@@ -5336,7 +5311,7 @@ class _ModernDashboardState extends State<ModernDashboard>
           icon: CupertinoIcons.chat_bubble,
           label: 'Pending concerns',
           hint: 'Opens service concerns',
-          onTap: () => open(const ConcernsPage(isAdmin: true)),
+          onTap: () => open(concernPage()),
           value: Text(
             pendingConcerns?.toString() ?? '—',
             style: const TextStyle(
@@ -5806,7 +5781,7 @@ class _ModernDashboardState extends State<ModernDashboard>
             quickAction(
               'Concerns',
               CupertinoIcons.chat_bubble,
-              () => open(const ConcernsPage(isAdmin: true)),
+              () => open(concernPage()),
             ),
             quickAction(
               'Repairs',
@@ -5924,7 +5899,7 @@ class _ModernDashboardState extends State<ModernDashboard>
           admin ? 'Service concerns' : 'My concerns',
           'Responses and concern status',
           CupertinoIcons.chat_bubble,
-          () => open(ConcernsPage(isAdmin: admin)),
+          () => open(concernPage()),
         ),
         rowTile(
           'Repair updates',

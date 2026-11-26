@@ -13,7 +13,13 @@ import type { Account, BillingPlan } from "@/lib/types";
 import { Card, Feedback, Field } from "./ui";
 import { DataState, useMutation, Refresh } from "./data-ui";
 
-export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
+export function MonthlyBilling({
+  accounts,
+  onSaved,
+}: {
+  accounts: Account[];
+  onSaved?: () => Promise<void>;
+}) {
   const plans = useResource<BillingPlan[]>("/api/office/office/billing-plans");
   const status = useResource<{ scheduleActive: boolean }>(
     "/api/office/office/billing-status",
@@ -34,6 +40,7 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
         releaseDate: dateOnly(draft.releaseDate || todayInManila()),
       });
       await plans.reload();
+      await onSaved?.();
     }, "Monthly billing settings saved. Bills release on the selected date and repeat monthly. A release dated today is available to the consumer now.");
   }
   return (
