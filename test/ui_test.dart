@@ -585,6 +585,8 @@ void main() {
   testWidgets('payment instructions show bill references and verification next steps', (tester) async {
     await tester.pumpWidget(app(const BillsPage(isAdmin: false)));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('View payment instructions'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('View payment instructions'));
     await tester.pumpAndSettle();
     expect(find.text('Account WD-001'), findsOneWidget);
@@ -634,6 +636,31 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('reference bills page switches to payment records and back', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(540,855));
+    addTearDown(()=>tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(const BillsPage(isAdmin:false)));
+    await tester.pumpAndSettle();
+    expect(find.text('Bills & payments'),findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton,'Payments'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PaymentsPage),findsOneWidget);
+    expect(find.text('Payment details'),findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton,'Bills'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PaymentsPage),findsNothing);
+    await tester.tap(find.text('Billing details'));
+    await tester.pumpAndSettle();
+    await screenshot(tester,'reference-client-bills');
+    expect(find.text('Original bill'),findsOneWidget);
+    expect(find.text('Download PDF'),findsNothing);
+    await tester.drag(find.byType(ListView).first,const Offset(0,-450));
+    await tester.pumpAndSettle();
+    expect(find.text('Download billing history PDF'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('client profile icon opens linked account details', (tester) async {
     failAuth = false;
@@ -708,6 +735,34 @@ void main() {
     expect(Supabase.instance.client.auth.currentSession,isNull);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final admin in [false,true]) {
+    testWidgets('billing history PDF downloads for ${admin ? 'admin' : 'client'}', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390,844));
+      addTearDown(()=>tester.binding.setSurfaceSize(null));
+      Map<Object?,Object?>? downloaded;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('net.nfet.printing'),(call) async {
+          if(call.method=='sharePdf') {downloaded=Map<Object?,Object?>.from(call.arguments as Map);return 1;}
+          return null;
+        });
+      addTearDown(()=>TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('net.nfet.printing'),null));
+      await tester.pumpWidget(app(BillsPage(isAdmin:admin)));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Download billing history PDF'));
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Download billing history PDF'));
+        for(var attempt=0;attempt<100 && downloaded==null;attempt++) {
+          await Future<void>.delayed(const Duration(milliseconds:20));
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(downloaded,isNotNull);
+      expect(downloaded!['name'],startsWith('billing-history-'));
+      expect(tester.takeException(),isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets('successful sign-in waits for label then opens dashboard', (
     tester,

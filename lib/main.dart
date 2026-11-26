@@ -7,7 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ui_components.dart';
+import 'billing_history_pdf.dart';
+
+import 'package:printing/printing.dart';
+
 import 'concern_location.dart';
+
+part 'client_reference_pages.dart';
 
 const projectUrl = 'https://kaeespcylucvsazfdaks.supabase.co';
 // Public client key; database access is still controlled by Supabase policies.
@@ -1028,11 +1034,13 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
   Map<String, dynamic>? account;
   bool loading = true;
   String? error;
+  int? noticeCount;
 
   @override
   void initState() {
     super.initState();
     loadAccount();
+    loadNoticeCount();
   }
 
   Future<void> loadAccount() async {
@@ -1074,6 +1082,18 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
     }
   }
 
+  Future<void> loadNoticeCount() async {
+    try {
+      final count = await supabase
+          .from('announcements')
+          .count(CountOption.exact)
+          .eq('published', true);
+      if (mounted) setState(() => noticeCount = count);
+    } catch (_) {
+      /* Notices retain their own retry screen. */
+    }
+  }
+
   void showHelp() => showDialog<void>(
     context: context,
     builder: (context) => UtilitySurface(
@@ -1094,167 +1114,7 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
   );
 
   @override
-  Widget build(BuildContext context) {
-    final record = account;
-    final holder = record?['holder_name'] as String? ?? '';
-    final initials = holder
-        .split(RegExp(r'\s+'))
-        .where((s) => s.isNotEmpty)
-        .take(2)
-        .map((s) => s[0])
-        .join()
-        .toUpperCase();
-    return UtilityScaffold(
-      appBar: UtilityAppBar(
-        title: const Text('My profile'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: loading ? null : loadAccount,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      bottomNavigationBar: const ClientDesignNav(index: 3),
-      body: loading
-          ? const SingleChildScrollView(child: LoadingCards(count: 1))
-          : Align(
-              alignment: Alignment.topCenter,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (error != null) ...[
-                        Text(error!),
-                        TextButton(
-                          onPressed: loadAccount,
-                          child: const Text('Retry'),
-                        ),
-                      ] else if (record == null)
-                        const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'No linked account. Contact district personnel to finish setup.',
-                            ),
-                          ),
-                        )
-                      else
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    width: 48,
-                                    height: 48,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: accentTint,
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: Text(
-                                      initials,
-                                      style: const TextStyle(
-                                        color: ink,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  holder,
-                                  textAlign: TextAlign.left,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -.5,
-                                    color: ink,
-                                  ),
-                                ),
-                                const Divider(height: 36),
-                                DesignValue(
-                                  'Account number',
-                                  '${record['account_number']}',
-                                  strong: true,
-                                ),
-                                const SizedBox(height: 24),
-                                const Text(
-                                  'Service address',
-                                  style: TextStyle(color: muted, fontSize: 14),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${record['service_address']}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Account status',
-                                        style: TextStyle(color: muted),
-                                      ),
-                                    ),
-                                    StatusBadge(
-                                      record['active'] == true
-                                          ? 'Active'
-                                          : 'Inactive',
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: showHelp,
-                        icon: const Icon(CupertinoIcons.question_circle),
-                        label: const Text('Get help'),
-                      ),
-                      const SizedBox(height: 24),
-                      OutlinedButton.icon(
-                        icon: const Icon(CupertinoIcons.square_arrow_right),
-                        label: const Text('Sign out'),
-                        onPressed: () async {
-                          try {
-                            await supabase.auth.signOut();
-                            if (context.mounted) {
-                              Navigator.of(context).popUntil((r) => r.isFirst);
-                            }
-                          } catch (_) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Could not sign out. Please retry.',
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
+  Widget build(BuildContext context) => referenceAccount(context);
 }
 
 // Use centavos to avoid floating-point rounding in payment totals.
@@ -1289,6 +1149,10 @@ class BillsPage extends StatefulWidget {
 class _BillsPageState extends State<BillsPage> {
   List<Map<String, dynamic>> bills = [];
   bool loading = true;
+  bool exporting = false;
+  bool showPayments = false;
+  void selectPaymentTab(bool value) => setState(() => showPayments = value);
+  void selectBillFilter(bool value) => setState(() => outstandingOnly = value);
   bool outstandingOnly = true;
   String? error;
 
@@ -1330,6 +1194,80 @@ class _BillsPageState extends State<BillsPage> {
     }
   }
 
+  Future<void> downloadHistory() async {
+    if (exporting || loading) return;
+    setState(() => exporting = true);
+    try {
+      final history = <BillingHistoryLine>[];
+      const pageSize = 500;
+      for (var offset = 0; ; offset += pageSize) {
+        // Export all pages with the signed-in caller's RLS, including paid bills.
+        final query = supabase
+            .from('bills')
+            .select(
+              'id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,'
+              'service_accounts(account_number,holder_name,service_address),offline_payments(amount_paid)',
+            );
+        final page = await query
+            .order('due_date', ascending: false)
+            .order('id')
+            .range(offset, offset + pageSize - 1);
+        for (final bill in page) {
+          final account = bill['service_accounts'] as Map<String, dynamic>?;
+          if (account == null || account['account_number'] == null) {
+            throw StateError('Account details unavailable');
+          }
+          history.add(
+            BillingHistoryLine(
+              accountNumber: '${account['account_number']}',
+              holderName: '${account['holder_name'] ?? 'Unavailable'}',
+              serviceAddress: '${account['service_address'] ?? 'Unavailable'}',
+              billNumber: '${bill['bill_number']}',
+              periodStart: recordDate(bill['billing_period_start']),
+              periodEnd: recordDate(bill['billing_period_end']),
+              dueDate: recordDate(bill['due_date']),
+              billed: moneyCentavos(bill['amount_due']),
+              paid: billPayments(bill),
+            ),
+          );
+        }
+        if (page.length < pageSize) break;
+      }
+      if (history.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No billing history to download.')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      final bytes = await buildBillingHistoryPdf(history);
+      if (!mounted) return;
+      final stamp = DateTime.now()
+          .toUtc()
+          .add(const Duration(hours: 8))
+          .toIso8601String()
+          .substring(0, 10);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'billing-history-$stamp.pdf',
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not download billing history. Check your connection and retry.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => exporting = false);
+    }
+  }
+
   Future<void> addBill() async {
     final saved = await Navigator.of(context)
         .push<bool>(MaterialPageRoute(builder: (_) => const AddBillPage()));
@@ -1341,6 +1279,7 @@ class _BillsPageState extends State<BillsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isAdmin) return referenceBills(context);
     final visibleBills = bills
         .where(
           (bill) =>
@@ -1386,6 +1325,31 @@ class _BillsPageState extends State<BillsPage> {
                 ],
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed:
+                      loading || exporting || error != null || bills.isEmpty
+                      ? null
+                      : downloadHistory,
+                  icon: const Icon(CupertinoIcons.arrow_down_doc),
+                  label: Text(
+                    exporting
+                        ? 'Preparing PDF...'
+                        : 'Download billing history PDF',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Includes paid and outstanding bills.',
+                  style: TextStyle(color: muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Wrap(
@@ -1816,8 +1780,14 @@ class _AddBillPageState extends State<AddBillPage> {
 }
 
 class PaymentsPage extends StatefulWidget {
-  const PaymentsPage({super.key, required this.isAdmin, this.billNumber});
+  const PaymentsPage({
+    super.key,
+    required this.isAdmin,
+    this.billNumber,
+    this.embedded = false,
+  });
   final String? billNumber;
+  final bool embedded;
   final bool isAdmin;
   @override
   State<PaymentsPage> createState() => _PaymentsPageState();
@@ -1888,6 +1858,100 @@ class _PaymentsPageState extends State<PaymentsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final body = Column(
+      children: [
+        if (loading && payments.isNotEmpty)
+          const LinearProgressIndicator(minHeight: 2),
+        if (error != null && payments.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(child: Text(error!)),
+                TextButton(
+                  onPressed: loading ? null : loadPayments,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: loading && payments.isEmpty
+              ? const Center(
+                  child: SingleChildScrollView(child: LoadingCards()),
+                )
+              : error != null && payments.isEmpty
+              ? EmptyState(
+                  title: 'Unable to load payments',
+                  message: error!,
+                  icon: CupertinoIcons.wifi_exclamationmark,
+                  actionLabel: 'Retry',
+                  onAction: loadPayments,
+                )
+              : payments.isEmpty
+              ? EmptyState(
+                  title: 'No payments recorded',
+                  message: 'Verified offline payments will appear here once recorded by the district.',
+                  icon: CupertinoIcons.doc_text,
+                  actionLabel: widget.isAdmin ? 'Record payment' : null,
+                  onAction: widget.isAdmin ? recordPayment : null,
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  itemCount: payments.length,
+                  separatorBuilder: (_, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final payment = payments[index];
+                    final bill = payment['bills'] as Map<String, dynamic>?;
+                    final account =
+                        bill?['service_accounts'] as Map<String, dynamic>?;
+                    final amount = num.parse('${payment['amount_paid']}')
+                        .toStringAsFixed(2);
+                    final verified = DateTime.tryParse(
+                      '${payment['verified_at']}',
+                    )?.toLocal();
+                    return RecordCard(
+                      summary: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const StatusBadge('Verified'),
+                          AmountText('₱$amount', color: ink),
+                          const SizedBox(height: 8),
+                          Text(
+                            recordDate(payment['payment_date']),
+                            style: const TextStyle(color: muted),
+                          ),
+                        ],
+                      ),
+                      detailsLabel: 'Payment details',
+                      details: [
+                        Text(
+                          'Receipt/reference: ${payment['receipt_reference']}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 10),
+                        Text('Bill: ${bill?['bill_number'] ?? 'Unavailable'}'),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                        ),
+                        if (verified != null) ...[
+                          const SizedBox(height: 8),
+                          Text('Recorded: ${recordDate(verified)}'),
+                        ],
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Verified offline payment record. This is not a newly issued receipt.',
+                          style: TextStyle(color: muted, fontSize: 13),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+    if (widget.embedded) return body;
     return UtilityScaffold(
       bottomNavigationBar: widget.isAdmin
           ? const AdminDesignNav(index: 1)
@@ -1909,101 +1973,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
               label: const Text('Record payment'),
             )
           : null,
-      body: Column(
-        children: [
-          if (loading && payments.isNotEmpty)
-            const LinearProgressIndicator(minHeight: 2),
-          if (error != null && payments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(child: Text(error!)),
-                  TextButton(
-                    onPressed: loading ? null : loadPayments,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: loading && payments.isEmpty
-                ? const Center(
-                    child: SingleChildScrollView(child: LoadingCards()),
-                  )
-                : error != null && payments.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load payments',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadPayments,
-                  )
-                : payments.isEmpty
-                ? EmptyState(
-                    title: 'No payments recorded',
-                    message: 'Verified offline payments will appear here once recorded by the district.',
-                    icon: CupertinoIcons.doc_text,
-                    actionLabel: widget.isAdmin ? 'Record payment' : null,
-                    onAction: widget.isAdmin ? recordPayment : null,
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: payments.length,
-                    separatorBuilder: (_, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final payment = payments[index];
-                      final bill = payment['bills'] as Map<String, dynamic>?;
-                      final account =
-                          bill?['service_accounts'] as Map<String, dynamic>?;
-                      final amount = num.parse('${payment['amount_paid']}')
-                          .toStringAsFixed(2);
-                      final verified = DateTime.tryParse(
-                        '${payment['verified_at']}',
-                      )?.toLocal();
-                      return RecordCard(
-                        summary: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const StatusBadge('Verified'),
-                            AmountText('₱$amount', color: ink),
-                            const SizedBox(height: 8),
-                            Text(
-                              recordDate(payment['payment_date']),
-                              style: const TextStyle(color: muted),
-                            ),
-                          ],
-                        ),
-                        detailsLabel: 'Payment details',
-                        details: [
-                          Text(
-                            'Receipt/reference: ${payment['receipt_reference']}',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Bill: ${bill?['bill_number'] ?? 'Unavailable'}',
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
-                          ),
-                          if (verified != null) ...[
-                            const SizedBox(height: 8),
-                            Text('Recorded: ${recordDate(verified)}'),
-                          ],
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Verified offline payment record. This is not a newly issued receipt.',
-                            style: TextStyle(color: muted, fontSize: 13),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 }

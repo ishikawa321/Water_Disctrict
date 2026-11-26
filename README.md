@@ -25,6 +25,16 @@ Admin account directories in Flutter, web, and the connected desktop refresh
 automatically and no longer offer manual account creation. See
 [registration setup and verification](docs/client-registration.md).
 
+## Billing history PDF
+
+On mobile/web, open **My bills** (client) or **Manage bills** (admin), then select
+**Download billing history PDF**. Exports include paid and outstanding bills,
+account details, billing periods, due dates, payments, balances, and totals.
+The export reads every page through the signed-in Supabase session; clients
+remain restricted to their linked accounts. Admin reports start a separate
+section for each account. Browsers download the PDF; installed mobile apps use
+the system save/share sheet. These copies are billing histories, not receipts.
+
 ## Configure authentication
 
 The app uses the existing Supabase project `kaeespcylucvsazfdaks`.
