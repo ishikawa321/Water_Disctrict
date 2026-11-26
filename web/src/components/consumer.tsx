@@ -478,6 +478,7 @@ export function ConsumerHelp() {
 }
 
 export function ConsumerDashboard({ profile }: { profile: Profile }) {
+  const [showAdvisory, setShowAdvisory] = useState(false);
   const account = useResource<LinkedAccount>("/api/consumer/account");
   const bills = useResource<PageResult<Bill>>(
     account.data?.account ? "/api/consumer/bills?page=0" : null,
@@ -488,6 +489,9 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
   const concerns = useResource<PageResult<Concern>>(
     account.data?.account ? "/api/consumer/concerns?page=0" : null,
   );
+  const activity = useResource<PageResult<Payment>>(
+    account.data?.account ? "/api/consumer/activity" : null,
+  );
   const notices = useResource<PageResult<Notice>>(
     "/api/consumer/announcements?page=0",
   );
@@ -497,11 +501,15 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
     void bills.reload();
     void concerns.reload();
     void notices.reload();
+    void activity.reload();
   };
   const latestNotice = [...(notices.data?.items ?? [])].sort(
     (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
   )[0];
   const recent = concerns.data?.items[0];
+  const advisory = notices.data?.items
+    .slice(0, 10)
+    .find((notice) => notice.title.startsWith(interruptionPrefix));
   return (
     <>
       <DashboardHeader
@@ -521,7 +529,8 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
             bills.busy ||
             summary.busy ||
             concerns.busy ||
-            notices.busy
+            notices.busy ||
+            activity.busy
           }
         />
       </div>
@@ -540,14 +549,17 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
       <div className="dashboard-columns">
         <div className="stack">
           {account.data?.account && (
-            <Card title="Outstanding balance" className="consumer-balance">
+            <Card
+              title="Outstanding balance"
+              className="consumer-balance water-surface"
+            >
               <DataState {...summary} loaded={!!summary.data}>
                 {summary.data && (
                   <>
                     <strong className="balance-amount">
                       {money(summary.data.outstanding)}
                     </strong>
-                    <p>
+                    <p className="due-pill">
                       {summary.data.nextDueDate
                         ? `Next unpaid due date: ${dateLabel(summary.data.nextDueDate)}`
                         : "No unpaid bills"}
@@ -559,9 +571,58 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
                   </>
                 )}
               </DataState>
+              <Link className="balance-action" href="/portal/bills">
+                <FileText size={20} />
+                View bill <ArrowUpRight size={18} />
+              </Link>
             </Card>
           )}
-          <Card title="Quick access">
+          <Card
+            className={`service-advisory ${advisory ? "has-advisory" : ""}`}
+            title={advisory ? "Service advisory" : "Service updates"}
+          >
+            <DataState {...notices} loaded={!!notices.data}>
+              {notices.data && (
+                <>
+                  <p>
+                    {advisory
+                      ? "View affected areas and schedule in the published advisory."
+                      : "No interruption notice in the latest district updates. Live service status is not available."}
+                  </p>
+                  {advisory ? (
+                    <>
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => setShowAdvisory(true)}
+                      >
+                        Read service advisory →
+                      </button>
+                      {showAdvisory && (
+                        <Modal
+                          title="Service advisory"
+                          onClose={() => setShowAdvisory(false)}
+                        >
+                          <NoticeCard notice={advisory} />
+                          <button
+                            className="secondary"
+                            onClick={() => setShowAdvisory(false)}
+                          >
+                            Close advisory
+                          </button>
+                        </Modal>
+                      )}
+                    </>
+                  ) : (
+                    <Link className="text-button" href="/portal/announcements">
+                      View published notices
+                    </Link>
+                  )}
+                </>
+              )}
+            </DataState>
+          </Card>
+          <Card title="Quick access" className="consumer-quick">
             <div className="quick-grid">
               {[
                 {
@@ -616,6 +677,36 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
           )}
         </div>
         <div className="stack">
+          {account.data?.account && (
+            <Card title="Recent activity">
+              <DataState {...activity} loaded={!!activity.data}>
+                {activity.data &&
+                  (activity.data.items[0] ? (
+                    <article className="activity-record">
+                      <Badge>Verified</Badge>
+                      <h3>Payment verified</h3>
+                      <p>
+                        {dateLabel(activity.data.items[0].paymentDate)} ·{" "}
+                        {money(activity.data.items[0].amountPaid)}
+                      </p>
+                      <small>
+                        Receipt {activity.data.items[0].receiptReference}
+                      </small>
+                      <Link
+                        className="button secondary"
+                        href={`/portal/payments?billId=${activity.data.items[0].billId}`}
+                      >
+                        View transaction
+                      </Link>
+                    </article>
+                  ) : (
+                    <Empty title="No recent transactions">
+                      Updates will appear here.
+                    </Empty>
+                  ))}
+              </DataState>
+            </Card>
+          )}
           {account.data?.account && (
             <Card title="Recent concern">
               <DataState

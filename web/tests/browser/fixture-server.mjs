@@ -282,6 +282,7 @@ createServer(async (request, response) => {
         state.payments.map((p, i) => ({
           id: `qa-${i}`,
           bill_id: ids.bill,
+          bills: { bill_number: bill.billNumber, account_id: ids.account },
           receipt_reference: p.receiptReference,
           payment_date: p.paymentDate,
           amount_paid: p.amountPaid,

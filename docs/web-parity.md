@@ -2,7 +2,7 @@
 
 Audit: 26 November 2026. Base: `feature/desktop-admin-staff` at `68bc1590ce7331fee40598d501ce3e2a94a6d5b1`; mobile main `18bf741` has the same consumer source. Working branch: `feature/web-platform-parity`. Clean clone; original landing page is outside this repository and is preserved. No AGENTS.md was found in the checkout. No live operational writes are used for verification.
 
-Latest follow-up: upstream main `dbdc382` is now merged. See [app-to-web comparison](web-update-comparison.md) for concern locations, the signed-in utility UI/payment guidance, and the separate standalone desktop architecture. The original audit below describes the initial parity baseline.
+Latest follow-up: upstream main `3336607` is now merged. See [app-to-web comparison](web-update-comparison.md) for concern locations, the latest midnight/aqua UI, recent payment activity and payment guidance, and the separate standalone desktop architecture. The original audit below describes the initial parity baseline.
 
 ## Source decisions
 

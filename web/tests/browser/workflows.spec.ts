@@ -81,7 +81,11 @@ test("consumer sees linked billing, published notices and keeps a failed concern
     path: test.info().outputPath("consumer-dashboard.png"),
     fullPage: true,
   });
-  await page.getByRole("link", { name: "My bills", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Workspace", exact: true })
+    .getByRole("link", { name: "My bills", exact: true })
+    .click();
+  await expect(page).toHaveURL(/portal\/bills$/);
   await expect(page.getByText("₱350.00").first()).toBeVisible();
   await page.getByRole("link", { name: /View payment history/ }).click();
   await expect(page.getByText("QA-RECEIPT-001")).toBeVisible();
@@ -89,6 +93,7 @@ test("consumer sees linked billing, published notices and keeps a failed concern
     .getByRole("link", { name: "Announcements", exact: true })
     .first()
     .click();
+  await expect(page).toHaveURL(/portal\/announcements$/);
   await expect(page.getByText("QA maintenance")).toBeVisible();
   await expect(page.getByText("QA private draft")).toHaveCount(0);
   await page
@@ -356,7 +361,11 @@ test("unlinked consumers receive account guidance without seeing account records
   await expect(
     page.getByRole("heading", { name: "Your account is not linked yet" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "My bills", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Workspace", exact: true })
+    .getByRole("link", { name: "My bills", exact: true })
+    .click();
+  await expect(page).toHaveURL(/portal\/bills$/);
   await expect(
     page.getByRole("heading", { name: "Your account is not linked yet" }),
   ).toBeVisible();
@@ -609,9 +618,14 @@ test("payment guidance shows bill references and latest notices follow publicati
   await expect(
     page.getByText("New district update", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Old maintenance", { exact: true })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.locator(".card").filter({
+      has: page.getByRole("heading", {
+        name: "Latest district notice",
+        exact: true,
+      }),
+    }),
+  ).not.toContainText("Old maintenance");
   await page
     .getByRole("button", { name: "Payment instructions", exact: true })
     .click();
@@ -739,4 +753,65 @@ test("GPS success stays editable, timeout and tile failures keep manual selectio
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("midnight dashboard uses verified activity and mobile dock respects role routes", async ({
+  page,
+  request,
+}) => {
+  await login(page, "client");
+  await expect(page.locator(".consumer-balance")).toHaveCSS(
+    "background-color",
+    "rgb(8, 27, 61)",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Payment verified", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "View transaction", exact: true })
+    .click();
+  await expect(page).toHaveURL(/payments\?billId=/);
+  await expect(page.getByText("QA-RECEIPT-001")).toBeVisible();
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { payments: [], notices: [] },
+  });
+  await page.goto("/portal");
+  await expect(
+    page.getByRole("heading", { name: "No recent transactions", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Payment verified", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Live service status is not available.", { exact: false }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("midnight-consumer-dashboard.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dock = page.getByRole("navigation", {
+    name: "Quick navigation",
+    exact: true,
+  });
+  await expect(dock).toBeVisible();
+  await dock.getByRole("link", { name: "Bills", exact: true }).click();
+  await expect(page).toHaveURL(/portal\/bills$/);
+  await expect(
+    dock.getByRole("link", { name: "Bills", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await dock.getByRole("link", { name: "Requests", exact: true }).click();
+  await expect(page).toHaveURL(/portal\/concerns$/);
+  await page.screenshot({
+    path: test.info().outputPath("midnight-mobile-navigation.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page, "staff");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    dock.getByRole("link", { name: "Accounts", exact: true }),
+  ).toHaveCount(0);
+  await dock.getByRole("link", { name: "Repairs", exact: true }).click();
+  await expect(page).toHaveURL(/office\/repairs$/);
 });

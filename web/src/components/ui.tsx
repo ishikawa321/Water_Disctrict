@@ -1,4 +1,10 @@
-import { Inbox, RefreshCw } from "lucide-react";
+import {
+  Inbox,
+  RefreshCw,
+  CircleCheck,
+  CircleAlert,
+  Clock,
+} from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 export function Brand() {
@@ -24,12 +30,22 @@ export function Badge({ children }: { children: ReactNode }) {
     ? "green"
     : ["Under review", "Assigned", "In progress"].includes(text)
       ? "blue"
-      : ["Overdue", "Service interruption", "Inactive"].includes(text)
+      : ["Overdue", "Service interruption"].includes(text)
         ? "red"
-        : "amber";
+        : ["Closed", "Inactive", "Draft"].includes(text)
+          ? "neutral"
+          : "amber";
+  const Icon =
+    tone === "green"
+      ? CircleCheck
+      : tone === "blue"
+        ? RefreshCw
+        : tone === "red"
+          ? CircleAlert
+          : Clock;
   return (
     <span className={`badge ${tone}`}>
-      <span aria-hidden="true">●</span>
+      <Icon size={14} aria-hidden="true" />
       {children}
     </span>
   );

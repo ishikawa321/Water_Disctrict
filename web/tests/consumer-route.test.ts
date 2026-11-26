@@ -110,6 +110,56 @@ describe("consumer request ownership", () => {
       args: ["account_id", accountId],
     });
   });
+  it("scopes recent activity to the verified linked account before limiting results", async () => {
+    state.tables.set("offline_payments", {
+      data: [
+        {
+          id: "payment",
+          bill_id: billId,
+          bills: { bill_number: "TEST-BILL", account_id: accountId },
+          receipt_reference: "TEST-RECEIPT",
+          payment_date: "2026-11-25",
+          amount_paid: "50.00",
+          verified_at: "2026-11-25T08:00:00Z",
+        },
+      ],
+      error: null,
+    });
+    const response = await GET(
+      new Request(
+        "https://district.test/api/consumer/activity?accountId=other",
+      ),
+      context("activity"),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).items[0]).toMatchObject({
+      billId,
+      billNumber: "TEST-BILL",
+      accountNumber: "TEST-1",
+      receiptReference: "TEST-RECEIPT",
+    });
+    expect(state.calls).toContainEqual({
+      table: "offline_payments",
+      method: "eq",
+      args: ["bills.account_id", accountId],
+    });
+    expect(state.calls).toContainEqual({
+      table: "offline_payments",
+      method: "limit",
+      args: [1],
+    });
+    state.tables.set("account_access", { data: [], error: null });
+    state.calls = [];
+    expect(
+      (
+        await GET(
+          new Request("https://district.test/api/consumer/activity"),
+          context("activity"),
+        )
+      ).status,
+    ).toBe(403);
+    expect(state.calls.some((c) => c.table === "offline_payments")).toBe(false);
+  });
   it("checks bill ownership before reading any payments", async () => {
     state.tables.set("bills", { data: null, error: null });
     expect(

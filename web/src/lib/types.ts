@@ -24,6 +24,7 @@ export type Bill = {
   remaining: string | number;
 };
 export type Payment = {
+  billId?: string;
   receiptReference: string;
   billNumber: string;
   accountNumber: string;

@@ -1,16 +1,13 @@
 "use client";
-import { Card } from "@/components/ui";
+import { BrandedState } from "@/components/branded-state";
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
     <main className="blank-state">
-      <Card title="The workspace could not be loaded">
-        <p>
-          Your access or the data service could not be checked. Please retry.
-        </p>
+      <BrandedState error="Your access or the data service could not be checked. Please retry.">
         <button className="primary" onClick={reset} style={{ marginTop: 20 }}>
           Try again
         </button>
-      </Card>
+      </BrandedState>
     </main>
   );
 }

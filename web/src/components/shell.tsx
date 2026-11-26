@@ -30,6 +30,7 @@ import { canVisit, homeFor, moduleNames } from "@/lib/policy";
 import { api, ClientError, message, save } from "@/lib/client";
 import { DraftProvider } from "@/lib/hooks";
 import { Brand, Feedback } from "./ui";
+import { MobileDock } from "./mobile-dock";
 const icons = {
   accounts: Users,
   bills: FileText,
@@ -349,6 +350,7 @@ export function Shell({
               Refresh to see the latest information.
             </p>
           </main>
+          <MobileDock role={profile.role} />
         </div>
       </div>
     </DraftProvider>

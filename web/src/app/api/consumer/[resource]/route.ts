@@ -65,6 +65,33 @@ export async function GET(
       );
     if (resource === "summary")
       return json(await consumerSummary(supabase, account.id));
+    if (resource === "activity") {
+      const { data, error } = await supabase
+        .from("offline_payments")
+        .select(
+          "id,bill_id,receipt_reference,payment_date,amount_paid,verified_at,bills!inner(bill_number,account_id)",
+        )
+        .eq("bills.account_id", account.id)
+        .order("payment_date", { ascending: false })
+        .order("id")
+        .limit(1);
+      checkData(error);
+      return json({
+        items: (data ?? []).map((row) => ({
+          billId: row.bill_id,
+          billNumber:
+            relatedOne<{ bill_number: string }>(row.bills)?.bill_number ??
+            "Unavailable",
+          accountNumber: account.accountNumber,
+          receiptReference: row.receipt_reference,
+          paymentDate: row.payment_date,
+          amountPaid: String(row.amount_paid),
+          verifiedAt: row.verified_at,
+        })),
+        page: 0,
+        hasMore: false,
+      });
+    }
     if (resource === "bills") {
       const { data, error } = await supabase
         .from("bills")

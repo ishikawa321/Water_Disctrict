@@ -1,2 +1,4 @@
-import { Loading } from "@/components/ui";
-export default Loading;
+import { BrandedState } from "@/components/branded-state";
+export default function Loading() {
+  return <BrandedState />;
+}

@@ -43,7 +43,7 @@ Never put service-role keys, database credentials or connection strings in this 
 
 ## Latest app update
 
-Concern intake now supports optional map pins and landmarks, with explicit GPS/manual selection, draft retention and read-only saved maps. The shared office API carries those fields and exposes an authenticated capability check so older APIs cannot silently discard a pin. Unpaid bills offer payment guidance using their actual account and bill references. Signed-in screens follow the latest mobile utility palette and compact layout.
+Concern intake now supports optional map pins and landmarks, with explicit GPS/manual selection, draft retention and read-only saved maps. The shared office API carries those fields and exposes an authenticated capability check so older APIs cannot silently discard a pin. Unpaid bills offer payment guidance using their actual account and bill references. Screens follow the latest mobile midnight/aqua palette, rounded cards, ripple balance/office surfaces and mobile navigation dock. Recent activity reflects the latest saved verified payment; an empty feed is shown only after a successful empty read. Workspace loading/errors and auth artwork use the same branding.
 
 Review [the source comparison and deployment prerequisites](../docs/web-update-comparison.md). Verify upstream `database/add_concern_locations.sql` has been applied by an authorized operator before using pins against the shared database; this website does not run migrations. Office modules require the separately hosted updated API. Optional map tile provider variables are documented in `.env.example`. The default OpenStreetMap tiles retain visible attribution; GPS is requested only by the button and requires HTTPS.
 

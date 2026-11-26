@@ -91,7 +91,7 @@ export function OfficeDashboard({ profile }: { profile: Profile }) {
             <Refresh onClick={summary.reload} busy={summary.busy} />
           </div>
           <DataState {...summary} loaded={!!summary.data}>
-            <div className="stats">
+            <div className="stats water-surface office-overview">
               <Card className="stat">
                 <div className="stat-icon">
                   <MessageSquare size={21} />
