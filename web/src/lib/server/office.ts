@@ -22,6 +22,14 @@ import { billingCall, refreshBilling } from "./billing";
 
 type Row = Record<string, unknown>;
 type Context = { supabase: SupabaseClient; profile: Profile };
+function staffSetup(error: PostgrestError | null) {
+  if (error && ["PGRST202", "PGRST205", "42P01"].includes(error.code))
+    throw new HttpError(
+      503,
+      "Complete the Supabase Staff role setup before using invitations and access management.",
+      "staff_setup_required",
+    );
+}
 function registrationSetup(error: PostgrestError | null) {
   if (error && ["PGRST202", "PGRST205", "42P01"].includes(error.code))
     throw new HttpError(
@@ -400,7 +408,7 @@ export async function officeRequest(
       supabase
         .from("repair_tickets")
         .select("id", { head: true, count: "exact" })
-        .in("status", ["Open", "Assigned", "In progress"]),
+        .in("status", ["Open", "Assigned", "In progress", "Completed"]),
     ]);
     for (const result of results) {
       check(result.error);
@@ -415,7 +423,52 @@ export async function officeRequest(
       activeRepairs: results[1].count,
     };
   }
-  if (route === "admin/staff" || route === "workflow/assignees") {
+  if (route === "admin/staff") {
+    const result = await supabase.rpc("wd_staff_directory");
+    staffSetup(result.error);
+    check(result.error);
+    return result.data;
+  }
+  if (route === "admin/staff-invitations" && method === "GET") {
+    const result = await supabase
+      .from("staff_invitations")
+      .select("id,email,display_name,status,invited_at,expires_at,user_id")
+      .order("invited_at", { ascending: false })
+      .limit(200);
+    staffSetup(result.error);
+    check(result.error);
+    return result.data;
+  }
+  if (route === "admin/staff-invitations" && method === "POST") {
+    const email = textField(input.email, "Email", 254).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      throw new HttpError(422, "Enter a valid email address.");
+    const result = await supabase.rpc("wd_staff_invite", {
+      p_email: email,
+      p_display_name: textField(input.displayName, "Staff name", 200),
+    });
+    staffSetup(result.error);
+    check(result.error);
+    return result.data;
+  }
+  const staffAccess = route.match(/^admin\/staff\/([^/]+)\/access$/);
+  const revokeInvite = route.match(
+    /^admin\/staff-invitations\/([^/]+)\/revoke$/,
+  );
+  if (staffAccess || revokeInvite) {
+    if (staffAccess && typeof input.active !== "boolean")
+      throw new HttpError(422, "Choose the Staff access state.");
+    const result = await supabase.rpc(
+      staffAccess ? "wd_staff_access" : "wd_staff_revoke_invite",
+      staffAccess
+        ? { p_user_id: uuid(staffAccess[1]), p_active: input.active }
+        : { p_id: uuid(revokeInvite![1]) },
+    );
+    staffSetup(result.error);
+    check(result.error);
+    return result.data;
+  }
+  if (route === "workflow/assignees") {
     let builder = supabase
       .from("profiles")
       .select("user_id,display_name,role")

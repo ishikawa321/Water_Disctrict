@@ -178,12 +178,7 @@ describe("Supabase office routes without a desktop server", () => {
       method: "eq",
       args: ["assigned_to_user_id", "10000000-0000-4000-8000-000000000001"],
     });
-    for (const path of [
-      "office/summary",
-      "office/accounts",
-      "office/bills",
-      "admin/staff",
-    ])
+    for (const path of ["office/summary", "office/accounts", "admin/staff"])
       expect((await call("GET", path)).status).toBe(403);
     expect((await call("POST", "workflow/tickets", {})).status).toBe(403);
   });

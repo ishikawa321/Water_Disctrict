@@ -18,7 +18,6 @@ import type {
   Bill,
   Notice,
   Payment,
-  StaffMember,
 } from "@/lib/types";
 import { Badge, Card, Empty, Feedback, Field } from "./ui";
 import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
@@ -153,9 +152,11 @@ export function AccountsPage() {
   );
 }
 
-export function BillsPage() {
+export function BillsPage({ staff = false }: { staff?: boolean }) {
   const records = useResource<Bill[]>("/api/office/office/bills");
-  const accounts = useResource<Account[]>("/api/office/office/accounts");
+  const accounts = useResource<Account[]>(
+    staff ? null : "/api/office/office/accounts",
+  );
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useDraft("office:add-bill", {
@@ -194,13 +195,15 @@ export function BillsPage() {
           }}
           busy={records.busy || accounts.busy}
         />
-        <button className="primary" onClick={() => setShow(!show)}>
-          <Plus size={16} />
-          {show ? "Close form" : "New bill"}
-        </button>
+        {!staff && (
+          <button className="primary" onClick={() => setShow(!show)}>
+            <Plus size={16} />
+            {show ? "Close form" : "New bill"}
+          </button>
+        )}
       </PageHeader>
       <Feedback error={mutation.error} success={mutation.success} />
-      {show && (
+      {!staff && show && (
         <Card title="Create a billing record">
           <Feedback error={accounts.error} />
           <form className="form" onSubmit={submit}>
@@ -261,7 +264,7 @@ export function BillsPage() {
           </form>
         </Card>
       )}
-      <MonthlyBilling accounts={accounts.data ?? []} />
+      {!staff && <MonthlyBilling accounts={accounts.data ?? []} />}
       <Card>
         <div className="toolbar">
           <input
@@ -720,50 +723,4 @@ function NoticeForm({
     </Card>
   );
 }
-export function StaffDirectory() {
-  const records = useResource<StaffMember[]>("/api/office/admin/staff");
-  return (
-    <>
-      <PageHeader
-        title="Staff directory"
-        subtitle="Authorized, active office personnel."
-      >
-        <Refresh onClick={records.reload} busy={records.busy} />
-      </PageHeader>
-      <Card>
-        <DataState
-          {...records}
-          loaded={!!records.data}
-          empty={records.data?.length === 0}
-        >
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Access</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.data?.map((p) => (
-                  <tr key={p.userId}>
-                    <td>{p.displayName}</td>
-                    <td style={{ textTransform: "capitalize" }}>{p.role}</td>
-                    <td>
-                      <Badge>Active</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </DataState>
-        <p className="list-meta">
-          Read-only directory. Staff accounts are provisioned by an authorized
-          operator.
-        </p>
-      </Card>
-    </>
-  );
-}
+export { StaffDirectory } from "./staff-management";

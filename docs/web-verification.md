@@ -1,5 +1,18 @@
 # Web verification evidence
 
+## Staff role implementation
+
+Implemented the six role choices confirmed by the owner on 27 November 2026. Staff receive/review concerns, see only assigned repair tickets/history, read bills/payments and confirm payments. Admin manages invitations/active access, financial settings, repair dispatch/assignment and final resolution. The common workflow adds Completed, leaving the concern unresolved until Admin confirms. Full setup is [staff-role.md](staff-role.md).
+
+- All **105 .NET/PostgreSQL tests passed**, zero failures/skips. New role tests install the migration twice and verify Staff payment permission/actor/receipt numbers, denied bill/plan writes, account isolation, assigned-only repairs, denied Staff resolution, Completed history and Admin resolution. Invitation tests cover Admin-only issue, inactive pending profiles, email confirmation, ignored role metadata, no customer link, disabled access, non-reactivation and rejected forged/wrong-email/revoked tokens. The four role tests passed again after adding expired/reused-token cases.
+- Real local PostgREST HTTP testing now installs the Staff upgrade, executes Completed then denied Staff resolution/accepted Admin resolution, creates an Admin invitation and verifies its public token-scoped preview. It preserves existing relation, `xmin`, count and isolation checks.
+- All **42 Flutter tests passed** and analyzer reported no issues. Added mobile checks cover exact cents, Admin-only completion choices, failed-save note retention, assigned UUID filtering and clearing records on access disable. The existing Admin quick-action test now expects the new repair review workspace.
+- All **21 browser workflows passed**, with the legacy API disabled and zero calls to it. New checks cover Admin-created invitation links, recipient signup, Staff financial access, denied Staff invitation/settings changes, disabling a live Staff workspace and Admin-only repair resolution. The Staff payment retry case passed after fixing its isolated fixture's old Admin-only mock rule.
+- Web type checks, zero-warning lint, **70 unit/contract tests** and optimized build passed. A small effect/unused-import lint issue was corrected before this final run. Invitation passwords stay server-validated; the token is email-bound and the browser never supplies the assigned role.
+- Signed universal Android 1.0.2 build 3 was built and its existing release certificate, package, architectures, version, minimum SDK and APK v2 signature verified. Artifact: 58,080,588 bytes, SHA-256 `f6e63e492c24a1385a206d247447e93ef6e26667abc5613d3aaa5c7d56d733a5`. No physical Android installation or real-user email delivery is claimed.
+- Invitation acceptance and Android download browser checks passed again after the effect fix and release metadata update. The production build passed again with version 1.0.2 download metadata; the Admin invitation/access page screenshot was visually reviewed. The owned local PostgreSQL cluster was stopped.
+- **Production Supabase migration remains an operator step.** The agent has only the public client key and cannot install database functions/policies. No real employee invitation, production payment, role change or database migration was made by automated QA. Run `database/staff-role.sql` after the existing workflow/billing setup and before accepting the new behavior live.
+
 ## Registration synchronization from latest main
 
 27 November 2026: integrated upstream main `c44b8bf` (client signup and Admin approval in `8190ca5`) into `feature/web-platform-parity` by fast-forward. This preserves the prior Supabase office/billing implementation, landing-first entry and APK download. See [the source-to-web comparison](web-update-comparison.md).

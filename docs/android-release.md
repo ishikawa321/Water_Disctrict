@@ -1,5 +1,13 @@
 # Android APK release
 
+## Current release: 1.0.2 build 3
+
+The new universal APK adds Staff sign-in and the concerns/assigned-repairs/bills/payment workspace, plus mobile Admin review of Completed repairs. It keeps application ID `ph.maramag.waterdistrictconnect`, minimum Android 7/API 24 and the same private release signing certificate as 1.0.1, so it installs as an update. Follow [Staff role setup](staff-role.md) once in the shared Supabase project before inviting personnel or using Staff financial permissions.
+
+Verified signed artifact: `WaterDistrictConnect-1.0.2.apk`, 58,080,588 bytes, SHA-256 `f6e63e492c24a1385a206d247447e93ef6e26667abc5613d3aaa5c7d56d733a5`. Android Build Tools verified APK v2 signature, version/build, non-debuggable manifest and ARM32/ARM64/x86-64. Certificate SHA-256 stays `db12f986c9cccb39734b5d2f15f1f43e5aa9d80bae008e0c9e86a5cd2aea0650`. Physical installation is not claimed; no Android device is connected.
+
+The website download metadata now points to [android-v1.0.2](https://github.com/ishikawa321/Water_Disctrict/releases/tag/android-v1.0.2). The earlier release details below are historical; never replace an existing public APK asset.
+
 **Current web connection:** the website now uses the same Supabase project directly and needs no desktop/API host. Follow [one-time office workflow setup](web-supabase-office.md) for web Staff access and atomic repair saves. API hosting requirements mentioned in the original release notes below are historical; the published APK binary is unchanged.
 
 The downloadable app is the existing Flutter application, not a wrapper around the website. It uses the same Supabase project, identities, account links, permissions and saved records. Current mobile sign-in supports Consumer and Admin profiles; Staff use the office web/desktop workspace. The APK does not create accounts, seed data, host a database or fix an unhosted office API.

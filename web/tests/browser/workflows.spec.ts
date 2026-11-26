@@ -17,6 +17,78 @@ test.afterEach(async ({ request }) => {
   expect((await response.json()).legacyApiRequests).toBe(0);
 });
 
+test("Admin invites Staff and disables access while Staff cannot invite or change billing", async ({
+  page,
+  browser,
+}) => {
+  await login(page, "staff");
+  expect(
+    (
+      await page.request.post("/api/office/admin/staff-invitations", {
+        data: { email: "illegal@example.test", displayName: "Illegal" },
+        headers: { Origin: "http://127.0.0.1:3100" },
+      })
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await page.request.post("/api/office/office/billing-plans", {
+        data: {},
+        headers: { Origin: "http://127.0.0.1:3100" },
+      })
+    ).status(),
+  ).toBe(403);
+  const staffContext = await browser.newContext();
+  const staff = await staffContext.newPage();
+  await login(staff, "staff");
+  await login(page, "admin");
+  await page.goto("/office/staff");
+  await page
+    .getByLabel("Staff full name", { exact: true })
+    .fill("New Field Staff");
+  await page
+    .getByLabel("Staff email", { exact: true })
+    .fill("new-staff@example.test");
+  await page
+    .getByRole("button", { name: "Create Staff invitation", exact: true })
+    .click();
+  const invite = page.getByLabel("Private Staff invitation link", {
+    exact: true,
+  });
+  await expect(invite).toHaveValue(/\/staff\/accept#/);
+  const link = await invite.inputValue();
+  const recipientContext = await browser.newContext();
+  const recipient = await recipientContext.newPage();
+  await recipient.goto(link);
+  await expect(
+    recipient.getByText("new-staff@example.test", { exact: false }),
+  ).toBeVisible();
+  await recipient.getByLabel("New Staff password").fill("staff-password");
+  await recipient.getByLabel("Confirm Staff password").fill("staff-password");
+  await recipient
+    .getByRole("button", { name: "Accept invitation", exact: true })
+    .click();
+  await expect(recipient.locator(".feedback.success")).toContainText(
+    "Confirm your email",
+  );
+  await page
+    .getByRole("button", { name: "Disable Staff", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Enable Staff", exact: true }),
+  ).toBeVisible();
+  await staff
+    .getByRole("button", { name: "Refresh access", exact: true })
+    .click();
+  await expect(staff).toHaveURL(/login\?reason=access_lost/);
+  await page.screenshot({
+    path: test.info().outputPath("staff-invitations-access.png"),
+    fullPage: true,
+  });
+  await recipientContext.close();
+  await staffContext.close();
+});
+
 test("monthly billing saves per-account amounts and confirmed full payment appears on the consumer balance", async ({
   page,
   request,
@@ -54,6 +126,17 @@ test("monthly billing saves per-account amounts and confirmed full payment appea
     path: test.info().outputPath("monthly-billing-interest.png"),
     fullPage: true,
   });
+  await login(page, "staff");
+  await page.goto("/office/bills");
+  await expect(
+    page.getByRole("button", { name: "New bill", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", {
+      name: "Automatic monthly billing",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("link", { name: "Verified payments", exact: true })
     .click();
@@ -290,9 +373,9 @@ test("Staff cannot visit or call Admin operations", async ({ page }) => {
   await login(page, "staff");
   await expect(
     page.getByRole("link", { name: "Billing", exact: true }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   expect((await page.request.get("/api/office/office/bills")).status()).toBe(
-    403,
+    200,
   );
   expect(
     (
@@ -305,7 +388,7 @@ test("Staff cannot visit or call Admin operations", async ({ page }) => {
   await page.goto("/office/accounts");
   await expect(page).toHaveURL(/\/office$/);
 });
-test("Admin review conflict retains response, then dispatches, assigns and Staff resolves", async ({
+test("Admin dispatches, Staff completes, and only Admin confirms resolution", async ({
   page,
   request,
   browser,
@@ -368,7 +451,7 @@ test("Admin review conflict retains response, then dispatches, assigns and Staff
   await expect(
     staff.getByRole("status").filter({ hasText: "Repair update saved" }),
   ).toBeVisible();
-  await staff.getByLabel("Repair status").selectOption("Resolved");
+  await staff.getByLabel("Repair status").selectOption("Completed");
   await staff
     .getByLabel("Update note (required)")
     .fill("Repair completed and verified.");
@@ -379,6 +462,28 @@ test("Admin review conflict retains response, then dispatches, assigns and Staff
     staff.getByRole("heading", { name: "Record an update" }),
   ).toHaveCount(0);
   await expect(staff.locator(".timeline li")).toHaveCount(4);
+  await expect(
+    staff.getByText("Work completed. Awaiting Admin confirmation", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await page.goto("/office/repairs");
+  await page.getByRole("button", { name: /QA low pressure/ }).click();
+  await page.getByLabel("Repair status").selectOption("Resolved");
+  await page
+    .getByLabel("Update note (required)")
+    .fill("Admin verified the completed repair.");
+  await page
+    .getByRole("button", { name: "Save repair update", exact: true })
+    .click();
+  await expect(page.locator(".timeline li")).toHaveCount(5);
+  await expect(
+    page.getByRole("heading", {
+      name: "Confirm repair resolution",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+
   await staffContext.close();
 });
 test("revoked profile clears the visible workspace", async ({
@@ -963,18 +1068,18 @@ test("landing Android downloads open release instructions with the signed APK li
   await expect(
     page.getByRole("heading", { name: /Your water services/ }),
   ).toBeVisible();
-  await expect(page.getByText("Version 1.0.1", { exact: false })).toBeVisible();
+  await expect(page.getByText("Version 1.0.2", { exact: false })).toBeVisible();
   const link = page.getByRole("link", { name: "Download APK", exact: true });
   await expect(link).toHaveAttribute(
     "href",
-    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.1/WaterDistrictConnect-1.0.1.apk",
+    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.2/WaterDistrictConnect-1.0.2.apk",
   );
   await page.getByText("Release details and checksum", { exact: true }).click();
   await expect(
     page.getByText("ph.maramag.waterdistrictconnect", { exact: true }),
   ).toBeVisible();
   await expect(page.locator(".apk-checksum")).toHaveText(
-    "637244eb7ee2871d78722025179c6c47193e81f4cbd2072bdba4d9110ab46303",
+    "f6e63e492c24a1385a206d247447e93ef6e26667abc5613d3aaa5c7d56d733a5",
   );
   await page.setViewportSize({ width: 320, height: 720 });
   expect(
@@ -987,13 +1092,13 @@ test("landing Android downloads open release instructions with the signed APK li
     fullPage: true,
   });
   await page.route(
-    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.1/WaterDistrictConnect-1.0.1.apk",
+    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.2/WaterDistrictConnect-1.0.2.apk",
     (route) =>
       route.fulfill({
         contentType: "application/vnd.android.package-archive",
         headers: {
           "content-disposition":
-            "attachment; filename=WaterDistrictConnect-1.0.1.apk",
+            "attachment; filename=WaterDistrictConnect-1.0.2.apk",
         },
         body: "isolated browser download fixture",
       }),
@@ -1001,7 +1106,7 @@ test("landing Android downloads open release instructions with the signed APK li
   const downloaded = page.waitForEvent("download");
   await link.click();
   expect((await downloaded).suggestedFilename()).toBe(
-    "WaterDistrictConnect-1.0.1.apk",
+    "WaterDistrictConnect-1.0.2.apk",
   );
   await page
     .getByRole("link", { name: "Back to the website", exact: true })

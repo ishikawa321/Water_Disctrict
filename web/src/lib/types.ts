@@ -97,7 +97,13 @@ export type History = {
   changedAt: string;
 };
 export type TicketDetails = { ticket: Ticket; history: History[] };
-export type StaffMember = { userId: string; displayName: string; role: string };
+export type StaffMember = {
+  userId: string;
+  displayName: string;
+  role: string;
+  active?: boolean;
+  email?: string;
+};
 export type PageResult<T> = { items: T[]; hasMore: boolean; page: number };
 export type LinkedAccount = { account: Account | null };
 export type ConsumerSummary = {

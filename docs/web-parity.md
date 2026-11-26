@@ -2,6 +2,8 @@
 
 ## Current architecture
 
+Staff permissions now follow the confirmed six-part role: office/field work, bill/payment reads and confirmation, all concerns with assigned repairs only, Admin invitations, web/mobile access, and Admin confirmation after Completed. See [Staff setup and permission matrix](staff-role.md). The older audit's Staff financial restrictions and direct Staff resolution are superseded by this change.
+
 Latest synchronization includes upstream main `c44b8bf`: client signup, pending Admin approval, automatic MWD account assignment/linking and refreshed account lists. Manual account creation is replaced by the shared approval operation. Existing billing automation remains intact. See [the current comparison](web-update-comparison.md).
 
 The web is independent of the desktop API. All roles use signed-in Supabase Data API calls to the same project as mobile, with existing RLS. Atomic PostgreSQL functions retain original repair guards, versions, assignment rules, history and rollback. An authorized operator must complete [one-time Supabase office setup](web-supabase-office.md) for Staff access and repair saves. Desktop source is preserved separately and excluded from Vercel. API dependencies in the original audit below are historical.
