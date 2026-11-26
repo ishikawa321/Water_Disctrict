@@ -32,7 +32,6 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54339",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
-        WATERDISTRICT_API_URL: "http://127.0.0.1:54339",
       },
     },
   ],

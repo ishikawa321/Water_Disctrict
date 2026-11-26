@@ -98,7 +98,11 @@ export function BillCard({ bill }: { bill: Bill }) {
           </div>
           <div>
             <dt>Original amount</dt>
-            <dd>{money(bill.amountDue)}</dd>
+            <dd>{money(bill.baseAmount ?? bill.amountDue)}</dd>
+          </div>
+          <div>
+            <dt>Daily interest ({bill.interestDays ?? 0} overdue days)</dt>
+            <dd>{money(bill.interestAmount ?? 0)}</dd>
           </div>
           <div>
             <dt>Verified payments</dt>
@@ -106,6 +110,12 @@ export function BillCard({ bill }: { bill: Bill }) {
           </div>
         </dl>
       </details>
+      {!paid && (
+        <small>
+          After the due date, 1% of the original amount is added per day until
+          fully paid. Partial payments do not reduce the daily interest rate.
+        </small>
+      )}
       <div className="row wrap">
         {!paid && (
           <button className="primary" onClick={() => setInstructions(true)}>

@@ -1,4 +1,6 @@
-# Connect the live Admin and Staff services
+# Optional legacy ASP.NET hosting
+
+**Superseded for the website:** follow [web Supabase office setup](web-supabase-office.md). The current web uses Supabase directly and needs no Render host or PostgreSQL password. The instructions below describe the earlier architecture and are retained only for maintaining the separate desktop backend. `WATERDISTRICT_API_URL` no longer affects the current web.
 
 The current production error `The office service is not connected yet` means Vercel has no `WATERDISTRICT_API_URL`. Supabase Auth signs the user in successfully, but Admin/Staff operations use the original ASP.NET service. `https://kaeespcylucvsazfdaks.supabase.co/rest/v1/` is the database's data API, not that service; setting it as the office API would break the established routes and bypass the intended architecture.
 

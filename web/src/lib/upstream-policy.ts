@@ -21,13 +21,17 @@ export function allowOfficeRequest(role: Role, method: string, path: string) {
     method === "GET" &&
     (path === "workflow/assignees" ||
       path === "admin/staff" ||
-      /^office\/(summary|accounts|bills|payments|announcements)$/.test(path))
+      /^office\/(summary|accounts|bills|payments|announcements|billing-plans|billing-status)$/.test(
+        path,
+      ))
   )
     return true;
   if (
     method === "POST" &&
     (path === "workflow/tickets" ||
-      /^office\/(accounts|bills|payments|announcements)$/.test(path))
+      /^office\/(accounts|bills|payments|announcements|billing-plans)$/.test(
+        path,
+      ))
   )
     return true;
   return (

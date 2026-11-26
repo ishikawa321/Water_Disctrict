@@ -16,6 +16,7 @@ vi.mock("@/lib/server/auth", () => ({
         role: state.role,
       },
       supabase: {
+        rpc: async () => ({ data: null, error: { code: "PGRST202" } }),
         from: (table: string) => {
           const chain: Record<string, unknown> = {};
           for (const method of [
