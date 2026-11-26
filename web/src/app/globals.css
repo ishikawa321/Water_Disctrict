@@ -1107,3 +1107,6 @@ fieldset {
   flex-direction: column;
   gap: 17px;
 }
+.consumer-balance { margin-bottom: 24px; }
+.split + .card, .card + .toolbar { margin-top: 24px; }
+.stack > .card + .card { margin-top: 0; }

@@ -30,7 +30,7 @@ async function forward(
     if (!configured)
       throw new HttpError(
         503,
-        "The office API has not been connected. Configure its deployed HTTPS address to use this workspace.",
+        "The office service is not connected yet. Contact the system administrator.",
         "api_unconfigured",
       );
     const base = new URL(configured);

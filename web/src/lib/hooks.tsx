@@ -10,7 +10,12 @@ import {
 } from "react";
 import { api, message } from "./client";
 export function useResource<T>(url: string | null) {
-  const [state, setState] = useState<{ url: string | null; data: T | null; error: string | null; busy: boolean }>({ url, data: null, error: null, busy: !!url });
+  const [state, setState] = useState<{
+    url: string | null;
+    data: T | null;
+    error: string | null;
+    busy: boolean;
+  }>({ url, data: null, error: null, busy: !!url });
   const sequence = useRef(0);
   const invalidate = useCallback(() => {
     sequence.current += 1;
@@ -19,12 +24,23 @@ export function useResource<T>(url: string | null) {
     const requestedUrl = url;
     if (!requestedUrl) return;
     const request = ++sequence.current;
-    setState(previous => ({ url, data: previous.url === url ? previous.data : null, error: null, busy: true }));
+    setState((previous) => ({
+      url,
+      data: previous.url === url ? previous.data : null,
+      error: null,
+      busy: true,
+    }));
     try {
       const next = await api<T>(requestedUrl);
-      if (request === sequence.current) setState({ url, data: next, error: null, busy: false });
+      if (request === sequence.current)
+        setState({ url, data: next, error: null, busy: false });
     } catch (error) {
-      if (request === sequence.current) setState(previous => ({ ...previous, error: message(error), busy: false }));
+      if (request === sequence.current)
+        setState((previous) => ({
+          ...previous,
+          error: message(error),
+          busy: false,
+        }));
     }
   }, [url]);
   useEffect(() => {
@@ -36,8 +52,17 @@ export function useResource<T>(url: string | null) {
       invalidate();
     };
   }, [reload, invalidate]);
-  const setData = useCallback((data: T) => setState(previous => ({ ...previous, url, data })), [url]);
-  return { data: state.url === url ? state.data : null, error: state.url === url ? state.error : null, busy: state.url === url ? state.busy : !!url, reload, setData };
+  const setData = useCallback(
+    (data: T) => setState((previous) => ({ ...previous, url, data })),
+    [url],
+  );
+  return {
+    data: state.url === url ? state.data : null,
+    error: state.url === url ? state.error : null,
+    busy: state.url === url ? state.busy : !!url,
+    reload,
+    setData,
+  };
 }
 const DraftContext = createContext<Map<string, unknown> | null>(null);
 export function DraftProvider({

@@ -1,7 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +41,14 @@ const icons = {
   profile: UserRound,
   help: CircleHelp,
 };
+function subscribeMobile(callback: () => void) {
+  const query = window.matchMedia("(max-width: 760px)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+function mobileSnapshot() {
+  return window.matchMedia("(max-width: 760px)").matches;
+}
 export function Shell({
   profile,
   children,
@@ -50,6 +64,13 @@ export function Shell({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drafts] = useState(() => new Map<string, unknown>());
+  const isMobile = useSyncExternalStore(
+    subscribeMobile,
+    mobileSnapshot,
+    () => false,
+  );
+  const sidebarRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     let stopped = false;
     let linkId: string | null | undefined;
@@ -115,6 +136,8 @@ export function Shell({
     window.addEventListener("waterdistrict:access-lost", onLost);
     window.addEventListener("waterdistrict:account-lost", loseAccount);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onFocus);
+    window.addEventListener("waterdistrict:refresh-access", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     void check();
     return () => {
@@ -123,17 +146,44 @@ export function Shell({
       window.removeEventListener("waterdistrict:access-lost", onLost);
       window.removeEventListener("waterdistrict:account-lost", loseAccount);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onFocus);
+      window.removeEventListener("waterdistrict:refresh-access", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
   }, [profile.userId, profile.role, drafts]);
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isMobile) return;
+    const previousOverflow = document.body.style.overflow;
+    const toggleButton = toggleRef.current;
+    document.body.style.overflow = "hidden";
+    const focusable = () =>
+      Array.from(
+        sidebarRef.current?.querySelectorAll<HTMLElement>(
+          "a[href],button:not(:disabled)",
+        ) ?? [],
+      );
+    focusable()[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
+      if (event.key === "Tab") {
+        const nodes = focusable();
+        if (!nodes.length) return;
+        if (event.shiftKey && document.activeElement === nodes[0]) {
+          event.preventDefault();
+          nodes.at(-1)?.focus();
+        } else if (!event.shiftKey && document.activeElement === nodes.at(-1)) {
+          event.preventDefault();
+          nodes[0].focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      toggleButton?.focus();
+    };
+  }, [open, isMobile]);
   async function signOut() {
     if (busy) return;
     setBusy(true);
@@ -186,7 +236,12 @@ export function Shell({
           aria-label="Close navigation"
           onClick={() => setOpen(false)}
         />
-        <aside className={`sidebar ${open ? "open" : ""}`} id="workspace-nav">
+        <aside
+          ref={sidebarRef}
+          inert={isMobile && !open}
+          className={`sidebar ${open ? "open" : ""}`}
+          id="workspace-nav"
+        >
           <Brand />
           <div className="nav-label">
             {profile.role === "client" ? "MY SERVICES" : "WORKSPACE"}
@@ -227,9 +282,7 @@ export function Shell({
             <button
               className="text-button row"
               onClick={() => {
-                void api<Profile>("/api/session")
-                  .then(() => setError(null))
-                  .catch((e) => setError(message(e)));
+                window.dispatchEvent(new Event("waterdistrict:refresh-access"));
               }}
             >
               <RefreshCw size={17} />
@@ -263,6 +316,7 @@ export function Shell({
           <header className="topbar">
             <div className="row">
               <button
+                ref={toggleRef}
                 className="mobile-toggle"
                 aria-expanded={open}
                 aria-controls="workspace-nav"

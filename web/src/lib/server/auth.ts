@@ -34,7 +34,7 @@ export async function authenticate(roles?: Role[]) {
       "Your account access could not be checked. Please retry.",
       "dependency",
     );
-  if (!data?.active || !isRole(data.role))
+  if (!data?.active || data.user_id !== user.id || !isRole(data.role))
     throw new HttpError(
       403,
       "No active app profile is available. Contact authorized district personnel.",

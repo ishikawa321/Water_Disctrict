@@ -1,6 +1,17 @@
 import { authenticate } from "@/lib/server/auth";
-import { checkData, linkedAccount, pageNumber } from "@/lib/server/consumer";
-import { categories, concernStates, repairStates } from "@/lib/policy";
+import {
+  checkData,
+  linkedAccount,
+  pageNumber,
+  paymentTotals,
+  consumerSummary,
+} from "@/lib/server/consumer";
+import {
+  categories,
+  concernStates,
+  repairStates,
+  relatedOne,
+} from "@/lib/policy";
 import { balance } from "@/lib/format";
 import {
   errorResponse,
@@ -32,15 +43,13 @@ export async function GET(
         .range(start, start + PAGE_SIZE);
       checkData(error);
       return json({
-        items: (data ?? [])
-          .slice(0, PAGE_SIZE)
-          .map((r) => ({
-            id: r.id,
-            title: r.title,
-            message: r.message,
-            published: r.published,
-            updatedAt: r.updated_at,
-          })),
+        items: (data ?? []).slice(0, PAGE_SIZE).map((r) => ({
+          id: r.id,
+          title: r.title,
+          message: r.message,
+          published: r.published,
+          updatedAt: r.updated_at,
+        })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
       });
@@ -53,17 +62,23 @@ export async function GET(
         "No active service account link is available. Contact authorized district personnel.",
         "account_unlinked",
       );
+    if (resource === "summary")
+      return json(await consumerSummary(supabase, account.id));
     if (resource === "bills") {
       const { data, error } = await supabase
         .from("bills")
         .select(
-          "id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,offline_payments(amount_paid)",
+          "id,bill_number,billing_period_start,billing_period_end,due_date,amount_due",
         )
         .eq("account_id", account.id)
         .order("due_date", { ascending: false })
         .order("id")
         .range(start, start + PAGE_SIZE);
       checkData(error);
+      const totals = await paymentTotals(
+        supabase,
+        (data ?? []).slice(0, PAGE_SIZE).map((bill) => bill.id),
+      );
       return json({
         items: (data ?? []).slice(0, PAGE_SIZE).map((r) => ({
           id: r.id,
@@ -73,10 +88,9 @@ export async function GET(
           periodEnd: r.billing_period_end,
           dueDate: r.due_date,
           amountDue: String(r.amount_due),
-          ...balance(
-            String(r.amount_due),
-            r.offline_payments.map((p) => String(p.amount_paid)),
-          ),
+          ...balance(String(r.amount_due), [
+            (totals.get(r.id) ?? 0).toString(),
+          ]),
         })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
@@ -105,16 +119,14 @@ export async function GET(
         .range(start, start + PAGE_SIZE);
       checkData(error);
       return json({
-        items: (data ?? [])
-          .slice(0, PAGE_SIZE)
-          .map((r) => ({
-            receiptReference: r.receipt_reference,
-            billNumber: bill.bill_number,
-            accountNumber: account.accountNumber,
-            paymentDate: r.payment_date,
-            amountPaid: String(r.amount_paid),
-            verifiedAt: r.verified_at,
-          })),
+        items: (data ?? []).slice(0, PAGE_SIZE).map((r) => ({
+          receiptReference: r.receipt_reference,
+          billNumber: bill.bill_number,
+          accountNumber: account.accountNumber,
+          paymentDate: r.payment_date,
+          amountPaid: String(r.amount_paid),
+          verifiedAt: r.verified_at,
+        })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
       });
@@ -145,23 +157,21 @@ export async function GET(
         .range(start, start + PAGE_SIZE);
       checkData(error);
       return json({
-        items: (data ?? [])
-          .slice(0, PAGE_SIZE)
-          .map((r) => ({
-            id: r.id,
-            accountId: r.account_id,
-            accountNumber: account.accountNumber,
-            holderName: account.holderName,
-            category: r.category,
-            subject: r.subject,
-            description: r.description,
-            status: r.status,
-            response: r.admin_response,
-            createdAt: r.created_at,
-            reviewedAt: r.reviewed_at,
-            ticketId: r.repair_tickets[0]?.id ?? null,
-            version: 0,
-          })),
+        items: (data ?? []).slice(0, PAGE_SIZE).map((r) => ({
+          id: r.id,
+          accountId: r.account_id,
+          accountNumber: account.accountNumber,
+          holderName: account.holderName,
+          category: r.category,
+          subject: r.subject,
+          description: r.description,
+          status: r.status,
+          response: r.admin_response,
+          createdAt: r.created_at,
+          reviewedAt: r.reviewed_at,
+          ticketId: relatedOne<{ id: string }>(r.repair_tickets)?.id ?? null,
+          version: 0,
+        })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
       });
@@ -192,21 +202,20 @@ export async function GET(
         .range(start, start + PAGE_SIZE);
       checkData(error);
       return json({
-        items: (data ?? [])
-          .slice(0, PAGE_SIZE)
-          .map((r) => ({
-            id: r.id,
-            concernId: r.concern_id,
-            accountNumber: account.accountNumber,
-            subject: (r.service_concerns as unknown as { subject: string })
-              .subject,
-            status: r.status,
-            assignedTo: r.assigned_to,
-            assignedToUserId: null,
-            latestUpdate: r.latest_update,
-            updatedAt: r.updated_at,
-            version: 0,
-          })),
+        items: (data ?? []).slice(0, PAGE_SIZE).map((r) => ({
+          id: r.id,
+          concernId: r.concern_id,
+          accountNumber: account.accountNumber,
+          subject:
+            relatedOne<{ subject: string }>(r.service_concerns)?.subject ??
+            "Service repair",
+          status: r.status,
+          assignedTo: r.assigned_to,
+          assignedToUserId: null,
+          latestUpdate: r.latest_update,
+          updatedAt: r.updated_at,
+          version: 0,
+        })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
       });

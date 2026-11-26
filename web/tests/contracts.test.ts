@@ -97,6 +97,18 @@ describe("mutation request boundary", () => {
   it("rejects cross-origin and missing-origin writes", () => {
     expect(() =>
       requireSameOrigin(
+        new Request("http://localhost:3100/api", {
+          method: "POST",
+          headers: {
+            host: "127.0.0.1:3100",
+            origin: "http://127.0.0.1:3100",
+            "content-type": "application/json",
+          },
+        }),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      requireSameOrigin(
         new Request("https://district.example/api", {
           method: "POST",
           headers: {

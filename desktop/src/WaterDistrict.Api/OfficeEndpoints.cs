@@ -13,7 +13,7 @@ public static class OfficeEndpoints
         group.MapPost("/accounts",(HttpContext h,IOfficeService s,AddOfficeAccount input,CancellationToken t)=>s.AddAccountAsync(Actor(h),Bearer(h),input,t));
         group.MapGet("/bills",(HttpContext h,IOfficeService s,CancellationToken t)=>s.BillsAsync(Actor(h),Bearer(h),t));
         group.MapPost("/bills",(HttpContext h,IOfficeService s,AddOfficeBill input,CancellationToken t)=>s.AddBillAsync(Actor(h),Bearer(h),input,t));
-        group.MapGet("/payments",(HttpContext h,IOfficeService s,CancellationToken t)=>s.PaymentsAsync(Actor(h),Bearer(h),t));
+        group.MapGet("/payments",(HttpContext h,IOfficeService s,Guid? billId,CancellationToken t)=>billId is Guid id?s.PaymentsForBillAsync(Actor(h),Bearer(h),id,t):s.PaymentsAsync(Actor(h),Bearer(h),t));
         group.MapPost("/payments",(HttpContext h,IOfficeService s,AddOfficePayment input,CancellationToken t)=>s.AddPaymentAsync(Actor(h),Bearer(h),input,t));
         group.MapGet("/announcements",(HttpContext h,IOfficeService s,CancellationToken t)=>s.AnnouncementsAsync(Actor(h),Bearer(h),t));
         group.MapPost("/announcements",(HttpContext h,IOfficeService s,SaveOfficeAnnouncement input,CancellationToken t)=>s.SaveAnnouncementAsync(Actor(h),Bearer(h),null,input,t));

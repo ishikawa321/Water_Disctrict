@@ -78,23 +78,7 @@ export function Feedback({
     </>
   );
 }
-export function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string;
-  children: ReactNode;
-  hint?: string;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      {children}
-      {hint && <small>{hint}</small>}
-    </label>
-  );
-}
+export { Field } from "./field";
 export function Card({
   title,
   children,

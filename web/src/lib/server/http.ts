@@ -34,8 +34,17 @@ export function requireSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   const host = request.headers.get("host") ?? new URL(request.url).host;
   let source: URL | null = null;
-  try { if (origin) source = new URL(origin); } catch { /* Invalid origin is denied below. */ }
-  if (!source || source.host !== host || !['https:', 'http:'].includes(source.protocol) || (process.env.NODE_ENV === 'production' && source.protocol !== 'https:'))
+  try {
+    if (origin) source = new URL(origin);
+  } catch {
+    /* Invalid origin is denied below. */
+  }
+  if (
+    !source ||
+    source.host !== host ||
+    !["https:", "http:"].includes(source.protocol) ||
+    (process.env.NODE_ENV === "production" && source.protocol !== "https:")
+  )
     throw new HttpError(
       403,
       "This request must come from this website.",
@@ -46,8 +55,8 @@ export function requireSameOrigin(request: Request) {
 }
 export function publicOrigin(request: Request) {
   const url = new URL(request.url);
-  const host = request.headers.get('host') ?? url.host;
-  return `${process.env.NODE_ENV === 'production' ? 'https:' : url.protocol}//${host}`;
+  const host = request.headers.get("host") ?? url.host;
+  return `${process.env.NODE_ENV === "production" ? "https:" : url.protocol}//${host}`;
 }
 export async function readBody(
   request: Request,

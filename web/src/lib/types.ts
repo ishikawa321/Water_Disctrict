@@ -77,3 +77,8 @@ export type TicketDetails = { ticket: Ticket; history: History[] };
 export type StaffMember = { userId: string; displayName: string; role: string };
 export type PageResult<T> = { items: T[]; hasMore: boolean; page: number };
 export type LinkedAccount = { account: Account | null };
+export type ConsumerSummary = {
+  outstanding: string;
+  billCount: number;
+  nextDueDate: string | null;
+};

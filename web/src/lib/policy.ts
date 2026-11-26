@@ -18,6 +18,10 @@ export const repairStates = [
   "Resolved",
 ] as const;
 export const interruptionPrefix = "[Service interruption] ";
+export function relatedOne<T extends object>(value: unknown): T | null {
+  const record = Array.isArray(value) ? value[0] : value;
+  return record && typeof record === "object" ? (record as T) : null;
+}
 export function isRole(value: unknown): value is Role {
   return value === "admin" || value === "staff" || value === "client";
 }

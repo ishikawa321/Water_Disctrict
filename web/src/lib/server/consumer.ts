@@ -2,6 +2,66 @@ import "server-only";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 import type { Account } from "@/lib/types";
 import { HttpError } from "./http";
+import Decimal from "decimal.js";
+export async function paymentTotals(
+  supabase: SupabaseClient,
+  billIds: string[],
+) {
+  const totals = new Map<string, Decimal>();
+  for (let batch = 0; batch < billIds.length; batch += 50) {
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await supabase
+        .from("offline_payments")
+        .select("id,bill_id,amount_paid")
+        .in("bill_id", billIds.slice(batch, batch + 50))
+        .order("id")
+        .range(offset, offset + 499);
+      checkData(error);
+      for (const payment of data ?? [])
+        totals.set(
+          payment.bill_id,
+          (totals.get(payment.bill_id) ?? new Decimal(0)).plus(
+            String(payment.amount_paid),
+          ),
+        );
+      if ((data?.length ?? 0) < 500) break;
+    }
+  }
+  return totals;
+}
+export async function consumerSummary(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  let outstanding = new Decimal(0),
+    billCount = 0;
+  let nextDueDate: string | null = null;
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase
+      .from("bills")
+      .select("id,amount_due,due_date")
+      .eq("account_id", accountId)
+      .order("id")
+      .range(offset, offset + 499);
+    checkData(error);
+    const totals = await paymentTotals(
+      supabase,
+      (data ?? []).map((bill) => bill.id),
+    );
+    for (const bill of data ?? []) {
+      billCount++;
+      const remaining = Decimal.max(
+        0,
+        new Decimal(String(bill.amount_due)).minus(totals.get(bill.id) ?? 0),
+      );
+      outstanding = outstanding.plus(remaining);
+      if (remaining.gt(0) && (!nextDueDate || bill.due_date < nextDueDate))
+        nextDueDate = bill.due_date;
+    }
+    if ((data?.length ?? 0) < 500) break;
+  }
+  return { outstanding: outstanding.toFixed(2), billCount, nextDueDate };
+}
 export function checkData(error: PostgrestError | null) {
   if (!error) return;
   const status =

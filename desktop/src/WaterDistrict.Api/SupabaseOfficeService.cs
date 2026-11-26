@@ -48,6 +48,12 @@ public sealed class SupabaseOfficeService(HttpClient http,TimeProvider? clock=nu
     }
     public async Task<IReadOnlyList<OfficePayment>> PaymentsAsync(SessionProfile actor,string bearer,CancellationToken token)
     { Admin(actor);return (await Rows(HttpMethod.Get,$"offline_payments?select={PaymentFields}&order=payment_date.desc&limit=1000",bearer,null,token)).Select(row=>Decode(()=>Payment(row))).ToArray(); }
+    public async Task<IReadOnlyList<OfficePayment>> PaymentsForBillAsync(SessionProfile actor,string bearer,Guid billId,CancellationToken token)
+    {
+        Admin(actor);
+        if(billId==Guid.Empty)throw new WorkflowException("bill","Select a valid bill.");
+        return (await Rows(HttpMethod.Get,$"offline_payments?select={PaymentFields}&bill_id=eq.{billId:D}&order=payment_date.desc&limit=1000",bearer,null,token)).Select(row=>Decode(()=>Payment(row))).ToArray();
+    }
     public async Task<OfficePayment> AddPaymentAsync(SessionProfile actor,string bearer,AddOfficePayment input,CancellationToken token)
     {
         Admin(actor);Money(input.AmountPaid);Date(input.PaymentDate);

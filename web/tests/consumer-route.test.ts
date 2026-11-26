@@ -26,6 +26,7 @@ vi.mock("@/lib/server/auth", () => ({
             "order",
             "ilike",
             "insert",
+            "in",
           ])
             chain[method] = (...args: unknown[]) => {
               state.calls.push({ table, method, args });

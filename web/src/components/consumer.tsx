@@ -24,6 +24,7 @@ import type {
   PageResult,
   Payment,
   Profile,
+  ConsumerSummary,
 } from "@/lib/types";
 import { Badge, Card, Empty } from "./ui";
 import { DataState, PageHeader, Pager, Refresh } from "./data-ui";
@@ -385,6 +386,9 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
   const bills = useResource<PageResult<Bill>>(
     account.data?.account ? "/api/consumer/bills?page=0" : null,
   );
+  const summary = useResource<ConsumerSummary>(
+    account.data?.account ? "/api/consumer/summary" : null,
+  );
   const concerns = useResource<PageResult<Concern>>(
     account.data?.account ? "/api/consumer/concerns?page=0" : null,
   );
@@ -393,6 +397,7 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
   );
   const refresh = () => {
     void account.reload();
+    void summary.reload();
     void bills.reload();
     void concerns.reload();
     void notices.reload();
@@ -430,7 +435,13 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
         </div>
         <Refresh
           onClick={refresh}
-          busy={account.busy || bills.busy || concerns.busy || notices.busy}
+          busy={
+            account.busy ||
+            bills.busy ||
+            summary.busy ||
+            concerns.busy ||
+            notices.busy
+          }
         />
       </div>
       <DataState {...account} loaded={!!account.data}>
@@ -445,6 +456,35 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
           </Card>
         )}
       </DataState>
+      {account.data?.account && (
+        <Card title="Outstanding balance" className="consumer-balance">
+          <DataState {...summary} loaded={!!summary.data}>
+            {summary.data && (
+              <>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: 38,
+                    fontWeight: 600,
+                    letterSpacing: -1,
+                  }}
+                >
+                  {money(summary.data.outstanding)}
+                </strong>
+                <p>
+                  {summary.data.nextDueDate
+                    ? `Next unpaid due date: ${dateLabel(summary.data.nextDueDate)}`
+                    : "No unpaid bills"}
+                </p>
+                <small>
+                  {summary.data.billCount} saved billing records for your linked
+                  account
+                </small>
+              </>
+            )}
+          </DataState>
+        </Card>
+      )}
       {account.data?.account && (
         <div className="split">
           <Card title="Latest billing record">
