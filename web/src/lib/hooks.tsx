@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, message } from "./client";
-export function useResource<T>(url: string | null) {
+export function useResource<T>(url: string | null, refreshMilliseconds = 0) {
   const [state, setState] = useState<{
     url: string | null;
     data: T | null;
@@ -52,6 +52,18 @@ export function useResource<T>(url: string | null) {
       invalidate();
     };
   }, [reload, invalidate]);
+  useEffect(() => {
+    if (!refreshMilliseconds) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
+    const timer = setInterval(refresh, refreshMilliseconds);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [reload, refreshMilliseconds]);
   const setData = useCallback(
     (data: T) => setState((previous) => ({ ...previous, url, data })),
     [url],

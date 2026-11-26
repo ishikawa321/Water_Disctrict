@@ -1,5 +1,9 @@
 # Web platform parity
 
+## Current architecture
+
+The web is independent of the desktop API. All roles use signed-in Supabase Data API calls to the same project as mobile, with existing RLS. Atomic PostgreSQL functions retain original repair guards, versions, assignment rules, history and rollback. An authorized operator must complete [one-time Supabase office setup](web-supabase-office.md) for Staff access and repair saves. Desktop source is preserved separately and excluded from Vercel. API dependencies in the original audit below are historical.
+
 Audit: 26 November 2026. Base: `feature/desktop-admin-staff` at `68bc1590ce7331fee40598d501ce3e2a94a6d5b1`; mobile main `18bf741` has the same consumer source. Working branch: `feature/web-platform-parity`. Clean clone; original landing page is outside this repository and is preserved. No AGENTS.md was found in the checkout. No live operational writes are used for verification.
 
 Latest follow-up: upstream main `3336607` is now merged. See [app-to-web comparison](web-update-comparison.md) for concern locations, the latest midnight/aqua UI, recent payment activity and payment guidance, and the separate standalone desktop architecture. The original audit below describes the initial parity baseline.

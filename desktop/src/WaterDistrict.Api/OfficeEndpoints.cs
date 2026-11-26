@@ -9,8 +9,9 @@ public static class OfficeEndpoints
     {
         var group=app.MapGroup("/api/office").RequireAuthorization("Admin");
         group.MapGet("/summary",(HttpContext h,IOfficeService s,CancellationToken t)=>s.SummaryAsync(Actor(h),Bearer(h),t));
+        group.MapGet("/registrations",(HttpContext h,IOfficeService s,CancellationToken t)=>s.RegistrationsAsync(Actor(h),Bearer(h),t));
+        group.MapPost("/registrations/{id:guid}/approve",(HttpContext h,IOfficeService s,Guid id,CancellationToken t)=>s.ApproveRegistrationAsync(Actor(h),Bearer(h),id,t));
         group.MapGet("/accounts",(HttpContext h,IOfficeService s,CancellationToken t)=>s.AccountsAsync(Actor(h),Bearer(h),t));
-        group.MapPost("/accounts",(HttpContext h,IOfficeService s,AddOfficeAccount input,CancellationToken t)=>s.AddAccountAsync(Actor(h),Bearer(h),input,t));
         group.MapGet("/bills",(HttpContext h,IOfficeService s,CancellationToken t)=>s.BillsAsync(Actor(h),Bearer(h),t));
         group.MapPost("/bills",(HttpContext h,IOfficeService s,AddOfficeBill input,CancellationToken t)=>s.AddBillAsync(Actor(h),Bearer(h),input,t));
         group.MapGet("/payments",(HttpContext h,IOfficeService s,Guid? billId,CancellationToken t)=>billId is Guid id?s.PaymentsForBillAsync(Actor(h),Bearer(h),id,t):s.PaymentsAsync(Actor(h),Bearer(h),t));

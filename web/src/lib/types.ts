@@ -5,6 +5,15 @@ export type Profile = {
   role: Role;
   email: string;
 };
+export type ClientRegistration = {
+  userId: string;
+  fullName: string;
+  serviceAddress: string;
+  email: string;
+  status: string;
+  submittedAt: string;
+  emailConfirmedAt: string | null;
+};
 export type Account = {
   id: string;
   accountNumber: string;
@@ -20,6 +29,9 @@ export type Bill = {
   periodEnd: string;
   dueDate: string;
   amountDue: string | number;
+  baseAmount?: string | number;
+  interestAmount?: string | number;
+  interestDays?: number;
   paid: string | number;
   remaining: string | number;
 };
@@ -31,6 +43,12 @@ export type Payment = {
   paymentDate: string;
   amountPaid: string | number;
   verifiedAt: string | null;
+};
+export type BillingPlan = {
+  accountId: string;
+  monthlyAmount: string;
+  enabled: boolean;
+  nextIssueDate: string;
 };
 export type Notice = {
   id: string;
@@ -52,6 +70,7 @@ export type Concern = {
   createdAt: string;
   reviewedAt: string | null;
   ticketId: string | null;
+  repairDispatchedAt?: string | null;
   version: number;
   latitude?: number | null;
   longitude?: number | null;

@@ -12,6 +12,149 @@ async function login(page: Page, role: string) {
 test.beforeEach(async ({ request }) => {
   await request.post(`${fixture}/__test/reset`);
 });
+test.afterEach(async ({ request }) => {
+  const response = await request.get(`${fixture}/__test/state`);
+  expect((await response.json()).legacyApiRequests).toBe(0);
+});
+
+test("monthly billing saves per-account amounts and confirmed full payment appears on the consumer balance", async ({
+  page,
+  request,
+}) => {
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  const savedBill = {
+    ...state.bills[0],
+    dueDate: "2026-11-24",
+    baseAmount: "500.00",
+    interestAmount: "15.00",
+    interestDays: 3,
+    amountDue: "515.00",
+  };
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { bills: [savedBill], payments: [] },
+  });
+  await login(page, "admin");
+  await page.getByRole("link", { name: "Billing", exact: true }).click();
+  await page
+    .getByLabel("Monthly billing account")
+    .selectOption({ label: "QA-001 / QA Consumer" });
+  await page.getByLabel("Monthly amount (PHP)").fill("1000.00");
+  await page
+    .getByRole("button", { name: "Save monthly billing", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Monthly billing settings saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "Enabled", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("monthly-billing-interest.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("link", { name: "Verified payments", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Record payment", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Bill", exact: true })
+    .selectOption(savedBill.id);
+  await page
+    .getByRole("button", { name: "Use full remaining balance", exact: true })
+    .click();
+  await expect(page.getByLabel("Verified amount (PHP)")).toHaveValue("515.00");
+  await page
+    .getByLabel(
+      "I have verified this offline payment against district records.",
+    )
+    .check();
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { failNextWrite: true },
+  });
+  await page
+    .getByRole("button", { name: "Confirm payment", exact: true })
+    .click();
+  await expect(page.locator(".feedback.error")).toBeVisible();
+  await expect(page.getByLabel("Verified amount (PHP)")).toHaveValue("515.00");
+  await page
+    .getByRole("button", { name: "Confirm payment", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Payment confirmed. Reference:" }),
+  ).toContainText("1000000000");
+  await login(page, "client");
+  await expect(page.locator(".consumer-balance")).toContainText("₱0.00");
+  await page
+    .getByRole("navigation", { name: "Workspace", exact: true })
+    .getByRole("link", { name: "My bills", exact: true })
+    .click();
+  await expect(page).toHaveURL(/portal\/bills$/);
+  await page.getByText("Billing details", { exact: true }).click();
+  await expect(
+    page.getByText("Daily interest (3 overdue days)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("₱15.00", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("consumer-settled-interest.png"),
+    fullPage: true,
+  });
+});
+
+test("client can register with matching passwords and receive email confirmation guidance", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/login");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await page.getByLabel("Full name", { exact: true }).fill("QA New Client");
+  await page
+    .getByLabel("Service address", { exact: true })
+    .fill("Isolated signup address");
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("new-client@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("test-password");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("not-the-same");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await expect(
+    page.getByText("The passwords do not match.", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("test-password");
+  await page.screenshot({
+    path: test.info().outputPath("client-registration-mobile.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await expect(page.locator(".feedback.success")).toContainText(
+    "Check your email to confirm registration",
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Create account", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Back to sign in", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back", exact: true }),
+  ).toBeVisible();
+});
 
 test("landing page is first and every primary demo button opens the app sign-in", async ({
   page,
@@ -252,38 +395,32 @@ test("revoked profile clears the visible workspace", async ({
     0,
   );
 });
-test("Admin creates accounts, bills, verified payments and notices using working forms", async ({
+test("Admin views registered accounts and creates bills, payments and notices", async ({
   page,
 }) => {
   await login(page, "admin");
   await page
     .getByRole("link", { name: "Service accounts", exact: true })
     .click();
-  await page.getByRole("button", { name: "New account", exact: true }).click();
-  await page.getByLabel("Account number", { exact: true }).fill("QA-NEW-002");
-  await page.getByLabel("Holder name", { exact: true }).fill("Isolated holder");
-  await page
-    .getByLabel("Service address", { exact: true })
-    .fill("Isolated test address");
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
   await expect(
-    page.getByRole("cell", { name: "QA-NEW-002", exact: true }),
+    page.getByRole("button", { name: "New account", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("cell", { name: "QA-001", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Billing", exact: true }).click();
   await page.getByRole("button", { name: "New bill", exact: true }).click();
   await page
     .getByLabel("Active service account")
     .selectOption({ label: "QA-001 / QA Consumer" });
-  await page.getByLabel("Bill number", { exact: true }).fill("QA-NEW-BILL");
+  await expect(page.getByLabel("Bill number", { exact: true })).toHaveCount(0);
   await page.getByLabel("District-computed amount (PHP)").fill("120.50");
-  await page.getByLabel("Period start").fill("2026-11-01");
-  await page.getByLabel("Period end").fill("2026-11-30");
+  await expect(page.getByLabel("Period start")).toHaveCount(0);
+  await expect(page.getByLabel("Period end")).toHaveCount(0);
   await page.getByLabel("Due date", { exact: true }).fill("2026-12-15");
   await page.getByRole("button", { name: "Create bill", exact: true }).click();
   await expect(
-    page.getByRole("cell").filter({ hasText: "QA-NEW-BILL" }),
+    page.getByRole("cell").filter({ hasText: "MWD-202611-1000000001" }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Verified payments", exact: true })
@@ -294,9 +431,9 @@ test("Admin creates accounts, bills, verified payments and notices using working
   await page
     .getByRole("combobox", { name: "Bill", exact: true })
     .selectOption({ label: "QA-BILL-001 / QA-001 / ₱350.00 remaining" });
-  await page
-    .getByLabel("Receipt / reference", { exact: true })
-    .fill("QA-NEW-RECEIPT");
+  await expect(
+    page.getByLabel("Receipt / reference", { exact: true }),
+  ).toHaveCount(0);
   await page.getByLabel("Payment date", { exact: true }).fill("2026-11-25");
   await page.getByLabel("Verified amount (PHP)").fill("50.00");
   await page
@@ -305,11 +442,9 @@ test("Admin creates accounts, bills, verified payments and notices using working
     )
     .check();
   await page
-    .getByRole("button", { name: "Record verified payment", exact: true })
+    .getByRole("button", { name: "Confirm payment", exact: true })
     .click();
-  await expect(
-    page.getByRole("cell", { name: "QA-NEW-RECEIPT" }),
-  ).toBeVisible();
+  await expect(page.getByRole("cell", { name: "1000000001" })).toBeVisible();
   await page.getByRole("link", { name: "Announcements", exact: true }).click();
   await page.getByRole("button", { name: "New notice", exact: true }).click();
   await page.getByLabel("Title").fill("QA new notice");
@@ -524,7 +659,7 @@ test("consumer pins survive cancellation and a failed save, and saved maps are r
     "Pinned browser report",
   );
 });
-test("office refuses a pin before an old API write, then saves and preserves it on review", async ({
+test("office retains a pinned draft before SQL setup, then saves and preserves it on review", async ({
   page,
   request,
 }) => {
@@ -548,14 +683,14 @@ test("office refuses a pin before an old API write, then saves and preserves it 
     .click();
   await chooseCoordinates(page, "7.76", "125.0", "Beside office meter");
   await request.post(`${fixture}/__test/scenario`, {
-    data: { locationSupported: false },
+    data: { workflowAvailable: false },
   });
   await page
     .locator("form")
     .getByRole("button", { name: "Submit concern", exact: true })
     .click();
   await expect(page.locator(".feedback.error")).toContainText(
-    "must be updated",
+    "one-time Supabase",
   );
   await expect(page.locator(".record-list")).not.toContainText(
     "Pinned office report",
@@ -564,7 +699,7 @@ test("office refuses a pin before an old API write, then saves and preserves it 
     "Beside office meter",
   );
   await request.post(`${fixture}/__test/scenario`, {
-    data: { locationSupported: true },
+    data: { workflowAvailable: true },
   });
   await page
     .locator("form")
@@ -875,4 +1010,121 @@ test("landing Android downloads open release instructions with the signed APK li
   await page.getByRole("link", { name: "Open web app", exact: false }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator(".feedback.error")).toHaveCount(0);
+});
+
+test("saved repairs load without the desktop server or workflow setup, and Staff cannot review a dispatched concern", async ({
+  page,
+  request,
+}) => {
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  const ticketId = "50000000-0000-4000-8000-000000000001";
+  state.concerns[0].ticketId = ticketId;
+  state.concerns[0].status = "Under review";
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      workflowAvailable: false,
+      concerns: state.concerns,
+      tickets: [
+        {
+          id: ticketId,
+          concernId: state.concerns[0].id,
+          accountNumber: "QA-001",
+          subject: "QA low pressure",
+          status: "Open",
+          assignedTo: null,
+          assignedToUserId: null,
+          latestUpdate: "Saved inspection request",
+          updatedAt: "2026-11-26T08:00:00Z",
+          version: 2,
+          history: [
+            {
+              id: 1,
+              status: "Open",
+              note: "Saved inspection request",
+              changedBy: "QA Admin",
+              assignedTo: null,
+              changedAt: "2026-11-26T08:00:00Z",
+            },
+          ],
+        },
+      ],
+    },
+  });
+  await login(page, "admin");
+  await page.getByRole("link", { name: "Repair tickets", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Saved repair tickets" }),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Search subject or account" })
+    .fill("QA-001");
+  await page
+    .getByRole("button", { name: "Apply filters", exact: true })
+    .click();
+  await page.getByRole("button", { name: /QA low pressure/ }).click();
+  await expect(page.locator(".timeline li")).toHaveCount(1);
+  await expect(
+    page.getByText("The office service is not connected yet", { exact: false }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: test.info().outputPath("independent-office-repairs.png"),
+    fullPage: true,
+  });
+  await login(page, "staff");
+  await page
+    .getByRole("link", { name: "Service concerns", exact: true })
+    .click();
+  await page.getByRole("button", { name: /QA low pressure/ }).click();
+  await expect(
+    page.getByText("Only its assigned Staff and Admin", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save review", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("pending client cannot sign in until an admin approves the registration", async ({
+  page,
+  request,
+  browser,
+}) => {
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      registrations: [
+        {
+          userId: "10000000-0000-4000-8000-000000000003",
+          fullName: "Pending Client",
+          email: "client@example.test",
+          serviceAddress: "Pending service address",
+          status: "Pending",
+          submittedAt: "2026-11-27T00:00:00Z",
+          emailConfirmedAt: "2026-11-27T00:00:00Z",
+        },
+      ],
+    },
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("client@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("test-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".feedback.error")).toContainText(
+    "awaiting administrator approval",
+  );
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  await login(admin, "admin");
+  await admin.goto("/office/accounts");
+  await expect(
+    admin.getByText("Pending service address", { exact: true }),
+  ).toBeVisible();
+  await admin
+    .getByRole("button", { name: "Approve registration", exact: true })
+    .click();
+  await expect(admin.getByText("No pending registrations.")).toBeVisible();
+  await expect(
+    admin.getByRole("cell", { name: "MWD-001250", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/portal$/);
+  await adminContext.close();
 });

@@ -1,29 +1,14 @@
-# Web and API deployment
+# Web deployment
 
-## Vercel project
+Published frontend: https://maramag-waterdistrict-web.vercel.app. Web and mobile share the existing Supabase project directly. Desktop ASP.NET hosting is no longer a web dependency; its source stays separately under `desktop/`.
 
-Published frontend: https://maramag-waterdistrict-web.vercel.app. It uses the existing Supabase project. The office API remains an external hosting dependency; publishing the frontend alone does not connect office operations.
+## Supabase setup
 
-The published root `/` is the existing landing page. Explore Demo opens `/app`, which restores a valid workspace session or redirects to `/login`. Landing HTML/CSS/JS/assets are included under `web/public/landing/` in the same deployment. When editing the adjacent original static folder, run `npm run sync:landing` from `web/` and redeploy the web project.
+For monthly bills and confirmed payments, also apply [billing setup](billing-automation.md): the atomic billing SQL first, then its Cron schedule. This applies the requested retroactive overdue interest to existing unpaid bills. No new database or hosted API is involved.
 
-The Next.js application lives at `web/`. Select the Next.js framework preset and Node 24, with **Root Directory `web`**. Use `npm ci`, `npm run build`, and the framework's default output directory. Do not deploy the Flutter `web/index.html` as the Next.js app.
+Follow [one-time office setup](web-supabase-office.md) for Staff access and atomic repair saves. An authorized operator runs `database/web-office-workflows.sql` in the existing project's SQL Editor. No migration runs on Vercel. No Render account, replacement database, private PostgreSQL connection or service-role key is required by the website.
 
-Set these production environment variables in Vercel:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL=https://kaeespcylucvsazfdaks.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<existing public publishable key>
-WATERDISTRICT_API_URL=https://<your-separately-hosted-api>
-NEXT_PUBLIC_LANDING_URL=https://<your-landing-site>   # optional
-```
-
-No database connection or service-role key belongs in Vercel. Rebuild after changing public variables; redeploy after changing server runtime variables. A missing API URL produces a truthful service configuration error in office modules, rather than fake data.
-
-For CLI deployment, link the Vercel project from the **repository root**, retain its `web` Root Directory setting, then run `npx vercel deploy --prod --local-config web/vercel.json`. The explicit local config applies the web install/build commands and Singapore function region to root-level CLI deployments. The root `.vercelignore` excludes mobile, desktop, local settings and isolated tests. For Git deployment, connect the repository in Vercel and select `feature/web-platform-parity` as the Production Branch after connecting. Do not change your existing mobile/desktop integration branch just to deploy the website.
-
-## Supabase authentication
-
-Keep all existing mobile and desktop Auth configuration. In Authentication → URL Configuration, add these exact web redirect destinations alongside existing entries:
+Retain existing mobile/desktop Auth configuration. Add these web redirect destinations alongside existing entries in Authentication > URL Configuration:
 
 ```text
 https://maramag-waterdistrict-web.vercel.app/auth/callback
@@ -32,57 +17,41 @@ http://localhost:3000/auth/callback
 http://localhost:3000/auth/callback?next=/reset-password
 ```
 
-If using preview deployments, allow only your project's preview URLs using Supabase's documented matching syntax. Keep the recovery email template's `{{ .ConfirmationURL }}` link. Supabase must verify the link before redirecting. Configure SMTP for real recipients as required by your project; do not claim email delivery based on local tests. Recovery requests and emails must be opened in the same browser because the web flow uses PKCE.
+For previews allow only this project's preview URLs using documented Supabase patterns. Retain recovery email `{{ .ConfirmationURL }}` links and SMTP settings. Recovery uses PKCE and must be opened in the same browser; local tests do not prove email delivery. Existing active profiles and authorized account links remain the source of access.
 
-Email/password sign-in uses the existing verified identities. Account links and active role profiles continue to be provisioned through authorized district processes, never through browser metadata or public office signup. Do not remove the applied repair/Staff migrations or weaken any RLS/column grants.
+## Vercel
 
-## Separately hosted ASP.NET API
+Use Next.js, Node 24, **Root Directory `web`**, `npm ci`, `npm run build` and framework default output. Do not select the legacy Flutter `web/index.html` launcher.
 
-Use a host that supports an ASP.NET Core 10 Linux service or Docker container behind HTTPS. The checked-in container definition builds the original API and its dependencies, with no Windows executables:
-
-```powershell
-# From repository root (requires Docker)
-docker build -f desktop/Dockerfile.api -t waterdistrict-api .
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://kaeespcylucvsazfdaks.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<existing public publishable key>
+NEXT_PUBLIC_LANDING_URL=https://<separate-landing-site> # optional
 ```
 
-Configure the API host's secret/environment settings, not a committed file:
+`WATERDISTRICT_API_URL` is unused and can be removed from old deployments. Do not put database passwords or service-role keys in Vercel. Rebuild after changing public variables.
 
-| Name | Value |
-|---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `ASPNETCORE_HTTP_PORTS` | `8080` (or the host's internal service port) |
-| `TZ` | `Asia/Manila`, preserving the API's existing local payment-date validation |
-| `AllowedHosts` | Your API hostname, with other required internal hostnames separated by semicolons |
-| `Supabase__Url` | `https://kaeespcylucvsazfdaks.supabase.co` |
-| `Supabase__PublishableKey` | Existing public publishable key |
-| `ConnectionStrings__WaterDistrict` | Existing shared database/pooler connection, stored only as an API-host secret |
+For CLI deployment, link from the repository root, retain the project's `web` Root Directory setting and run:
 
-Retain `SSL Mode=VerifyFull` and the appropriate trusted project CA certificate, as required by the existing connection. Mount the CA certificate at the path referenced by `Root Certificate` if it is not in the OS trust store. Do not disable certificate validation, log the connection string, copy private appsettings, or create a replacement operational database.
+```powershell
+npx --yes vercel@66.6.0 deploy --prod --local-config web/vercel.json
+```
 
-The Docker build is rooted at the repository root and starts `WaterDistrict.Api.dll` as the non-root .NET `app` user. Configure HTTPS at the hosting ingress. No migration runs on application startup. Use `/health` for process health and `/health/ready` to verify the configured existing schema/migrations and database reachability.
+The local config applies the correct commands and Singapore region. Root `.vercelignore` excludes desktop/mobile source, SQL, private settings, local databases, tests and binary artifacts. For Git publishing connect the repository and select `feature/web-platform-parity` as Production Branch; manual CLI publishing works independently.
 
-The website calls this API through its authenticated Next.js server handlers, so browser-to-API CORS changes are unnecessary. If you later deliberately switch to direct browser calls, add a reviewed explicit origin allowlist on the API. Do not enable wildcard credentialed CORS.
+The landing opens first; Explore Demo restores a workspace or clean login through `/app`. Android links open `/download`. When editing the adjacent original static files, run `npm run sync:landing` from `web/` before redeployment; standalone clones contain the snapshot.
 
-Deploy the updated API from this branch: `/api/office/payments?billId=<UUID>` now filters bill history **before** the established 1,000-row limit. Existing desktop calls without that optional parameter retain their contract. All dispatch, assignment, status transitions, append-only history, actor stamping and concurrency rules remain in the original server.
+Optional map tile/attribution variables are public build-time settings. Default HTTPS OpenStreetMap tiles retain attribution and browser caching. GPS requires a click and HTTPS. No offline tile download is implemented.
 
-## Concern-location update
+## Live acceptance
 
-Before enabling location submissions against the operational database, an authorized operator must verify/apply `database/add_concern_locations.sql` (or its column-grant repair if the columns already exist). See [the update comparison](web-update-comparison.md). No production migration runs automatically. Deploy the updated original API from `desktop/src/WaterDistrict.Api`; authenticated `GET /api/workflow/capabilities` must return `concernLocation: true` before pinned office intake is forwarded. It preserves the existing shared database, workflows and roles. Do not deploy the separate fictional `desktop/WaterDistrictConnect` prototype as this website's API.
+Use authorized demonstration identities and records only:
 
-`NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` optionally select a compatible raster tile provider and attribution. Both are build-time public variables. The default uses OpenStreetMap HTTPS tiles with visible attribution, normal browser caching and a cross-origin Referer. No bulk/offline download is implemented. Keep geolocation permission restricted to self; the user must click Use my location and confirm a pin.
+1. Anonymous protected pages redirect and data requests return 401.
+2. Linked Consumers see the same account, bills, verified payments, published notices and concerns as mobile.
+3. Admin loads accounts, bills, dashboard and saved repairs without a desktop server; submit a demonstration concern/pin and compare its mobile/web values.
+4. Admin reviews, dispatches once and assigns active Staff. Duplicate dispatch and stale edits must fail.
+5. Assigned Staff records In progress then Resolved with notes; other Staff cannot open/update that ticket. Confirm history and Consumer resolution agree.
+6. Access revocation clears the workspace and drafts. Restore authorized demonstration configuration afterward.
 
-## Final live acceptance
-
-The original local landing page's header demo link, hero button and final Explore button navigate to the published app entry in `config.js`. The integrated copy uses `/app` on its own deployment. Its illustrative tour remains separate. A separately hosted static copy, if any, still needs its own redeployment after local edits.
-
-Use authorized demonstration accounts and isolated demonstration records. Do not experiment with customer records.
-
-1. Load `/login`, then refresh a direct `/portal/bills` or `/office/concerns` URL. Anonymous API/data requests must return 401.
-2. Sign in as a linked consumer. Verify account information, bill original/paid/balance, bill-specific payment history, notices and password recovery.
-3. Submit a demonstration concern with an optional pin/landmark. Cancel a changed pin and confirm the previous selection is retained; test a denied GPS request with manual selection. Refresh Desktop and the office website to verify the same saved row appears.
-4. Admin reviews, dispatches once, and assigns an active Staff identity. Confirm duplicate dispatch and stale updates fail.
-5. Assigned Staff records In progress and Resolved with required notes. Other Staff must be unable to view/update that ticket.
-6. Refresh consumer web/mobile. The saved concern result and repair summary must agree. Verify verified payments and published notices agree across platforms; drafts remain private.
-7. Revoke a demonstration profile/account link through an authorized process and refresh access. The website must clear sensitive records. Restore the authorized demonstration configuration afterward.
-
-Local automated checks do not establish real-user live acceptance or email delivery. See `web-verification.md` for exact executed results and external dependencies.
+SQL setup and real-user acceptance are separate from deployment/local checks. [Historical API hosting](office-api-hosting.md) applies only to maintaining the optional desktop backend.

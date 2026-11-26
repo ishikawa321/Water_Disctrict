@@ -4,6 +4,9 @@ public sealed record OfficeAccount(Guid Id,string AccountNumber,string HolderNam
 {
     public string Label=>$"{AccountNumber} / {HolderName}";
 }
+public sealed record OfficeRegistration(Guid UserId,string FullName,string ServiceAddress,string Email,string Status,DateTimeOffset SubmittedAt,DateTimeOffset? EmailConfirmedAt)
+{ public string Label=>$"{FullName} / {Email} / {ServiceAddress}"; }
+public sealed record RegistrationApproval(string AccountNumber);
 public sealed record OfficeBill(Guid Id,string BillNumber,string AccountNumber,DateOnly PeriodStart,DateOnly PeriodEnd,DateOnly DueDate,decimal AmountDue,decimal Paid)
 {
     public decimal Remaining=>Math.Max(0,AmountDue-Paid);
@@ -18,16 +21,16 @@ public sealed record OfficeAnnouncement(Guid Id,string Title,string Message,bool
     public string Label=>$"{DisplayTitle} / {(Published?"Published":"Draft")}";
 }
 public sealed record OfficeSummary(int PendingConcerns,int ActiveRepairs);
-public sealed record AddOfficeAccount(string AccountNumber,string HolderName,string ServiceAddress);
 public sealed record AddOfficeBill(Guid AccountId,string BillNumber,DateOnly PeriodStart,DateOnly PeriodEnd,DateOnly DueDate,decimal AmountDue);
 public sealed record AddOfficePayment(Guid BillId,string ReceiptReference,DateOnly PaymentDate,decimal AmountPaid,bool Verified);
 public sealed record SaveOfficeAnnouncement(string Title,string Message,bool Published,bool IsInterruption);
 
 public interface IOfficeClient
 {
+    Task<IReadOnlyList<OfficeRegistration>> RegistrationsAsync(CancellationToken token=default);
+    Task<RegistrationApproval> ApproveRegistrationAsync(Guid id,CancellationToken token=default);
     Task<OfficeSummary> SummaryAsync(CancellationToken token=default);
     Task<IReadOnlyList<OfficeAccount>> OfficeAccountsAsync(CancellationToken token=default);
-    Task<OfficeAccount> AddAccountAsync(AddOfficeAccount input,CancellationToken token=default);
     Task<IReadOnlyList<OfficeBill>> BillsAsync(CancellationToken token=default);
     Task<OfficeBill> AddBillAsync(AddOfficeBill input,CancellationToken token=default);
     Task<IReadOnlyList<OfficePayment>> PaymentsAsync(CancellationToken token=default);
@@ -37,9 +40,10 @@ public interface IOfficeClient
 }
 public interface IOfficeService
 {
+    Task<IReadOnlyList<OfficeRegistration>> RegistrationsAsync(SessionProfile actor,string bearer,CancellationToken token);
+    Task<RegistrationApproval> ApproveRegistrationAsync(SessionProfile actor,string bearer,Guid id,CancellationToken token);
     Task<OfficeSummary> SummaryAsync(SessionProfile actor,string bearer,CancellationToken token);
     Task<IReadOnlyList<OfficeAccount>> AccountsAsync(SessionProfile actor,string bearer,CancellationToken token);
-    Task<OfficeAccount> AddAccountAsync(SessionProfile actor,string bearer,AddOfficeAccount input,CancellationToken token);
     Task<IReadOnlyList<OfficeBill>> BillsAsync(SessionProfile actor,string bearer,CancellationToken token);
     Task<OfficeBill> AddBillAsync(SessionProfile actor,string bearer,AddOfficeBill input,CancellationToken token);
     Task<IReadOnlyList<OfficePayment>> PaymentsAsync(SessionProfile actor,string bearer,CancellationToken token);

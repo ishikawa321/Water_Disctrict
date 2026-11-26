@@ -7,7 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'bill_pdf.dart';
+import 'billing_history_pdf.dart';
+
+import 'package:printing/printing.dart';
+
 import 'ui_components.dart';
 import 'concern_location.dart';
 
@@ -52,7 +55,7 @@ class WaterDistrictApp extends StatelessWidget {
   }
 }
 
-enum AccountScreen { login, resetPassword, dashboard }
+enum AccountScreen { login, register, resetPassword, dashboard }
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -76,6 +79,8 @@ class _AccountPageState extends State<AccountPage>
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
+  final nameController = TextEditingController();
+  final addressController = TextEditingController();
 
   StreamSubscription<AuthState>? authSubscription;
 
@@ -135,6 +140,8 @@ class _AccountPageState extends State<AccountPage>
     emailController.dispose();
     passwordController.dispose();
     confirmController.dispose();
+    nameController.dispose();
+    addressController.dispose();
     super.dispose();
   }
 
@@ -212,9 +219,16 @@ class _AccountPageState extends State<AccountPage>
       if (!mounted || screen != AccountScreen.login) return;
 
       if (result == null || !['admin', 'client'].contains(result['role'])) {
-        await supabase.auth.signOut();
+        final registration = await supabase
+            .from('client_registrations')
+            .select('status')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        await supabase.auth.signOut(scope: SignOutScope.local);
         showMessage(
-          'No active app profile was found. Contact the administrator.',
+          registration?['status'] == 'Pending'
+              ? 'Your registration is awaiting administrator approval.'
+              : 'No active app profile was found. Contact the administrator.',
           error: true,
         );
         return;
@@ -250,6 +264,97 @@ class _AccountPageState extends State<AccountPage>
           signInSlide.reset();
         }
       }
+      stopWorking();
+    }
+  }
+
+  void switchRegistration(bool registering) {
+    if (busy) return;
+    setState(() {
+      screen = registering ? AccountScreen.register : AccountScreen.login;
+      passwordController.clear();
+      confirmController.clear();
+      fieldErrors.clear();
+      message = null;
+      isError = false;
+    });
+  }
+
+  Future<void> register() async {
+    if (busy) return;
+    fieldErrors.clear();
+    final email = emailController.text.trim();
+    final name = nameController.text.trim();
+    final address = addressController.text.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) ||
+        email.length > 254) {
+      fieldErrors[emailController] = 'Enter a valid email address.';
+    }
+    if (name.isEmpty || name.length > 200) {
+      fieldErrors[nameController] =
+          'Enter your full name (up to 200 characters).';
+    }
+    if (address.isEmpty || address.length > 500) {
+      fieldErrors[addressController] =
+          'Enter your service address (up to 500 characters).';
+    }
+    if (passwordController.text.length < 8 ||
+        passwordController.text.length > 128) {
+      fieldErrors[passwordController] =
+          'Use a password with 8 to 128 characters.';
+    }
+    if (passwordController.text != confirmController.text) {
+      fieldErrors[confirmController] = 'Passwords do not match.';
+    }
+    if (fieldErrors.isNotEmpty) {
+      setState(() {});
+      return;
+    }
+    startWorking();
+    try {
+      final ready = await supabase.rpc(
+        'client_registration_approval_available',
+      );
+      if (ready != true) throw StateError('Registration unavailable');
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: passwordController.text,
+        emailRedirectTo: passwordRecoveryUrl(isWeb: kIsWeb, baseUri: Uri.base),
+        data: {
+          'registration_source': 'client_signup_v1',
+          'display_name': name,
+          'service_address': address,
+        },
+      );
+      if (response.session != null) {
+        await supabase.auth.signOut(scope: SignOutScope.local);
+      }
+      if (!mounted) return;
+      setState(() {
+        screen = AccountScreen.login;
+        passwordController.clear();
+        confirmController.clear();
+        nameController.clear();
+        addressController.clear();
+      });
+      showMessage(
+        response.session == null
+            ? 'Check your email to confirm registration and wait for administrator approval. You can sign in after both are complete. Your account number is assigned when approved.'
+            : 'Registration submitted. Wait for administrator approval before signing in. Your account number is assigned when approved.',
+      );
+    } on AuthException catch (error) {
+      showMessage(error.message, error: true);
+    } on PostgrestException {
+      showMessage(
+        'Client registration is not available yet. Ask the administrator to finish the database setup.',
+        error: true,
+      );
+    } catch (_) {
+      showMessage(
+        'Registration could not be confirmed. Check your connection and email before retrying.',
+        error: true,
+      );
+    } finally {
       stopWorking();
     }
   }
@@ -400,11 +505,21 @@ class _AccountPageState extends State<AccountPage>
         },
         keyboardType: secret
             ? TextInputType.visiblePassword
-            : TextInputType.emailAddress,
+            : controller == emailController
+            ? TextInputType.emailAddress
+            : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           errorText: fieldErrors[controller],
-          prefixIcon: Icon(secret ? CupertinoIcons.lock : CupertinoIcons.mail),
+          prefixIcon: Icon(
+            secret
+                ? CupertinoIcons.lock
+                : controller == emailController
+                ? CupertinoIcons.mail
+                : controller == addressController
+                ? CupertinoIcons.location
+                : CupertinoIcons.person,
+          ),
           suffixIcon: secret
               ? IconButton(
                   tooltip: passwordVisible ? 'Hide password' : 'Show password',
@@ -440,7 +555,8 @@ class _AccountPageState extends State<AccountPage>
       );
     }
     final reset = screen == AccountScreen.resetPassword;
-    return Scaffold(
+    final registering = screen == AccountScreen.register;
+    return UtilityScaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -486,7 +602,11 @@ class _AccountPageState extends State<AccountPage>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          reset ? 'Reset password' : 'Sign in to your account',
+                          reset
+                              ? 'Reset password'
+                              : registering
+                              ? 'Create your account'
+                              : 'Sign in to your account',
                           style: const TextStyle(
                             fontSize: 27,
                             fontWeight: FontWeight.w600,
@@ -498,10 +618,16 @@ class _AccountPageState extends State<AccountPage>
                         Text(
                           reset
                               ? 'Choose a new password for your account.'
+                              : registering
+                              ? 'Submit your details for administrator approval. Your account number is assigned when approved.'
                               : 'Sign in to your verified account',
                           style: const TextStyle(color: muted, fontSize: 15),
                         ),
                         const SizedBox(height: 24),
+                        if (registering) ...[
+                          input(nameController, 'Full name'),
+                          input(addressController, 'Service address'),
+                        ],
                         if (!reset) input(emailController, 'Email address'),
                         if (!reset || !passwordSaved) ...[
                           input(
@@ -509,10 +635,12 @@ class _AccountPageState extends State<AccountPage>
                             reset ? 'New password' : 'Password',
                             secret: true,
                           ),
-                          if (reset)
+                          if (reset || registering)
                             input(
                               confirmController,
-                              'Confirm new password',
+                              registering
+                                  ? 'Confirm password'
+                                  : 'Confirm new password',
                               secret: true,
                             ),
                           FilledButton(
@@ -520,8 +648,10 @@ class _AccountPageState extends State<AccountPage>
                                 ? null
                                 : reset
                                 ? saveNewPassword
+                                : registering
+                                ? register
                                 : signIn,
-                            child: !reset
+                            child: !reset && !registering
                                 ? Semantics(
                                     label: signingIn ? 'Signing in' : 'Sign in',
                                     liveRegion: signingIn,
@@ -584,6 +714,8 @@ class _AccountPageState extends State<AccountPage>
                                         Text(
                                           reset
                                               ? 'Save new password'
+                                              : registering
+                                              ? 'Create account'
                                               : 'Sign in',
                                         ),
                                       if (!busy) ...[
@@ -600,13 +732,26 @@ class _AccountPageState extends State<AccountPage>
                         TextButton(
                           onPressed: busy
                               ? null
+                              : registering
+                              ? () => switchRegistration(false)
                               : reset
                               ? returnToLogin
                               : requestPasswordReset,
                           child: Text(
-                            reset ? 'Return to sign in' : 'Forgot password?',
+                            registering
+                                ? 'Back to sign in'
+                                : reset
+                                ? 'Return to sign in'
+                                : 'Forgot password?',
                           ),
                         ),
+                        if (!reset && !registering)
+                          TextButton(
+                            onPressed: busy
+                                ? null
+                                : () => switchRegistration(true),
+                            child: const Text('Create account'),
+                          ),
                         if (message != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
@@ -636,7 +781,10 @@ class _AccountPageState extends State<AccountPage>
                                 CircleAvatar(
                                   backgroundColor: Colors.white,
                                   foregroundColor: royalBlue,
-                                  child: Icon(CupertinoIcons.person_2, size: 20),
+                                  child: Icon(
+                                    CupertinoIcons.person_2,
+                                    size: 20,
+                                  ),
                                 ),
                                 SizedBox(width: 16),
                                 Expanded(
@@ -687,15 +835,23 @@ class ServiceAccountsPage extends StatefulWidget {
 }
 
 class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
-  List<Map<String, dynamic>> accounts = [];
-  bool loading = true;
-  bool adding = false;
+  List<Map<String, dynamic>> accounts = [], registrations = [];
+  bool loading = true, approving = false;
   String? loadError;
-
+  Timer? accountRefresh;
   @override
   void initState() {
     super.initState();
     loadAccounts();
+    accountRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !loading && !approving) loadAccounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    accountRefresh?.cancel();
+    super.dispose();
   }
 
   Future<void> loadAccounts() async {
@@ -704,300 +860,180 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
       loadError = null;
     });
     try {
-      final result = await supabase
+      final rows = await supabase
           .from('service_accounts')
-          .select('id, account_number, holder_name, service_address, active')
+          .select('id,account_number,holder_name,service_address,active')
           .order('account_number');
-      if (!mounted) return;
-      setState(() => accounts = result);
+      final pending = await supabase
+          .from('client_registrations')
+          .select('user_id,full_name,service_address,email,email_confirmed_at')
+          .eq('status', 'Pending')
+          .order('submitted_at');
+      if (mounted) {
+        setState(() {
+          accounts = rows;
+          registrations = pending;
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        loadError =
-            'Could not load accounts. Check your connection and '
-            'administrator access, then retry.';
-      });
+      if (mounted) {
+        setState(
+          () => loadError = 'Could not load accounts and pending registrations. Check administrator access and retry.',
+        );
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
 
-  Future<void> addAccount() async {
-    if (adding) return;
-    setState(() => adding = true);
+  Future<void> approve(Map<String, dynamic> registration) async {
+    if (approving) return;
+    setState(() => approving = true);
     try {
-      final saved = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const AddServiceAccountPage()),
+      final result = await supabase.rpc(
+        'approve_client_registration',
+        params: {'registration_user_id': registration['user_id']},
       );
-      if (!mounted) return;
-      if (saved == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: SuccessNotice('Water-service account saved.'),
-          ),
-        );
-        await loadAccounts();
+      if (result is! List ||
+          result.length != 1 ||
+          result.first['account_number'] == null) {
+        throw StateError('Approval unconfirmed');
       }
-    } finally {
-      if (mounted) setState(() => adding = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: const Text('Service accounts'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh accounts',
-            onPressed: loading || adding ? null : loadAccounts,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: adding || loading ? null : addAccount,
-        icon: const Icon(CupertinoIcons.add),
-        label: const Text('Add account'),
-      ),
-      body: Column(
-        children: [
-          if (loading && accounts.isNotEmpty)
-            const LinearProgressIndicator(minHeight: 2),
-          if (loadError != null && accounts.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(child: Text(loadError!)),
-                  TextButton(
-                    onPressed: loading ? null : loadAccounts,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: loading && accounts.isEmpty
-                ? const Center(
-                    child: SingleChildScrollView(child: LoadingCards()),
-                  )
-                : loadError != null && accounts.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(loadError!, textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
-                          FilledButton(
-                            onPressed: loadAccounts,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : accounts.isEmpty
-                ? EmptyState(
-                    title: 'No service accounts yet',
-                    message: 'Add a water-service account to begin managing district records.',
-                    icon: CupertinoIcons.person_2,
-                    actionLabel: 'Add account',
-                    onAction: addAccount,
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: accounts.length,
-                    separatorBuilder: (_, index) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final account = accounts[index];
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(CupertinoIcons.drop),
-                          title: Text('${account['account_number']}'),
-                          subtitle: Text(
-                            '${account['holder_name']}\n'
-                            '${account['service_address']}',
-                          ),
-                          isThreeLine: true,
-                          trailing: Text(
-                            account['active'] == true ? 'Active' : 'Inactive',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AddServiceAccountPage extends StatefulWidget {
-  const AddServiceAccountPage({super.key});
-
-  @override
-  State<AddServiceAccountPage> createState() => _AddServiceAccountPageState();
-}
-
-class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
-  final formKey = GlobalKey<FormState>();
-  final numberController = TextEditingController();
-  final holderController = TextEditingController();
-  final addressController = TextEditingController();
-  bool saving = false;
-  String? error;
-
-  @override
-  void dispose() {
-    numberController.dispose();
-    holderController.dispose();
-    addressController.dispose();
-    super.dispose();
-  }
-
-  String? requiredField(String? value) {
-    return value == null || value.trim().isEmpty
-        ? 'This field is required.'
-        : null;
-  }
-
-  Future<void> saveAccount() async {
-    if (saving || !formKey.currentState!.validate()) return;
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      setState(
-        () => error = 'Your session has ended. Return and sign in again.',
-      );
-      return;
-    }
-    setState(() {
-      saving = true;
-      error = null;
-    });
-    try {
-      await supabase.from('service_accounts').insert({
-        'account_number': numberController.text.trim(),
-        'holder_name': holderController.text.trim(),
-        'service_address': addressController.text.trim(),
-        'active': true,
-        'updated_by': user.id,
-      });
-    } on PostgrestException catch (exception) {
       if (!mounted) return;
-      setState(() {
-        saving = false;
-        error = exception.code == '23505'
-            ? 'This account number already exists. Enter a different number.'
-            : exception.code == '42501'
-            ? 'Access denied. Check your active administrator profile '
-                  'and database policies.'
-            : 'The account could not be saved. Check the database setup '
-                  'and try again.';
-      });
-      return;
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        saving = false;
-        error =
-            'The save could not be confirmed. Return to the account list '
-            'and refresh before retrying.';
-      });
-      return;
-    }
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !saving,
-      child: UtilityScaffold(
-        appBar: UtilityAppBar(title: const Text('Add account')),
-        body: Align(alignment: Alignment.topCenter,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Enter the registered service details. Client access is linked separately.',
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: numberController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      decoration: const InputDecoration(
-                        labelText: 'Account number',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: holderController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      decoration: const InputDecoration(
-                        labelText: 'Holder name',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: addressController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        labelText: 'Service address',
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    if (error != null) ...[
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    FilledButton.icon(
-                      onPressed: saving ? null : saveAccount,
-                      icon: const Icon(CupertinoIcons.floppy_disk),
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Text(saving ? 'Saving...' : 'Save account'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Approved: ${result.first['account_number']}. The client can sign in after email confirmation.',
           ),
         ),
-      ),
-    );
+      );
+      await loadAccounts();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Approval could not be confirmed. Refresh before retrying.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => approving = false);
+    }
   }
+
+  @override
+  Widget build(BuildContext context) => UtilityScaffold(
+    appBar: widget.embedded
+        ? null
+        : UtilityAppBar(
+            title: const Text('Service accounts'),
+            actions: [
+              IconButton(
+                tooltip: 'Refresh accounts',
+                onPressed: loading || approving ? null : loadAccounts,
+                icon: const Icon(CupertinoIcons.arrow_clockwise),
+              ),
+            ],
+          ),
+    body: loading && accounts.isEmpty && registrations.isEmpty
+        ? const Center(child: SingleChildScrollView(child: LoadingCards()))
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            children: [
+              if (loading || approving)
+                const LinearProgressIndicator(minHeight: 2),
+              if (loadError != null) ...[
+                Text(loadError!),
+                TextButton(
+                  onPressed: loading || approving ? null : loadAccounts,
+                  child: const Text('Retry'),
+                ),
+              ],
+              const Text(
+                'Pending registrations',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Review each client before approval. Approval assigns the next account number. Email confirmation is also required to sign in.',
+              ),
+              if (registrations.isEmpty && loadError == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No pending registrations.'),
+                ),
+              ...registrations.map(
+                (r) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${r['full_name']}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text('${r['email']}'),
+                        Text('${r['service_address']}'),
+                        Text(
+                          r['email_confirmed_at'] == null
+                              ? 'Email confirmation pending'
+                              : 'Email confirmed',
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: approving || loading
+                              ? null
+                              : () => approve(r),
+                          child: const Text('Approve registration'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Service accounts',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+              ),
+              if (accounts.isEmpty && loadError == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No approved service accounts yet.'),
+                ),
+              ...accounts.map(
+                (account) => Card(
+                  child: ListTile(
+                    leading: const Icon(CupertinoIcons.drop),
+                    title: Text('${account['account_number']}'),
+                    subtitle: Text(
+                      '${account['holder_name']}\n${account['service_address']}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Text(
+                      account['active'] == true ? 'Active' : 'Inactive',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class ClientAccountPage extends StatefulWidget {
-  const ClientAccountPage({super.key, this.embedded = false,
-    this.announcements, this.onSignOut, this.signingOut = false});
+  const ClientAccountPage({
+    super.key,
+    this.embedded = false,
+    this.announcements,
+    this.onSignOut,
+    this.signingOut = false,
+  });
   final bool embedded;
+
   /// Shown under the profile card when the page is used as the Account tab.
   final Widget? announcements;
   final Future<void> Function()? onSignOut;
@@ -1059,163 +1095,342 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
 
   void showHelp() => showDialog<void>(
     context: context,
-    builder: (context) => UtilitySurface(child: AlertDialog(
-      title: const Text('Account help'),
-      content: const Text(
-        'Contact authorized district personnel to correct your account details '
-        'or request assistance. Representatives need district verification.',
+    builder: (context) => UtilitySurface(
+      child: AlertDialog(
+        title: const Text('Account help'),
+        content: const Text(
+          'Contact authorized district personnel to correct your account details '
+          'or request assistance. Representatives need district verification.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
-    )),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
     final record = account;
     final holder = record?['holder_name'] as String? ?? '';
-    final initials = holder.split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
-        .take(2).map((s) => s[0]).join().toUpperCase();
+    final initials = holder
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .take(2)
+        .map((s) => s[0])
+        .join()
+        .toUpperCase();
     return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: const Text('My profile'),
-        actions: [IconButton(tooltip: 'Refresh', onPressed: loading ? null : loadAccount,
-          icon: const Icon(CupertinoIcons.arrow_clockwise))],
-      ),
-      bottomNavigationBar: widget.embedded ? null : const ClientDesignNav(index: 3),
-      body: loading ? const SingleChildScrollView(child: LoadingCards(count: 1)) : LayoutBuilder(
-        builder: (context, viewport) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Align(alignment: Alignment.topLeft, child: ConstrainedBox(
-            // At least screen height, so Sign out sits at the bottom; scrolls if taller.
-            constraints: BoxConstraints(maxWidth: 640,
-              minHeight: viewport.maxHeight.isFinite ? viewport.maxHeight - 32 : 0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Column(mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              if (error != null) ...[
-                Text(error!),
-                TextButton(onPressed: loadAccount, child: const Text('Retry')),
-              ] else if (record == null)
-                const Card(child: Padding(padding: EdgeInsets.all(24), child: Text(
-                  'No linked account. Contact district personnel to finish setup.')))
-              else ...[
-                profileHeader(record, holder, initials),
-                const SizedBox(height: 28),
-                Semantics(header: true,
-                  child: Text('Account details', style: Heading.section)),
-                const SizedBox(height: 12),
-                Card(child: Column(children: [
-                  detailRow(CupertinoIcons.number, 'Account number',
-                    '${record['account_number']}'),
-                  const Divider(height: 1, indent: 56),
-                  detailRow(CupertinoIcons.location, 'Service address',
-                    '${record['service_address']}'),
-                  const Divider(height: 1, indent: 56),
-                  detailRow(CupertinoIcons.checkmark_shield, 'Account status', null,
-                    trailing: StatusBadge(record['active'] == true ? 'Active' : 'Inactive')),
-                ])),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: const Text('My profile'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: loading ? null : loadAccount,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
               ],
-              const SizedBox(height: 28),
-              Semantics(header: true,
-                child: Text('Notices & help', style: Heading.section)),
-              const SizedBox(height: 12),
-              if (widget.announcements != null) ...[
-                widget.announcements!,
-                const SizedBox(height: 10),
-              ],
-              Card(child: InkWell(
-                onTap: showHelp,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-                  const Icon(CupertinoIcons.question_circle, size: 22, color: royalBlue),
-                  const SizedBox(width: 14),
-                  const Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Get help', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                    SizedBox(height: 4),
-                    Text('How to fix account details or ask the district',
-                      style: TextStyle(color: muted, fontSize: 13)),
-                  ])),
-                  const Icon(CupertinoIcons.chevron_right, size: 16, color: muted),
-                ])),
-              )),
-            ]),
-            Padding(padding: const EdgeInsets.only(top: 32), child: OutlinedButton.icon(
-                icon: const Icon(CupertinoIcons.square_arrow_right),
-                label: Text(widget.signingOut ? 'Signing out…' : 'Sign out'),
-                onPressed: widget.signingOut ? null : widget.onSignOut ?? () async {
-                  try {
-                    await supabase.auth.signOut();
-                    if (context.mounted) {
-                      Navigator.of(context).popUntil((r) => r.isFirst);
-                    }
-                  } catch (_) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not sign out. Please retry.')));
-                    }
-                  }
-                },
-              )),
-            ]),
-          )),
-        ),
-      ),
+            ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : const ClientDesignNav(index: 3),
+      body: loading
+          ? const SingleChildScrollView(child: LoadingCards(count: 1))
+          : LayoutBuilder(
+              builder: (context, viewport) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    // At least screen height, so Sign out sits at the bottom; scrolls if taller.
+                    constraints: BoxConstraints(
+                      maxWidth: 640,
+                      minHeight: viewport.maxHeight.isFinite
+                          ? viewport.maxHeight - 32
+                          : 0,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (error != null) ...[
+                              Text(error!),
+                              TextButton(
+                                onPressed: loadAccount,
+                                child: const Text('Retry'),
+                              ),
+                            ] else if (record == null)
+                              const Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text(
+                                    'No linked account. Contact district personnel to finish setup.',
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              profileHeader(record, holder, initials),
+                              const SizedBox(height: 28),
+                              Semantics(
+                                header: true,
+                                child: Text(
+                                  'Account details',
+                                  style: Heading.section,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Card(
+                                child: Column(
+                                  children: [
+                                    detailRow(
+                                      CupertinoIcons.number,
+                                      'Account number',
+                                      '${record['account_number']}',
+                                    ),
+                                    const Divider(height: 1, indent: 56),
+                                    detailRow(
+                                      CupertinoIcons.location,
+                                      'Service address',
+                                      '${record['service_address']}',
+                                    ),
+                                    const Divider(height: 1, indent: 56),
+                                    detailRow(
+                                      CupertinoIcons.checkmark_shield,
+                                      'Account status',
+                                      null,
+                                      trailing: StatusBadge(
+                                        record['active'] == true
+                                            ? 'Active'
+                                            : 'Inactive',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 28),
+                            Semantics(
+                              header: true,
+                              child: Text(
+                                'Notices & help',
+                                style: Heading.section,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (widget.announcements != null) ...[
+                              widget.announcements!,
+                              const SizedBox(height: 10),
+                            ],
+                            Card(
+                              child: InkWell(
+                                onTap: showHelp,
+                                borderRadius: BorderRadius.circular(10),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.question_circle,
+                                        size: 22,
+                                        color: royalBlue,
+                                      ),
+                                      const SizedBox(width: 14),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Get help',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            SizedBox(height: 4),
+                                            Text(
+                                              'How to fix account details or ask the district',
+                                              style: TextStyle(
+                                                color: muted,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        CupertinoIcons.chevron_right,
+                                        size: 16,
+                                        color: muted,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 32),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(CupertinoIcons.square_arrow_right),
+                            label: Text(
+                              widget.signingOut ? 'Signing out…' : 'Sign out',
+                            ),
+                            onPressed: widget.signingOut
+                                ? null
+                                : widget.onSignOut ??
+                                      () async {
+                                        try {
+                                          await supabase.auth.signOut();
+                                          if (context.mounted) {
+                                            Navigator.of(context)
+                                                .popUntil((r) => r.isFirst);
+                                          }
+                                        } catch (_) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Could not sign out. Please retry.',
+                                                    ),
+                                                  ),
+                                                );
+                                          }
+                                        }
+                                      },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
   /// Royal-blue header that greets the account holder.
-  Widget profileHeader(Map<String, dynamic> record, String holder, String initials) =>
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: royalBlue,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: royalBlue.withValues(alpha: .22),
-            blurRadius: 24, offset: const Offset(0, 10))],
+  Widget profileHeader(
+    Map<String, dynamic> record,
+    String holder,
+    String initials,
+  ) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: royalBlue,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: [
+        BoxShadow(
+          color: royalBlue.withValues(alpha: .22),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
         ),
-        child: Row(children: [
-          Container(
-            width: 60, height: 60, alignment: Alignment.center,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-            child: Text(initials, style: const TextStyle(
-              color: royalBlue, fontSize: 22, fontWeight: FontWeight.w700)),
+      ],
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(holder, style: const TextStyle(color: Colors.white, fontSize: 22,
-              height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -.4)),
-            const SizedBox(height: 4),
-            Text('Water-service account holder', style: TextStyle(
-              color: Colors.white.withValues(alpha: .85), fontSize: 14)),
-          ])),
-        ]),
-      );
+          child: Text(
+            initials,
+            style: const TextStyle(
+              color: royalBlue,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                holder,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Water-service account holder',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .85),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   /// One labelled line in the account details card.
-  Widget detailRow(IconData icon, String label, String? value, {Widget? trailing}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(children: [
-          Container(
-            width: 36, height: 36, alignment: Alignment.center,
-            decoration: const BoxDecoration(color: accentTint, shape: BoxShape.circle),
-            child: Icon(icon, size: 18, color: royalBlue),
+  Widget detailRow(
+    IconData icon,
+    String label,
+    String? value, {
+    Widget? trailing,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: accentTint,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: const TextStyle(color: muted, fontSize: 13)),
-            if (value != null) ...[
-              const SizedBox(height: 2),
-              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ink)),
+          child: Icon(icon, size: 18, color: royalBlue),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: muted, fontSize: 13)),
+              if (value != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: ink,
+                  ),
+                ),
+              ],
             ],
-          ])),
-          ?trailing,
-        ]),
-      );
-
+          ),
+        ),
+        ?trailing,
+      ],
+    ),
+  );
 }
 
 // Use centavos to avoid floating-point rounding in payment totals.
@@ -1295,36 +1510,74 @@ class _BillsPageState extends State<BillsPage> {
 
   bool exporting = false;
 
-  BillPdfLine pdfLine(Map<String, dynamic> bill) {
-    final account = bill['service_accounts'] as Map<String, dynamic>?;
-    final billed = moneyCentavos(bill['amount_due']);
-    final paid = billPayments(bill);
-    final remaining = billed > paid ? billed - paid : 0;
-    return BillPdfLine(
-      billNumber: '${bill['bill_number']}',
-      accountNumber: '${account?['account_number'] ?? 'Unavailable'}',
-      holderName: '${account?['holder_name'] ?? '—'}',
-      serviceAddress: '${account?['service_address'] ?? '—'}',
-      periodStart: recordDate(bill['billing_period_start']),
-      periodEnd: recordDate(bill['billing_period_end']),
-      dueDate: recordDate(bill['due_date']),
-      billed: billed,
-      paid: paid,
-      remaining: remaining,
-      status: remaining == 0 ? 'Paid' : paid > 0 ? 'Partially paid' : 'Unpaid',
-    );
-  }
-
-  /// Downloads (web) or shares (phone) a PDF of one bill or the visible list.
-  Future<void> exportPdf(List<Map<String, dynamic>> list, String filename) async {
-    if (exporting || list.isEmpty) return;
+  Future<void> downloadHistory() async {
+    if (exporting || loading) return;
     setState(() => exporting = true);
     try {
-      await shareBillsPdf(list.map(pdfLine).toList(), filename: filename);
+      final history = <BillingHistoryLine>[];
+      const pageSize = 500;
+      for (var offset = 0; ; offset += pageSize) {
+        // Export all pages with the signed-in caller's RLS, including paid bills.
+        final query = supabase
+            .from('bills')
+            .select(
+              'id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,'
+              'service_accounts(account_number,holder_name,service_address),offline_payments(amount_paid)',
+            );
+        final page = await query
+            .order('due_date', ascending: false)
+            .order('id')
+            .range(offset, offset + pageSize - 1);
+        for (final bill in page) {
+          final account = bill['service_accounts'] as Map<String, dynamic>?;
+          if (account == null || account['account_number'] == null) {
+            throw StateError('Account details unavailable');
+          }
+          history.add(
+            BillingHistoryLine(
+              accountNumber: '${account['account_number']}',
+              holderName: '${account['holder_name'] ?? 'Unavailable'}',
+              serviceAddress: '${account['service_address'] ?? 'Unavailable'}',
+              billNumber: '${bill['bill_number']}',
+              periodStart: recordDate(bill['billing_period_start']),
+              periodEnd: recordDate(bill['billing_period_end']),
+              dueDate: recordDate(bill['due_date']),
+              billed: moneyCentavos(bill['amount_due']),
+              paid: billPayments(bill),
+            ),
+          );
+        }
+        if (page.length < pageSize) break;
+      }
+      if (history.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No billing history to download.')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      final bytes = await buildBillingHistoryPdf(history);
+      if (!mounted) return;
+      final stamp = DateTime.now()
+          .toUtc()
+          .add(const Duration(hours: 8))
+          .toIso8601String()
+          .substring(0, 10);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'billing-history-$stamp.pdf',
+      );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not create the PDF. Please retry.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not download billing history. Check your connection and retry.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => exporting = false);
@@ -1350,16 +1603,18 @@ class _BillsPageState extends State<BillsPage> {
         )
         .toList();
     return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Manage bills' : 'My bills'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh bills',
-            onPressed: loading ? null : loadBills,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Manage bills' : 'My bills'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh bills',
+                  onPressed: loading ? null : loadBills,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
       bottomNavigationBar: widget.embedded || widget.isAdmin
           ? null
           : const ClientDesignNav(index: 1),
@@ -1383,6 +1638,32 @@ class _BillsPageState extends State<BillsPage> {
                   TextButton(
                     onPressed: loading ? null : loadBills,
                     child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          if (bills.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed:
+                        loading || exporting || error != null || bills.isEmpty
+                        ? null
+                        : downloadHistory,
+                    icon: const Icon(CupertinoIcons.arrow_down_doc),
+                    label: Text(
+                      exporting
+                          ? 'Preparing PDF...'
+                          : 'Download billing history PDF',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Includes paid and outstanding bills.',
+                    style: TextStyle(color: muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -1467,46 +1748,91 @@ class _BillsPageState extends State<BillsPage> {
                           : 'Unpaid';
 
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 8, children: [
-                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                            StatusBadge(status),
-                          ]),
-                          const SizedBox(height: 8),
-                          AmountText('₱${formatCentavos(remaining)}', color: ink),
-                          const SizedBox(height: 4),
-                          Text('Due ${recordDate(bill['due_date'])}', style: const TextStyle(color: muted)),
-                          if (excess > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text(
-                            'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.')),
-                        ]),
-                        action: Wrap(spacing: 8, runSpacing: 8, children: [
-                          if (!widget.isAdmin && remaining > 0) OutlinedButton.icon(
-                            onPressed: () => showPaymentGuidance(context,
-                              accountNumber: '${account?['account_number'] ?? 'Unavailable'}',
-                              billNumber: '${bill['bill_number']}'),
-                            icon: const Icon(CupertinoIcons.info_circle, size: 18),
-                            label: const Text('View payment instructions')),
-                          OutlinedButton.icon(
-                            onPressed: exporting ? null : () => exportPdf([bill],
-                              'bill-${bill['bill_number']}.pdf'),
-                            icon: const Icon(CupertinoIcons.arrow_down_doc, size: 18),
-                            label: const Text('Download PDF')),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              children: [
+                                Text(
+                                  'Bill ${bill['bill_number']}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                StatusBadge(status),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            AmountText(
+                              '₱${formatCentavos(remaining)}',
+                              color: ink,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Due ${recordDate(bill['due_date'])}',
+                              style: const TextStyle(color: muted),
+                            ),
+                            if (excess > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                  'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.',
+                                ),
+                              ),
+                          ],
+                        ),
+                        action: !widget.isAdmin && remaining > 0
+                            ? OutlinedButton.icon(
+                                onPressed: () => showPaymentGuidance(
+                                  context,
+                                  accountNumber:
+                                      '${account?['account_number'] ?? 'Unavailable'}',
+                                  billNumber: '${bill['bill_number']}',
+                                ),
+                                icon: const Icon(
+                                  CupertinoIcons.info_circle,
+                                  size: 18,
+                                ),
+                                label: const Text('View payment instructions'),
+                              )
+                            : null,
                         detailsLabel: 'Billing details',
                         details: [
-                          DesignValue('Original bill', '₱${formatCentavos(billed)}'),
+                          DesignValue(
+                            'Original bill',
+                            '₱${formatCentavos(billed)}',
+                          ),
                           const SizedBox(height: 12),
-                          DesignValue('Verified payments', '₱${formatCentavos(paid)}'),
+                          DesignValue(
+                            'Verified payments',
+                            '₱${formatCentavos(paid)}',
+                          ),
                           const SizedBox(height: 12),
-                          Text('Period: ${recordDate(bill['billing_period_start'])} – ${recordDate(bill['billing_period_end'])}',
-                            style: const TextStyle(color: muted)),
+                          Text(
+                            'Period: ${recordDate(bill['billing_period_start'])} – ${recordDate(bill['billing_period_end'])}',
+                            style: const TextStyle(color: muted),
+                          ),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
-                          if (paid > 0) TextButton.icon(
-                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => PaymentsPage(isAdmin: widget.isAdmin, billNumber: '${bill['bill_number']}'))),
-                            icon: const Icon(CupertinoIcons.doc_text), label: const Text('View payment record')),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
+                          if (paid > 0)
+                            TextButton.icon(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PaymentsPage(
+                                    isAdmin: widget.isAdmin,
+                                    billNumber: '${bill['bill_number']}',
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(CupertinoIcons.doc_text),
+                              label: const Text('View payment record'),
+                            ),
                         ],
                       );
                     },
@@ -1656,7 +1982,8 @@ class _AddBillPageState extends State<AddBillPage> {
         appBar: UtilityAppBar(title: const Text('Add bill')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -1781,7 +2108,12 @@ class _AddBillPageState extends State<AddBillPage> {
 }
 
 class PaymentsPage extends StatefulWidget {
-  const PaymentsPage({super.key, this.embedded = false, required this.isAdmin, this.billNumber});
+  const PaymentsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.billNumber,
+  });
   final bool embedded;
   final String? billNumber;
   final bool isAdmin;
@@ -1855,18 +2187,18 @@ class _PaymentsPageState extends State<PaymentsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: Text(
-          widget.isAdmin ? 'Verified payments' : 'My payments',
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh payments',
-            onPressed: loading ? null : loadPayments,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Verified payments' : 'My payments'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh payments',
+                  onPressed: loading ? null : loadPayments,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : recordPayment,
@@ -1935,25 +2267,41 @@ class _PaymentsPageState extends State<PaymentsPage> {
                         '${payment['verified_at']}',
                       )?.toLocal();
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const StatusBadge('Verified'),
-                          AmountText('₱$amount', color: ink),
-                          const SizedBox(height: 8),
-                          Text(recordDate(payment['payment_date']), style: const TextStyle(color: muted)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const StatusBadge('Verified'),
+                            AmountText('₱$amount', color: ink),
+                            const SizedBox(height: 8),
+                            Text(
+                              recordDate(payment['payment_date']),
+                              style: const TextStyle(color: muted),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Payment details',
                         details: [
-                          Text('Receipt/reference: ${payment['receipt_reference']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(
+                            'Receipt/reference: ${payment['receipt_reference']}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                           const SizedBox(height: 10),
-                          Text('Bill: ${bill?['bill_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Bill: ${bill?['bill_number'] ?? 'Unavailable'}',
+                          ),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
                           if (verified != null) ...[
-                            const SizedBox(height: 8), Text('Recorded: ${recordDate(verified)}'),
+                            const SizedBox(height: 8),
+                            Text('Recorded: ${recordDate(verified)}'),
                           ],
                           const SizedBox(height: 16),
-                          const Text('Verified offline payment record. This is not a newly issued receipt.',
-                            style: TextStyle(color: muted, fontSize: 13)),
+                          const Text(
+                            'Verified offline payment record. This is not a newly issued receipt.',
+                            style: TextStyle(color: muted, fontSize: 13),
+                          ),
                         ],
                       );
                     },
@@ -2083,7 +2431,8 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
         appBar: UtilityAppBar(title: const Text('Record payment')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -2212,7 +2561,12 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
 }
 
 class ConcernsPage extends StatefulWidget {
-  const ConcernsPage({super.key, this.embedded = false, required this.isAdmin, this.concernId});
+  const ConcernsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.concernId,
+  });
   final bool embedded;
   final bool isAdmin;
   final String? concernId;
@@ -2292,19 +2646,25 @@ class _ConcernsPageState extends State<ConcernsPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(children: [
-          circleIcon(CupertinoIcons.plus_bubble, diameter: 44, iconSize: 20),
-          const SizedBox(width: 14),
-          const Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Have a water problem?', style: Heading.card),
-              SizedBox(height: 2),
-              Text('Tell the district and follow it here.',
-                style: Heading.sectionGuide),
-            ],
-          )),
-        ]),
+        Row(
+          children: [
+            circleIcon(CupertinoIcons.plus_bubble, diameter: 44, iconSize: 20),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Have a water problem?', style: Heading.card),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tell the district and follow it here.',
+                    style: Heading.sectionGuide,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 14),
         FilledButton.icon(
           onPressed: loading ? null : () => openConcern(),
@@ -2318,16 +2678,18 @@ class _ConcernsPageState extends State<ConcernsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh concerns',
-            onPressed: loading ? null : loadConcerns,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh concerns',
+                  onPressed: loading ? null : loadConcerns,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
       body: Column(
         children: [
           if (loading && concerns.isNotEmpty)
@@ -2393,7 +2755,10 @@ class _ConcernsPageState extends State<ConcernsPage> {
                             children: [
                               Text(
                                 '${c['subject']}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               StatusBadge('${c['status']}'),
                               Text(
@@ -2406,9 +2771,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 tilePadding: EdgeInsets.zero,
                                 expandedCrossAxisAlignment:
                                     CrossAxisAlignment.start,
-                                title: const Text(
-                                  'Details & response',
-                                ),
+                                title: const Text('Details & response'),
                                 children: [
                                   Text('Category: ${c['category']}'),
                                   Text(
@@ -2417,11 +2780,23 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                   const SizedBox(height: 12),
                                   Text('${c['description']}'),
                                   ConcernLocationDetails(concern: c),
-                                  if (!widget.isAdmin) TextButton.icon(
-                                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) => RepairTicketsPage(isAdmin: false, concernId: '${c['id']}'))),
-                                    icon: const Icon(CupertinoIcons.wrench, size: 18),
-                                    label: const Text('Track repair')),
+                                  if (!widget.isAdmin)
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => RepairTicketsPage(
+                                                isAdmin: false,
+                                                concernId: '${c['id']}',
+                                              ),
+                                            ),
+                                          ),
+                                      icon: const Icon(
+                                        CupertinoIcons.wrench,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Track repair'),
+                                    ),
                                   const Divider(height: 24),
                                   Text(
                                     'District response',
@@ -2464,7 +2839,11 @@ class _ConcernsPageState extends State<ConcernsPage> {
 }
 
 class ConcernFormPage extends StatefulWidget {
-  const ConcernFormPage({super.key, this.concern, this.locationPicker = pickConcernLocation});
+  const ConcernFormPage({
+    super.key,
+    this.concern,
+    this.locationPicker = pickConcernLocation,
+  });
   final Map<String, dynamic>? concern;
   final ConcernLocationPicker locationPicker;
   @override
@@ -2485,32 +2864,45 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
 
   Future<void> chooseLocation() async {
     final location = await widget.locationPicker(context, selectedLocation);
-    if (mounted && location != null) setState(() => selectedLocation = location);
+    if (mounted && location != null) {
+      setState(() => selectedLocation = location);
+    }
   }
 
   Widget locationField() => Card(
     child: Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Issue location (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        if (selectedLocation == null)
-          const Text('Choose the exact spot that needs attention.')
-        else ...[
-          if (selectedLocation!.note.isNotEmpty) Text(selectedLocation!.note),
-          Text(selectedLocation!.coordinates),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Issue location (optional)',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (selectedLocation == null)
+            const Text('Choose the exact spot that needs attention.')
+          else ...[
+            if (selectedLocation!.note.isNotEmpty) Text(selectedLocation!.note),
+            Text(selectedLocation!.coordinates),
+          ],
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: saving ? null : chooseLocation,
+            icon: const Icon(CupertinoIcons.map),
+            label: Text(
+              selectedLocation == null ? 'Choose location' : 'Change location',
+            ),
+          ),
+          if (selectedLocation != null)
+            TextButton(
+              onPressed: saving
+                  ? null
+                  : () => setState(() => selectedLocation = null),
+              child: const Text('Remove location'),
+            ),
         ],
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: saving ? null : chooseLocation,
-          icon: const Icon(CupertinoIcons.map),
-          label: Text(selectedLocation == null ? 'Choose location' : 'Change location'),
-        ),
-        if (selectedLocation != null) TextButton(
-          onPressed: saving ? null : () => setState(() => selectedLocation = null),
-          child: const Text('Remove location'),
-        ),
-      ]),
+      ),
     ),
   );
 
@@ -2609,7 +3001,8 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
           'latitude': selectedLocation?.latitude,
           'longitude': selectedLocation?.longitude,
           'location_note': selectedLocation?.note.trim().isNotEmpty == true
-              ? selectedLocation!.note.trim() : null,
+              ? selectedLocation!.note.trim()
+              : null,
         });
       }
     } on PostgrestException catch (e) {
@@ -2639,7 +3032,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
       child: UtilityScaffold(
         appBar: UtilityAppBar(
           title: Text(reviewing ? 'Review concern' : 'Submit concern'),
-                  ),
+        ),
         bottomNavigationBar: reviewing ? null : const ClientDesignNav(index: 2),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
@@ -2665,7 +3058,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             const SizedBox(height: 24),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               initialValue: status,
                               decoration: const InputDecoration(
@@ -2713,7 +3106,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               initialValue: category,
                               decoration: const InputDecoration(
@@ -2814,7 +3207,12 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
 }
 
 class RepairTicketsPage extends StatefulWidget {
-  const RepairTicketsPage({super.key, this.embedded = false, required this.isAdmin, this.concernId});
+  const RepairTicketsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.concernId,
+  });
   final bool embedded;
   final bool isAdmin;
   final String? concernId;
@@ -2844,7 +3242,9 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
             'id, concern_id, assigned_to, status, latest_update, updated_at, '
             'service_concerns(subject, service_accounts(account_number))',
           );
-      if (widget.concernId != null) query = query.eq('concern_id', widget.concernId!);
+      if (widget.concernId != null) {
+        query = query.eq('concern_id', widget.concernId!);
+      }
       final rows = await query.order('updated_at', ascending: false);
       if (mounted) setState(() => tickets = rows);
     } catch (_) {
@@ -2871,18 +3271,18 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      appBar: widget.embedded ? null : UtilityAppBar(
-        title: Text(
-          widget.isAdmin ? 'Repair tickets' : 'Repair updates',
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh tickets',
-            onPressed: loading ? null : loadTickets,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Repair tickets' : 'Repair updates'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh tickets',
+                  onPressed: loading ? null : loadTickets,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
       bottomNavigationBar: widget.embedded || widget.isAdmin
           ? null
           : const ClientDesignNav(index: 2),
@@ -2951,31 +3351,64 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                           concern?['service_accounts'] as Map<String, dynamic>?;
                       return RecordCard(
                         initiallyExpanded: widget.concernId != null,
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('${concern?['subject'] ?? 'Repair ticket'}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                          StatusBadge('${t['status']}'),
-                          Text('${t['latest_update']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, height: 1.4)),
-                          const SizedBox(height: 8),
-                          Text('Updated ${recordDate(t['updated_at'])}', style: const TextStyle(color: muted, fontSize: 12)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${concern?['subject'] ?? 'Repair ticket'}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            StatusBadge('${t['status']}'),
+                            Text(
+                              '${t['latest_update']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: muted, height: 1.4),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Updated ${recordDate(t['updated_at'])}',
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Repair details',
                         details: [
                           DesignRepairStages(status: '${t['status']}'),
                           SelectableText('Ticket ID: ${t['id']}'),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
                           const SizedBox(height: 8),
-                          Text('Assigned to: ${t['assigned_to'] ?? 'Not assigned'}'),
+                          Text(
+                            'Assigned to: ${t['assigned_to'] ?? 'Not assigned'}',
+                          ),
                           const Divider(height: 24),
-                          const Text('Latest recorded update', style: TextStyle(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8), Text('${t['latest_update']}'),
+                          const Text(
+                            'Latest recorded update',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('${t['latest_update']}'),
                           const SizedBox(height: 16),
-                          const Text('District-recorded updates, not live repair tracking.', style: TextStyle(color: muted, fontSize: 13)),
+                          const Text(
+                            'District-recorded updates, not live repair tracking.',
+                            style: TextStyle(color: muted, fontSize: 13),
+                          ),
                         ],
-                        action: widget.isAdmin ? FilledButton.tonal(
-                          onPressed: () => editTicket(t), child: const Text('Update on desktop')) : null,
+                        action: widget.isAdmin
+                            ? FilledButton.tonal(
+                                onPressed: () => editTicket(t),
+                                child: const Text('Update on desktop'),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -3118,13 +3551,12 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
       canPop: !saving,
       child: UtilityScaffold(
         appBar: UtilityAppBar(
-          title: Text(
-            editing ? 'Update repair' : 'Create repair',
-          ),
+          title: Text(editing ? 'Update repair' : 'Create repair'),
         ),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -3137,7 +3569,7 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                           if (!editing) ...[
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               decoration: const InputDecoration(
                                 labelText: 'Concern',
@@ -3384,20 +3816,52 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     itemBuilder: (context, index) {
                       final a = announcements[index];
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                          if (isInterruption(a['title'])) const StatusBadge('Service interruption'),
-                          if (widget.isAdmin) StatusBadge(a['published'] == true ? 'Published' : 'Draft'),
-                          const SizedBox(height: 8),
-                          Text(recordDate(a['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
-                          const SizedBox(height: 12),
-                          Text('${a['message']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, height: 1.5)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              noticeTitle(a['title']),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (isInterruption(a['title']))
+                              const StatusBadge('Service interruption'),
+                            if (widget.isAdmin)
+                              StatusBadge(
+                                a['published'] == true ? 'Published' : 'Draft',
+                              ),
+                            const SizedBox(height: 8),
+                            Text(
+                              recordDate(a['updated_at']),
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${a['message']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: muted, height: 1.5),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Read notice',
-                        details: [Text('${a['message']}', style: const TextStyle(fontSize: 15, height: 1.6))],
-                        action: widget.isAdmin ? FilledButton.tonal(
-                          onPressed: () => editAnnouncement(a), child: const Text('Edit notice')) : null,
+                        details: [
+                          Text(
+                            '${a['message']}',
+                            style: const TextStyle(fontSize: 15, height: 1.6),
+                          ),
+                        ],
+                        action: widget.isAdmin
+                            ? FilledButton.tonal(
+                                onPressed: () => editAnnouncement(a),
+                                child: const Text('Edit notice'),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -3502,12 +3966,11 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
       child: UtilityScaffold(
         appBar: UtilityAppBar(
           title: Text(
-            widget.announcement == null
-                ? 'Create notice'
-                : 'Edit notice',
+            widget.announcement == null ? 'Create notice' : 'Edit notice',
           ),
         ),
-        body: Align(alignment: Alignment.topCenter,
+        body: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -3545,9 +4008,7 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
                       minLines: 5,
                       maxLines: 15,
                       maxLength: 5000,
-                      decoration: const InputDecoration(
-                        labelText: 'Message',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Message'),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Enter an announcement message.'
                           : null,
@@ -3612,7 +4073,7 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
 }
 
 const royalBlue = Color(0xFF2563EB);
-const utilityBlue = Color(0xFF1A4FD6);
+const utilityBlue = Color(0xFF2563EB);
 const ink = Color(0xFF111827);
 const muted = Color(0xFF6B7280);
 const accentTint = Color(0xFFEFF4FF);
@@ -3680,8 +4141,11 @@ class _DropMarkPainter extends CustomPainter {
     final path = Path()
       ..moveTo(12, 2)
       ..cubicTo(12, 2, 3, 12, 3, 18)
-      ..arcToPoint(const Offset(21, 18),
-          radius: const Radius.circular(9), clockwise: false)
+      ..arcToPoint(
+        const Offset(21, 18),
+        radius: const Radius.circular(9),
+        clockwise: false,
+      )
       ..cubicTo(21, 12, 12, 2, 12, 2)
       ..close()
       ..moveTo(7, 18)
@@ -3690,8 +4154,10 @@ class _DropMarkPainter extends CustomPainter {
     // Stretch="Uniform" on desktop), leaving room for the stroke.
     final bounds = path.getBounds();
     final inset = strokeWidth;
-    final scale = math.min((size.width - inset * 2) / bounds.width,
-        (size.height - inset * 2) / bounds.height);
+    final scale = math.min(
+      (size.width - inset * 2) / bounds.width,
+      (size.height - inset * 2) / bounds.height,
+    );
     canvas.translate(
       (size.width - bounds.width * scale) / 2 - bounds.left * scale,
       (size.height - bounds.height * scale) / 2 - bounds.top * scale,
@@ -3714,35 +4180,62 @@ class _DropMarkPainter extends CustomPainter {
 }
 
 /// Solid blue circle with a white line icon and a soft blue shadow.
-Widget circleIcon(IconData icon, {double diameter = 52, double iconSize = 24}) =>
-    Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: royalBlue,
-        boxShadow: [
-          BoxShadow(
-            color: royalBlue.withValues(alpha: .28),
-            blurRadius: diameter * .32,
-            offset: Offset(0, diameter * .14),
-          ),
-        ],
+Widget circleIcon(
+  IconData icon, {
+  double diameter = 52,
+  double iconSize = 24,
+}) => Container(
+  width: diameter,
+  height: diameter,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: royalBlue,
+    boxShadow: [
+      BoxShadow(
+        color: royalBlue.withValues(alpha: .28),
+        blurRadius: diameter * .32,
+        offset: Offset(0, diameter * .14),
       ),
-      child: Icon(icon, color: Colors.white, size: iconSize),
-    );
+    ],
+  ),
+  child: Icon(icon, color: Colors.white, size: iconSize),
+);
 
 /// Lighter weights and slightly tighter tracking on large text, so headings
 /// read smooth rather than heavy.
 TextTheme softTextTheme(TextTheme base) => base.copyWith(
-  displayLarge: base.displayLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1.2),
-  displayMedium: base.displayMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1),
-  displaySmall: base.displaySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.8),
-  headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.6),
-  headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.5),
-  headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.4),
-  titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.3),
-  titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -.1),
+  displayLarge: base.displayLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -1.2,
+  ),
+  displayMedium: base.displayMedium?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -1,
+  ),
+  displaySmall: base.displaySmall?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.8,
+  ),
+  headlineLarge: base.headlineLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.6,
+  ),
+  headlineMedium: base.headlineMedium?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.5,
+  ),
+  headlineSmall: base.headlineSmall?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.4,
+  ),
+  titleLarge: base.titleLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.3,
+  ),
+  titleMedium: base.titleMedium?.copyWith(
+    fontWeight: FontWeight.w500,
+    letterSpacing: -.1,
+  ),
   titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w500),
   bodyLarge: base.bodyLarge?.copyWith(height: 1.45),
   bodyMedium: base.bodyMedium?.copyWith(height: 1.45, color: ink),
@@ -3933,7 +4426,10 @@ class _WaterArtworkState extends State<WaterArtwork>
               constraints.maxHeight - diameter,
             );
             // Drop ends at 1s, pause for 1s, then descend for 1.6s.
-            final logoProgress = ((controller.value - .50) / .40).clamp(0.0, 1.0);
+            final logoProgress = ((controller.value - .50) / .40).clamp(
+              0.0,
+              1.0,
+            );
             final descent = Curves.easeOutSine.transform(logoProgress);
             return Stack(
               children: [
@@ -4088,7 +4584,11 @@ class WaterPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [const Color(0xFFE6EDFF), royalBlue, const Color(0xFF324C82)],
+            colors: [
+              const Color(0xFFE6EDFF),
+              royalBlue,
+              const Color(0xFF324C82),
+            ],
           ).createShader(bounds),
       );
       if (merge < .8) {
@@ -4188,6 +4688,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
   int remaining = 0, billCount = 0;
   int? pendingConcerns, activeRepairs;
   List<Map<String, dynamic>> recent = [], notices = [];
+
   /// Published notices newer than the last time Announcements was opened.
   int unreadNotices = 0;
   int billingView = 0, servicesView = 0;
@@ -4240,9 +4741,13 @@ class _ModernDashboardState extends State<ModernDashboard> {
       String? upcoming;
       int? pending, repairs;
       if (admin) {
-        pending = await supabase.from('service_concerns').count(CountOption.exact)
+        pending = await supabase
+            .from('service_concerns')
+            .count(CountOption.exact)
             .inFilter('status', ['Submitted', 'Under review']);
-        repairs = await supabase.from('repair_tickets').count(CountOption.exact)
+        repairs = await supabase
+            .from('repair_tickets')
+            .count(CountOption.exact)
             .inFilter('status', ['Open', 'Assigned', 'In progress']);
       }
       if (!admin) {
@@ -4315,8 +4820,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
     await refresh();
   }
 
-  Widget iconBubble(IconData icon) =>
-      Icon(icon, size: 22, color: muted);
+  Widget iconBubble(IconData icon) => Icon(icon, size: 22, color: muted);
 
   /// Opens Announcements and clears the "new" badge on this device.
   Future<void> openAnnouncements() async {
@@ -4332,27 +4836,54 @@ class _ModernDashboardState extends State<ModernDashboard> {
 
   Widget announcementsTile() {
     final fresh = unreadNotices > 0;
-    return Card(child: InkWell(
-      onTap: openAnnouncements,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-        Icon(CupertinoIcons.speaker_2, size: 22, color: fresh ? alertRed : royalBlue),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Announcements', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(fresh
-              ? '$unreadNotices new ${unreadNotices == 1 ? 'notice' : 'notices'} from the district'
-              : 'You are up to date',
-            style: TextStyle(color: fresh ? alertRed : muted, fontSize: 13)),
-        ])),
-        if (fresh) ...[
-          CountBadge(unreadNotices),
-          const SizedBox(width: 8),
-        ],
-        const Icon(CupertinoIcons.chevron_right, size: 16, color: muted),
-      ])),
-    ));
+    return Card(
+      child: InkWell(
+        onTap: openAnnouncements,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                CupertinoIcons.speaker_2,
+                size: 22,
+                color: fresh ? alertRed : royalBlue,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Announcements',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      fresh
+                          ? '$unreadNotices new ${unreadNotices == 1 ? 'notice' : 'notices'} from the district'
+                          : 'You are up to date',
+                      style: TextStyle(
+                        color: fresh ? alertRed : muted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (fresh) ...[
+                CountBadge(unreadNotices),
+                const SizedBox(width: 8),
+              ],
+              const Icon(CupertinoIcons.chevron_right, size: 16, color: muted),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Bills, Services and Account: records are visible as soon as the tab opens.
@@ -4372,7 +4903,9 @@ class _ModernDashboardState extends State<ModernDashboard> {
           ? BillsPage(embedded: true, isAdmin: admin)
           : PaymentsPage(embedded: true, isAdmin: admin);
     } else if (tab == 2) {
-      views = admin ? ['Service concerns', 'Repair tickets'] : ['My concerns', 'Repair updates'];
+      views = admin
+          ? ['Service concerns', 'Repair tickets']
+          : ['My concerns', 'Repair updates'];
       view = servicesView.clamp(0, 1);
       pick = (v) => setState(() => servicesView = v);
       page = view == 0
@@ -4391,91 +4924,195 @@ class _ModernDashboardState extends State<ModernDashboard> {
     }
     // The title area scrolls away with the records, so small phones and
     // large text still have room for the list.
-    return SafeArea(bottom: false, child: Center(child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 1120),
-      child: NestedScrollView(
-        headerSliverBuilder: (context, _) => [SliverToBoxAdapter(child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            header,
-            const SizedBox(height: 20),
-            Semantics(header: true, child: Text(heading, style: Heading.page)),
-            if (guide != null) ...[
-              const SizedBox(height: 6),
-              Text(guide, style: Heading.guide),
+    return SafeArea(
+      bottom: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      header,
+                      const SizedBox(height: 20),
+                      Semantics(
+                        header: true,
+                        child: Text(heading, style: Heading.page),
+                      ),
+                      if (guide != null) ...[
+                        const SizedBox(height: 6),
+                        Text(guide, style: Heading.guide),
+                      ],
+                      if (views.length > 1) ...[
+                        const SizedBox(height: 16),
+                        SegmentTabs(
+                          labels: views,
+                          selected: view,
+                          onSelect: pick,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
             ],
-            if (views.length > 1) ...[
-              const SizedBox(height: 16),
-              SegmentTabs(labels: views, selected: view, onSelect: pick),
-            ],
-            const SizedBox(height: 8),
-          ]),
-        ))],
-        body: KeyedSubtree(key: ValueKey('$tab/$view'), child: page),
+            body: KeyedSubtree(key: ValueKey('$tab/$view'), child: page),
+          ),
+        ),
       ),
-    )));
+    );
   }
 
   Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
     builder: (context, constraints) {
       final count = MediaQuery.textScalerOf(context).scale(14) > 20
-          ? 1 : constraints.maxWidth < 280 ? 2 : columns;
+          ? 1
+          : constraints.maxWidth < 280
+          ? 2
+          : columns;
       return Container(
-        decoration: const BoxDecoration(color: Colors.white,
-          border: Border(top: BorderSide(color: hairline), bottom: BorderSide(color: hairline))),
-        child: Wrap(spacing: 12, runSpacing: 12, children: [
-        for (final action in actions)
-          SizedBox(width: (constraints.maxWidth - 12 * (count - 1)) / count, child: action),
-      ]));
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: hairline),
+            bottom: BorderSide(color: hairline),
+          ),
+        ),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final action in actions)
+              SizedBox(
+                width: (constraints.maxWidth - 12 * (count - 1)) / count,
+                child: action,
+              ),
+          ],
+        ),
+      );
     },
   );
 
-  Widget quickAction(String label, IconData icon, VoidCallback action) => PressFeedback(
-    child: Material(color: Colors.white, child: InkWell(
-      onTap: action,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(constraints: const BoxConstraints(minHeight: 88),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          circleIcon(icon, diameter: 48, iconSize: 22),
-          const SizedBox(height: 12),
-          Text(label, textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: ink)),
-        ])),
-    )),
-  );
+  Widget quickAction(String label, IconData icon, VoidCallback action) =>
+      PressFeedback(
+        child: Material(
+          color: Colors.white,
+          child: InkWell(
+            onTap: action,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 88),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  circleIcon(icon, diameter: 48, iconSize: 22),
+                  const SizedBox(height: 12),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 
-  Widget rowTile(String title, String subtitle, IconData icon, VoidCallback action,
-      {bool showSubtitle = false, Widget? footer}) => Padding(
+  Widget rowTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback action, {
+    bool showSubtitle = false,
+    Widget? footer,
+  }) => Padding(
     padding: EdgeInsets.zero,
-    child: PressFeedback(child: Material(color: Colors.white,
-      shape: const Border(bottom: BorderSide(color: hairline)), child: InkWell(
-      onTap: action,
-      child: Padding(padding: const EdgeInsets.all(16), child: LayoutBuilder(
-        builder: (context, constraints) {
-          final content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            if (showSubtitle) ...[
-              const SizedBox(height: 8),
-              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
-            ],
-            if (footer != null) ...[const SizedBox(height: 8), footer],
-          ]);
-          if (MediaQuery.textScalerOf(context).scale(16) > 23) {
-            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(children: [iconBubble(icon), const Spacer(),
-                const Icon(CupertinoIcons.chevron_right, color: muted, size: 20)]),
-              const SizedBox(height: 16), content,
-            ]);
-          }
-          return Row(children: [
-            iconBubble(icon), const SizedBox(width: 16), Expanded(child: content),
-            const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
-          ]);
-        },
-      )),
-    ))),
+    child: PressFeedback(
+      child: Material(
+        color: Colors.white,
+        shape: const Border(bottom: BorderSide(color: hairline)),
+        child: InkWell(
+          onTap: action,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (showSubtitle) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: muted,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    if (footer != null) ...[const SizedBox(height: 8), footer],
+                  ],
+                );
+                if (MediaQuery.textScalerOf(context).scale(16) > 23) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          iconBubble(icon),
+                          const Spacer(),
+                          const Icon(
+                            CupertinoIcons.chevron_right,
+                            color: muted,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      content,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    iconBubble(icon),
+                    const SizedBox(width: 16),
+                    Expanded(child: content),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      CupertinoIcons.chevron_right,
+                      color: muted,
+                      size: 20,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 
   /// Section heading with an optional one-line guide and "View all" link.
@@ -4495,12 +5132,21 @@ class _ModernDashboardState extends State<ModernDashboard> {
         : TextButton(onPressed: action, child: const Text('View all'));
     final Widget row;
     if (button != null && MediaQuery.textScalerOf(context).scale(18) > 26) {
-      row = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        heading, Align(alignment: Alignment.centerRight, child: button),
-      ]);
+      row = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          heading,
+          Align(alignment: Alignment.centerRight, child: button),
+        ],
+      );
     } else {
-      row = Row(crossAxisAlignment: CrossAxisAlignment.end,
-        children: [Expanded(child: heading), ?button]);
+      row = Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(child: heading),
+          ?button,
+        ],
+      );
     }
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: row);
   }
@@ -4518,59 +5164,112 @@ class _ModernDashboardState extends State<ModernDashboard> {
       if (initialLoading)
         const LoadingCards(count: 1)
       else if (hasLoaded && recent.isEmpty)
-        const Card(child: Padding(padding: EdgeInsets.all(16),
-          child: Text('No open requests', style: TextStyle(color: muted))))
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('No open requests', style: TextStyle(color: muted)),
+          ),
+        )
       else if (hasLoaded)
         for (final c in (admin ? recent : recent.take(1)))
           rowTile(
             '${c['subject']}',
             'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? 'Unavailable'}',
             CupertinoIcons.chat_bubble,
-            () => open(ConcernsPage(isAdmin: admin, concernId: c['id'] as String?)),
+            () => open(
+              ConcernsPage(isAdmin: admin, concernId: c['id'] as String?),
+            ),
             showSubtitle: admin,
-            footer: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              StatusBadge('${c['status']}'),
-              Text('${c['reviewed_at'] != null ? 'Reviewed' : 'Submitted'} ${recordDate(c['reviewed_at'] ?? c['created_at'])}',
-                style: const TextStyle(color: muted, fontSize: 12)),
-              if ('${c['admin_response'] ?? ''}'.trim().isNotEmpty) ...[
+            footer: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StatusBadge('${c['status']}'),
+                Text(
+                  '${c['reviewed_at'] != null ? 'Reviewed' : 'Submitted'} ${recordDate(c['reviewed_at'] ?? c['created_at'])}',
+                  style: const TextStyle(color: muted, fontSize: 12),
+                ),
+                if ('${c['admin_response'] ?? ''}'.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${c['admin_response']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: muted,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
-                Text('${c['admin_response']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
+                Text(
+                  admin
+                      ? 'Review concern'
+                      : '${c['admin_response'] ?? ''}'.trim().isNotEmpty
+                      ? 'Read response'
+                      : 'Track request',
+                  style: const TextStyle(
+                    color: utilityBlue,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
               ],
-              const SizedBox(height: 8),
-              Text(admin ? 'Review concern' : '${c['admin_response'] ?? ''}'.trim().isNotEmpty
-                ? 'Read response' : 'Track request',
-                style: const TextStyle(color: utilityBlue, fontWeight: FontWeight.w600, fontSize: 12)),
-            ]),
+            ),
           ),
     ],
   );
 
-  Future<void> showNotice(Map<String, dynamic> notice) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: Colors.white,
-    builder: (context) => UtilitySurface(child: SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(noticeTitle(notice['title']),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
-            if (isInterruption(notice['title'])) const StatusBadge('Service interruption'),
-            const SizedBox(height: 8),
-            Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
-            const SizedBox(height: 20),
-            Text('${notice['message']}', style: const TextStyle(fontSize: 16, height: 1.6)),
-            const SizedBox(height: 24),
-            OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          ]),
+  Future<void> showNotice(Map<String, dynamic> notice) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        backgroundColor: Colors.white,
+        builder: (context) => UtilitySurface(
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .8,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      noticeTitle(notice['title']),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.5,
+                        color: ink,
+                      ),
+                    ),
+                    if (isInterruption(notice['title']))
+                      const StatusBadge('Service interruption'),
+                    const SizedBox(height: 8),
+                    Text(
+                      recordDate(notice['updated_at']),
+                      style: const TextStyle(color: muted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${notice['message']}',
+                      style: const TextStyle(fontSize: 16, height: 1.6),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
-    )),
-  );
+      );
 
   /// Home's announcements section: service advisory plus the latest notice.
   Widget announcements() => Column(
@@ -4609,8 +5308,11 @@ class _ModernDashboardState extends State<ModernDashboard> {
   Widget adminOverview() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      sectionTitle('District overview', null,
-        guide: 'What needs attention right now.'),
+      sectionTitle(
+        'District overview',
+        null,
+        guide: 'What needs attention right now.',
+      ),
       tilePair(
         homeTile(
           blue: true,
@@ -4618,8 +5320,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
           label: 'Pending concerns',
           hint: 'Opens service concerns',
           onTap: () => open(const ConcernsPage(isAdmin: true)),
-          value: Text(pendingConcerns?.toString() ?? '—', style: const TextStyle(
-            color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -1)),
+          value: Text(
+            pendingConcerns?.toString() ?? '—',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
+            ),
+          ),
           caption: 'Waiting for review',
         ),
         homeTile(
@@ -4628,14 +5337,26 @@ class _ModernDashboardState extends State<ModernDashboard> {
           label: 'Active repairs',
           hint: 'Opens repair tickets',
           onTap: () => open(const RepairTicketsPage(isAdmin: true)),
-          value: Text(activeRepairs?.toString() ?? '—', style: const TextStyle(
-            color: ink, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -1)),
+          value: Text(
+            activeRepairs?.toString() ?? '—',
+            style: const TextStyle(
+              color: ink,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
+            ),
+          ),
           caption: 'Assigned or in progress',
         ),
       ),
-      if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
-        child: Text('Overview could not refresh. Pull down to retry.',
-          style: TextStyle(color: muted, fontSize: 13))),
+      if (error != null)
+        const Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: Text(
+            'Overview could not refresh. Pull down to retry.',
+            style: TextStyle(color: muted, fontSize: 13),
+          ),
+        ),
       const SizedBox(height: 28),
     ],
   );
@@ -4643,26 +5364,40 @@ class _ModernDashboardState extends State<ModernDashboard> {
   /// Two tiles side by side; stacked on narrow screens or with large text.
   Widget tilePair(Widget first, Widget second) => LayoutBuilder(
     builder: (context, constraints) {
-      final stack = constraints.maxWidth < 300 ||
+      final stack =
+          constraints.maxWidth < 300 ||
           MediaQuery.textScalerOf(context).scale(16) > 22;
       if (stack) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [first, const SizedBox(height: 12), second]);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, const SizedBox(height: 12), second],
+        );
       }
-      return IntrinsicHeight(child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [Expanded(child: first), const SizedBox(width: 12), Expanded(child: second)],
-      ));
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 12),
+            Expanded(child: second),
+          ],
+        ),
+      );
     },
   );
 
   /// Home's two headline tiles: what the customer owes (royal blue) and
   /// new announcements (white). They stack on narrow screens or large text.
   Widget summaryTiles() {
-    final caption = initialLoading ? 'Updating records'
-        : !hasLoaded && error != null ? 'Please refresh'
-        : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}'
-        : billCount == 0 ? 'No bills yet' : 'All paid';
+    final caption = initialLoading
+        ? 'Updating records'
+        : !hasLoaded && error != null
+        ? 'Please refresh'
+        : nextDueDate != null
+        ? 'Due ${recordDate(nextDueDate)}'
+        : billCount == 0
+        ? 'No bills yet'
+        : 'All paid';
     final balance = homeTile(
       blue: true,
       icon: CupertinoIcons.doc_text,
@@ -4675,10 +5410,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
           key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
           alignment: Alignment.centerLeft,
           child: AmountText(
-            initialLoading ? 'Loading…'
-                : !hasLoaded && error != null ? 'Unavailable'
+            initialLoading
+                ? 'Loading…'
+                : !hasLoaded && error != null
+                ? 'Unavailable'
                 : '₱${formatCentavos(remaining)}',
-            fontSize: 30, color: Colors.white, letterSpacing: -1),
+            fontSize: 30,
+            color: Colors.white,
+            letterSpacing: -1,
+          ),
         ),
       ),
       caption: caption,
@@ -4691,15 +5431,30 @@ class _ModernDashboardState extends State<ModernDashboard> {
       hint: 'Opens district announcements',
       onTap: openAnnouncements,
       badge: fresh,
-      value: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic, children: [
-        Text(hasLoaded ? '$unreadNotices' : '—', style: TextStyle(
-          color: fresh ? alertRed : ink, fontSize: 30,
-          fontWeight: FontWeight.w700, letterSpacing: -1)),
-        const SizedBox(width: 6),
-        Text('new', style: TextStyle(color: fresh ? alertRed : muted,
-          fontSize: 15, fontWeight: FontWeight.w600)),
-      ]),
+      value: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            hasLoaded ? '$unreadNotices' : '—',
+            style: TextStyle(
+              color: fresh ? alertRed : ink,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'new',
+            style: TextStyle(
+              color: fresh ? alertRed : muted,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
       caption: fresh
           ? (unreadNotices == 1 ? 'Notice to read' : 'Notices to read')
           : 'You are up to date',
@@ -4727,8 +5482,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          boxShadow: blue ? [BoxShadow(color: royalBlue.withValues(alpha: .22),
-            blurRadius: 24, offset: const Offset(0, 10))] : null,
+          boxShadow: blue
+              ? [
+                  BoxShadow(
+                    color: royalBlue.withValues(alpha: .22),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : null,
         ),
         child: Material(
           color: blue ? royalBlue : Colors.white,
@@ -4745,35 +5507,72 @@ class _ModernDashboardState extends State<ModernDashboard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Container(
-                        width: 40, height: 40, alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: blue ? Colors.white.withValues(alpha: .16) : accentTint,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(icon, size: 20, color: blue ? Colors.white : royalBlue),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: blue
+                                  ? Colors.white.withValues(alpha: .16)
+                                  : accentTint,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 20,
+                              color: blue ? Colors.white : royalBlue,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (badge) ...[
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: alertRed,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Icon(
+                            CupertinoIcons.arrow_up_right,
+                            size: 18,
+                            color: fg,
+                          ),
+                        ],
                       ),
-                      const Spacer(),
-                      if (badge) ...[
-                        Container(width: 10, height: 10, decoration: const BoxDecoration(
-                          color: alertRed, shape: BoxShape.circle)),
-                        const SizedBox(width: 8),
-                      ],
-                      Icon(CupertinoIcons.arrow_up_right, size: 18, color: fg),
-                    ]),
-                    const SizedBox(height: 12),
-                    Text(label, maxLines: 2, style: TextStyle(color: fg,
-                      fontSize: 15, height: 1.25, fontWeight: FontWeight.w600)),
-                  ]),
+                      const SizedBox(height: 12),
+                      Text(
+                        label,
+                        maxLines: 2,
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 15,
+                          height: 1.25,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(top: 18),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      value,
-                      const SizedBox(height: 2),
-                      Text(caption, style: TextStyle(color: soft, fontSize: 13)),
-                    ]),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        value,
+                        const SizedBox(height: 2),
+                        Text(
+                          caption,
+                          style: TextStyle(color: soft, fontSize: 13),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -4798,100 +5597,249 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ),
       ],
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('Outstanding balance', style: TextStyle(
-        color: Colors.white.withValues(alpha: .85), fontSize: 15, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 10),
-      AnimatedSwitcher(duration: motionDuration(context, 200), child: Align(
-        key: ValueKey('$initialLoading/$hasLoaded/$remaining'), alignment: Alignment.centerLeft,
-        child: AmountText(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
-          : '₱${formatCentavos(remaining)}',
-          fontSize: 42, color: Colors.white, letterSpacing: -1.4),
-      )),
-      const SizedBox(height: 6),
-      Text(initialLoading ? 'Updating records' : !hasLoaded && error != null ? 'Please refresh'
-        : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}' : billCount == 0 ? 'No bills yet' : 'All paid',
-        style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 15)),
-      const SizedBox(height: 22),
-      FilledButton.icon(
-        style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: royalBlue),
-        onPressed: () => setState(() => tab = 1),
-        icon: const Icon(CupertinoIcons.doc_text, size: 20), label: const Text('View my bills'),
-      ),
-    ]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Outstanding balance',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .85),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        AnimatedSwitcher(
+          duration: motionDuration(context, 200),
+          child: Align(
+            key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
+            alignment: Alignment.centerLeft,
+            child: AmountText(
+              initialLoading
+                  ? 'Loading…'
+                  : !hasLoaded && error != null
+                  ? 'Unavailable'
+                  : '₱${formatCentavos(remaining)}',
+              fontSize: 42,
+              color: Colors.white,
+              letterSpacing: -1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          initialLoading
+              ? 'Updating records'
+              : !hasLoaded && error != null
+              ? 'Please refresh'
+              : nextDueDate != null
+              ? 'Due ${recordDate(nextDueDate)}'
+              : billCount == 0
+              ? 'No bills yet'
+              : 'All paid',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .85),
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 22),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: royalBlue,
+          ),
+          onPressed: () => setState(() => tab = 1),
+          icon: const Icon(CupertinoIcons.doc_text, size: 20),
+          label: const Text('View my bills'),
+        ),
+      ],
+    ),
   );
 
   Widget serviceAdvisory() {
     final interruptions = notices.where((n) => isInterruption(n['title']));
     final notice = interruptions.isEmpty ? null : interruptions.first;
-    final message = !hasLoaded ? (loading ? 'Checking published notices' : 'Service updates unavailable')
-      : notice != null ? 'Published ${recordDate(notice['updated_at'])}. View affected areas and schedule.'
-      : 'No interruption notice in the latest district updates. Live service status is not available.';
-    return Material(color: notice != null ? const Color(0xFFFFFAF0) : Colors.white,
+    final message = !hasLoaded
+        ? (loading
+              ? 'Checking published notices'
+              : 'Service updates unavailable')
+        : notice != null
+        ? 'Published ${recordDate(notice['updated_at'])}. View affected areas and schedule.'
+        : 'No interruption notice in the latest district updates. Live service status is not available.';
+    return Material(
+      color: notice != null ? const Color(0xFFFFFAF0) : Colors.white,
       shape: const Border(left: BorderSide(color: Color(0xFFE1E6EB), width: 3)),
-      child: InkWell(onTap: !hasLoaded ? null : notice != null ? () => showNotice(notice)
-        : openAnnouncements,
-        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Icon(notice != null ? CupertinoIcons.exclamationmark_triangle : CupertinoIcons.info_circle,
-              size: 20, color: notice != null ? const Color(0xFF78520A) : muted),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(notice != null ? 'Read service advisory' : 'Service updates',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-              const SizedBox(height: 8), Text(message, style: UtilityStyle.metadata),
-            ])),
-            if (hasLoaded) ...[const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, size: 16, color: muted)],
-          ])),
-      ));
+      child: InkWell(
+        onTap: !hasLoaded
+            ? null
+            : notice != null
+            ? () => showNotice(notice)
+            : openAnnouncements,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                notice != null
+                    ? CupertinoIcons.exclamationmark_triangle
+                    : CupertinoIcons.info_circle,
+                size: 20,
+                color: notice != null ? const Color(0xFF78520A) : muted,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notice != null
+                          ? 'Read service advisory'
+                          : 'Service updates',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(message, style: UtilityStyle.metadata),
+                  ],
+                ),
+              ),
+              if (hasLoaded) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 16,
+                  color: muted,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget dashboardColumns(List<Widget> primary, List<Widget> secondary) => LayoutBuilder(
-    builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 840 && MediaQuery.textScalerOf(context).scale(16) <= 24;
-      if (!wide) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...primary, const SizedBox(height: 24), ...secondary]);
-      }
-      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: primary)),
-        const SizedBox(width: 28),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: secondary)),
-      ]);
-    },
-  );
+  Widget dashboardColumns(List<Widget> primary, List<Widget> secondary) =>
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final wide =
+              constraints.maxWidth >= 840 &&
+              MediaQuery.textScalerOf(context).scale(16) <= 24;
+          if (!wide) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [...primary, const SizedBox(height: 24), ...secondary],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: primary,
+                ),
+              ),
+              const SizedBox(width: 28),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: secondary,
+                ),
+              ),
+            ],
+          );
+        },
+      );
 
   List<Widget> homeContent() => [
-    if (admin) dashboardColumns([
-      adminOverview(), requests(),
-    ], [
-      sectionTitle('Manage district', null,
-        guide: 'Shortcuts to everyday office tasks.'),
-      actionGrid([
-        quickAction('Accounts', CupertinoIcons.person_2, () => open(const ServiceAccountsPage())),
-        quickAction('Add bill', CupertinoIcons.plus_rectangle, () => open(const AddBillPage())),
-        quickAction('Record payment', CupertinoIcons.creditcard, () => open(const RecordPaymentPage())),
-        quickAction('Concerns', CupertinoIcons.chat_bubble, () => open(const ConcernsPage(isAdmin: true))),
-        quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: true))),
-        quickAction('Announcements', CupertinoIcons.speaker_2, () => open(const AnnouncementsPage(isAdmin: true))),
-      ], columns: 2),
-      const SizedBox(height: 24), announcements(),
-    ]) else dashboardColumns([
-      summaryTiles(),
-      const Padding(padding: EdgeInsets.fromLTRB(4, 10, 4, 0), child: Text(
-        'Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 13))),
-      const SizedBox(height: 28),
-      sectionTitle('Quick actions', null,
-        guide: 'Tap a button to get things done.'),
-      actionGrid([
-        quickAction('My bills', CupertinoIcons.doc_text, () => setState(() => tab = 1)),
-        quickAction('Report a problem', CupertinoIcons.plus_bubble, () => open(const ConcernFormPage())),
-        quickAction('Repair updates', CupertinoIcons.wrench, () => setState(() {
-          tab = 2;
-          servicesView = 1;
-        })),
-      ]),
-    ], [announcements(), const SizedBox(height: 28), requests()]),
+    if (admin)
+      dashboardColumns(
+        [adminOverview(), requests()],
+        [
+          sectionTitle(
+            'Manage district',
+            null,
+            guide: 'Shortcuts to everyday office tasks.',
+          ),
+          actionGrid([
+            quickAction(
+              'Accounts',
+              CupertinoIcons.person_2,
+              () => open(const ServiceAccountsPage()),
+            ),
+            quickAction(
+              'Add bill',
+              CupertinoIcons.plus_rectangle,
+              () => open(const AddBillPage()),
+            ),
+            quickAction(
+              'Record payment',
+              CupertinoIcons.creditcard,
+              () => open(const RecordPaymentPage()),
+            ),
+            quickAction(
+              'Concerns',
+              CupertinoIcons.chat_bubble,
+              () => open(const ConcernsPage(isAdmin: true)),
+            ),
+            quickAction(
+              'Repairs',
+              CupertinoIcons.wrench,
+              () => open(const RepairTicketsPage(isAdmin: true)),
+            ),
+            quickAction(
+              'Announcements',
+              CupertinoIcons.speaker_2,
+              () => open(const AnnouncementsPage(isAdmin: true)),
+            ),
+          ], columns: 2),
+          const SizedBox(height: 24),
+          announcements(),
+        ],
+      )
+    else
+      dashboardColumns(
+        [
+          summaryTiles(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 10, 4, 0),
+            child: Text(
+              'Payments appear after district verification.',
+              style: TextStyle(color: muted, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 28),
+          sectionTitle(
+            'Quick actions',
+            null,
+            guide: 'Tap a button to get things done.',
+          ),
+          actionGrid([
+            quickAction(
+              'My bills',
+              CupertinoIcons.doc_text,
+              () => setState(() => tab = 1),
+            ),
+            quickAction(
+              'Report a problem',
+              CupertinoIcons.plus_bubble,
+              () => open(const ConcernFormPage()),
+            ),
+            quickAction(
+              'Repair updates',
+              CupertinoIcons.wrench,
+              () => setState(() {
+                tab = 2;
+                servicesView = 1;
+              }),
+            ),
+          ]),
+        ],
+        [requests()],
+      ),
   ];
 
   List<Widget> tabContent() {
@@ -5011,13 +5959,24 @@ class _ModernDashboardState extends State<ModernDashboard> {
         : 'Your account details, district notices and help.';
     final header = Row(
       children: [
-        Image.asset('assets/images/maramag-water-district-logo.png',
-          width: 40, height: 40, semanticLabel: 'Maramag Water District logo'),
+        Image.asset(
+          'assets/images/maramag-water-district-logo.png',
+          width: 40,
+          height: 40,
+          semanticLabel: 'Maramag Water District logo',
+        ),
         const SizedBox(width: 10),
-        const Expanded(child: Text('Maramag Water District',
-          textAlign: TextAlign.left,
-          style: TextStyle(fontWeight: FontWeight.w600,
-              fontSize: 15, color: ink))),
+        const Expanded(
+          child: Text(
+            'Maramag Water District',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: ink,
+            ),
+          ),
+        ),
         Tooltip(
           message: admin ? 'Account menu' : 'My profile',
           child: InkWell(
@@ -5051,8 +6010,11 @@ class _ModernDashboardState extends State<ModernDashboard> {
         selected: tab,
         onSelect: (value) => setState(() => tab = value),
         items: [
-          const PillNavItem(CupertinoIcons.house, 'Home',
-              selectedIcon: CupertinoIcons.house_fill),
+          const PillNavItem(
+            CupertinoIcons.house,
+            'Home',
+            selectedIcon: CupertinoIcons.house_fill,
+          ),
           PillNavItem(
             admin ? CupertinoIcons.person_2 : CupertinoIcons.doc_text,
             admin ? 'Accounts' : 'Bills',
@@ -5065,70 +6027,88 @@ class _ModernDashboardState extends State<ModernDashboard> {
           ),
         ],
       ),
-      body: directTab ? directTabBody(header, heading, guide) : Stack(children: [
-        SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: refresh,
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      20, 12, 20, 24 + MediaQuery.paddingOf(context).bottom),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        header,
-                        const SizedBox(height: 24),
-                        Semantics(header: true, child: Text(heading, style: Heading.page)),
-                        if (guide != null) ...[
-                          const SizedBox(height: 6),
-                          Text(guide, style: Heading.guide),
-                        ],
-                        if (!admin && accountNumber != null) ...[
-                          const SizedBox(height: 4),
-                          Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),
-                        ],
-                        const SizedBox(height: 24),
-                        if (error != null)
-                          Card(
+      body: directTab
+          ? directTabBody(header, heading, guide)
+          : Stack(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: RefreshIndicator(
+                    onRefresh: refresh,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1120),
                             child: Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.fromLTRB(
+                                20,
+                                12,
+                                20,
+                                24 + MediaQuery.paddingOf(context).bottom,
+                              ),
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text(error!),
-                                  TextButton(
-                                    onPressed: refresh,
-                                    child: const Text('Retry'),
+                                  header,
+                                  const SizedBox(height: 24),
+                                  Semantics(
+                                    header: true,
+                                    child: Text(heading, style: Heading.page),
+                                  ),
+                                  if (guide != null) ...[
+                                    const SizedBox(height: 6),
+                                    Text(guide, style: Heading.guide),
+                                  ],
+                                  if (!admin && accountNumber != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Account $accountNumber',
+                                      style: const TextStyle(
+                                        color: muted,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 24),
+                                  if (error != null)
+                                    Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          children: [
+                                            Text(error!),
+                                            TextButton(
+                                              onPressed: refresh,
+                                              child: const Text('Retry'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  if (loading && hasLoaded)
+                                    const LinearProgressIndicator(minHeight: 2),
+                                  AnimatedSwitcher(
+                                    duration: motionDuration(context, 220),
+                                    child: Column(
+                                      key: ValueKey(tab),
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: tabContent(),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        if (loading && hasLoaded)
-                          const LinearProgressIndicator(minHeight: 2),
-                        AnimatedSwitcher(
-                          duration: motionDuration(context, 220),
-                          child: Column(
-                            key: ValueKey(tab),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: tabContent(),
-                          ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ),
-      ),
-      ]),
     );
   }
 }
@@ -5146,7 +6126,6 @@ class HeaderBubble extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
       border: Border.all(color: const Color(0xFFEEF0F3)),
-
     ),
     child: child,
   );
@@ -5358,7 +6337,11 @@ class ClientDesignNav extends StatelessWidget {
       Navigator.of(context).popUntil((r) => r.isFirst);
     },
     items: const [
-      PillNavItem(CupertinoIcons.house, 'Home', selectedIcon: CupertinoIcons.house_fill),
+      PillNavItem(
+        CupertinoIcons.house,
+        'Home',
+        selectedIcon: CupertinoIcons.house_fill,
+      ),
       PillNavItem(CupertinoIcons.doc_text, 'Bills'),
       PillNavItem(CupertinoIcons.wrench, 'Services'),
       PillNavItem(CupertinoIcons.person, 'Account'),
@@ -5367,10 +6350,16 @@ class ClientDesignNav extends StatelessWidget {
 }
 
 class PillNavItem {
-  const PillNavItem(this.icon, this.label, {this.selectedIcon, this.badge = false});
+  const PillNavItem(
+    this.icon,
+    this.label, {
+    this.selectedIcon,
+    this.badge = false,
+  });
   final IconData icon;
   final IconData? selectedIcon;
   final String label;
+
   /// Shows a red dot, e.g. when there are new announcements.
   final bool badge;
 }
@@ -5410,16 +6399,29 @@ class CountBadge extends StatelessWidget {
     height: 22,
     padding: const EdgeInsets.symmetric(horizontal: 7),
     alignment: Alignment.center,
-    decoration: BoxDecoration(color: alertRed, borderRadius: BorderRadius.circular(11)),
-    child: Text(count > 9 ? '9+' : '$count',
-      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+    decoration: BoxDecoration(
+      color: alertRed,
+      borderRadius: BorderRadius.circular(11),
+    ),
+    child: Text(
+      count > 9 ? '9+' : '$count',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
   );
 }
 
 /// Two or three always-visible views inside one tab (for example Bills | Payments).
 class SegmentTabs extends StatelessWidget {
-  const SegmentTabs({super.key, required this.labels, required this.selected,
-    required this.onSelect});
+  const SegmentTabs({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onSelect,
+  });
   final List<String> labels;
   final int selected;
   final ValueChanged<int> onSelect;
@@ -5431,39 +6433,56 @@ class SegmentTabs extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: const Color(0xFFEEF0F3)),
     ),
-    child: Row(children: [
-      for (var i = 0; i < labels.length; i++)
-        Expanded(child: Semantics(
-          button: true,
-          selected: i == selected,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: i == selected ? null : () => onSelect(i),
-            child: AnimatedContainer(
-              duration: motionDuration(context, 180),
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-              decoration: BoxDecoration(
-                color: i == selected ? accentTint : Colors.transparent,
+    child: Row(
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          Expanded(
+            child: Semantics(
+              button: true,
+              selected: i == selected,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(10),
+                onTap: i == selected ? null : () => onSelect(i),
+                child: AnimatedContainer(
+                  duration: motionDuration(context, 180),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: i == selected ? accentTint : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    labels[i],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: i == selected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: i == selected ? royalBlue : muted,
+                    ),
+                  ),
+                ),
               ),
-              child: Text(labels[i],
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: TextStyle(fontSize: 14,
-                  fontWeight: i == selected ? FontWeight.w600 : FontWeight.w500,
-                  color: i == selected ? royalBlue : muted)),
             ),
           ),
-        )),
-    ]),
+      ],
+    ),
   );
 }
 
 /// Floating white pill with labeled tabs. The active tab sits on a light-blue
 /// capsule; with large text the tabs wrap into two columns.
 class PillNavBar extends StatelessWidget {
-  const PillNavBar({super.key, required this.items, required this.selected,
-    required this.onSelect});
+  const PillNavBar({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onSelect,
+  });
   final List<PillNavItem> items;
   final int selected;
   final ValueChanged<int> onSelect;
@@ -5493,16 +6512,18 @@ class PillNavBar extends StatelessWidget {
               ),
             ],
           ),
-          child: LayoutBuilder(builder: (context, constraints) => Wrap(
-            runSpacing: 4,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                SizedBox(
-                  width: constraints.maxWidth / columns,
-                  child: navTab(context, i),
-                ),
-            ],
-          )),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  SizedBox(
+                    width: constraints.maxWidth / columns,
+                    child: navTab(context, i),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -5516,7 +6537,9 @@ class PillNavBar extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: active,
-        label: items[i].badge ? '${items[i].label}, new announcements' : items[i].label,
+        label: items[i].badge
+            ? '${items[i].label}, new announcements'
+            : items[i].label,
         excludeSemantics: true,
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
@@ -5531,26 +6554,50 @@ class PillNavBar extends StatelessWidget {
               color: active ? accentTint : Colors.transparent,
               borderRadius: BorderRadius.circular(30),
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Stack(clipBehavior: Clip.none, children: [
-                Icon(active ? items[i].selectedIcon ?? items[i].icon
-                    : items[i].icon, size: 21, color: color),
-                if (items[i].badge)
-                  Positioned(right: -3, top: -2, child: Container(
-                    width: 9, height: 9,
-                    decoration: BoxDecoration(color: alertRed, shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5)),
-                  )),
-              ]),
-              const SizedBox(height: 4),
-              Text(items[i].label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontFamily: 'DM Sans', fontSize: 11,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                  color: color)),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      active
+                          ? items[i].selectedIcon ?? items[i].icon
+                          : items[i].icon,
+                      size: 21,
+                      color: color,
+                    ),
+                    if (items[i].badge)
+                      Positioned(
+                        right: -3,
+                        top: -2,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: alertRed,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  items[i].label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'DM Sans',
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -5563,20 +6610,43 @@ class DesignValue extends StatelessWidget {
   final String label, value;
   final bool strong;
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
-    final stacked = MediaQuery.textScalerOf(context).scale(16) > 23 || constraints.maxWidth < 220;
-    final labelText = Text(label, style: TextStyle(color: strong ? ink : muted,
-      fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w400));
-    final valueText = Text(value, textAlign: stacked ? TextAlign.left : TextAlign.right,
-      style: TextStyle(fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w600));
-    if (stacked) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [labelText, const SizedBox(height: 6), valueText]);
-    }
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: labelText), const SizedBox(width: 12), Flexible(child: valueText),
-    ]);
-  });
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          MediaQuery.textScalerOf(context).scale(16) > 23 ||
+          constraints.maxWidth < 220;
+      final labelText = Text(
+        label,
+        style: TextStyle(
+          color: strong ? ink : muted,
+          fontSize: 16,
+          fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
+        ),
+      );
+      final valueText = Text(
+        value,
+        textAlign: stacked ? TextAlign.left : TextAlign.right,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
+        ),
+      );
+      if (stacked) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [labelText, const SizedBox(height: 6), valueText],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: labelText),
+          const SizedBox(width: 12),
+          Flexible(child: valueText),
+        ],
+      );
+    },
+  );
 }
 
 class DesignHelp extends StatelessWidget {

@@ -2,20 +2,38 @@
 
 ## Browser application
 
-The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities/database and ASP.NET Core API as the existing applications. See the [feature matrix](docs/web-parity.md), [deployment guide](docs/web-deployment.md) and [verification evidence](docs/web-verification.md).
+The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities and database as mobile. It no longer depends on the desktop ASP.NET API. Desktop source remains separate under `desktop/`. See [Supabase office setup](docs/web-supabase-office.md), [feature parity](docs/web-parity.md), [deployment](docs/web-deployment.md) and [verification](docs/web-verification.md).
 
-Run `npm ci` and `npm run dev` from `web/` after configuring its `.env.local`. Deploy that folder as the Vercel project root; the office API requires a separately hosted HTTPS address. The Flutter browser launcher files are preserved for the original Flutter workflow described below.
+Run `npm ci` and `npm run dev` from `web/` after configuring its public Supabase URL/key in `.env.local`. Deploy that folder as the Vercel project root. An authorized operator runs `database/web-office-workflows.sql` once in the existing Supabase project for Staff access and atomic repair saves; no Render host or database password is needed by the web. The Flutter browser launcher files are preserved for the original Flutter workflow below.
 
-## Latest WaterDistrictConnect desktop source
+## Connected Admin and Staff desktop
 
-The current standalone Avalonia/.NET desktop workspace is available in
-[`desktop/WaterDistrictConnect/`](desktop/WaterDistrictConnect/README.md).
-Open `desktop/WaterDistrictConnect/WaterDistrictConnect.slnx` in Visual Studio,
-or run `dotnet build desktop/WaterDistrictConnect/WaterDistrictConnect.slnx -c Release`.
-Its README covers PostgreSQL configuration, migrations, demo setup and verification.
-Local database credentials and generated build output are excluded.
-The existing `desktop/WaterDistrict.sln` implementation is also retained.
+Use [`desktop/WaterDistrict.sln`](desktop/README.md) for the office application
+connected to the same Supabase identities and records as Flutter and the website.
+Its `WaterDistrict.Api` must have the shared PostgreSQL connection configured.
+The separate [`desktop/WaterDistrictConnect/`](desktop/WaterDistrictConnect/README.md)
+workspace remains a standalone prototype with its own database.
 
+## Client registration
+
+Select **Create account** on Flutter or browser sign-in. Enter full name, service
+address, email, password, and password confirmation. Supabase saves the signup
+as pending. An admin reviews it under Service accounts and approves it to create
+the service account and holder link, assigning the next `MWD-` number. Clients
+can sign in after approval and email confirmation. Existing accounts are preserved.
+Admin account directories in Flutter, web, and the connected desktop refresh
+automatically and no longer offer manual account creation. See
+[registration setup and verification](docs/client-registration.md).
+
+## Billing history PDF
+
+On mobile/web, open **My bills** (client) or **Manage bills** (admin), then select
+**Download billing history PDF**. Exports include paid and outstanding bills,
+account details, billing periods, due dates, payments, balances, and totals.
+The export reads every page through the signed-in Supabase session; clients
+remain restricted to their linked accounts. Admin reports start a separate
+section for each account. Browsers download the PDF; installed mobile apps use
+the system save/share sheet. These copies are billing histories, not receipts.
 
 ## Configure authentication
 
@@ -139,10 +157,12 @@ live database authorization or email delivery.
 ```powershell
 flutter test
 flutter analyze
-flutter build web --release
+./scripts/build-flutter-web.ps1
 ```
 
-Deploy the contents of `build/web/` to HTTPS static hosting. Set Supabase's
+Build Flutter web with `scripts/build-flutter-web.ps1`, which isolates its public
+resources from the separate Next.js application in `web/`. Deploy the resulting
+contents of `build/web/` to HTTPS static hosting. Set Supabase's
 Site URL and allowed recovery redirect to the final deployed origin; localhost
 configuration alone does not enable production password recovery. Complete the
 live client/admin and recovery checks against that origin before release.

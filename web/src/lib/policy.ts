@@ -28,7 +28,7 @@ export function isRole(value: unknown): value is Role {
 export function homeFor(role: Role) {
   return role === "client" ? "/portal" : "/office";
 }
-// Display choices only. The ASP.NET API validates every transition and assignment.
+// Display choices only. Shared database guards validate transitions and assignment.
 export function ticketChoices(current: string): string[] {
   return (
     (

@@ -1,5 +1,7 @@
 # Android APK release
 
+**Current web connection:** the website now uses the same Supabase project directly and needs no desktop/API host. Follow [one-time office workflow setup](web-supabase-office.md) for web Staff access and atomic repair saves. API hosting requirements mentioned in the original release notes below are historical; the published APK binary is unchanged.
+
 The downloadable app is the existing Flutter application, not a wrapper around the website. It uses the same Supabase project, identities, account links, permissions and saved records. Current mobile sign-in supports Consumer and Admin profiles; Staff use the office web/desktop workspace. The APK does not create accounts, seed data, host a database or fix an unhosted office API.
 
 Public version: **1.0.1**, build **2**. Application ID: `ph.maramag.waterdistrictconnect`. Android 7.0 / API 24 or later. The universal APK includes ARM32, ARM64 and x86-64. App name and launcher use Water District Connect and the existing district logo.

@@ -17,6 +17,8 @@ public partial class OfficeViewModel:ViewModelBase
     [ObservableProperty,NotifyPropertyChangedFor(nameof(VisiblePayments))] private bool filterPayments;
     public IEnumerable<OfficePayment> VisiblePayments=>FilterPayments && SelectedBill is not null?Payments.Where(row=>row.BillNumber==SelectedBill.BillNumber):Payments;
     public event Action<SessionClientException>? SessionLost;
+    public ObservableCollection<OfficeRegistration> PendingRegistrations { get; }=[];
+    [ObservableProperty] private OfficeRegistration? selectedRegistration;
     public ObservableCollection<OfficeAccount> Accounts { get; }=[];
     public ObservableCollection<OfficeAccount> ActiveAccounts { get; }=[];
     public ObservableCollection<OfficeBill> Bills { get; }=[];
@@ -31,19 +33,16 @@ public partial class OfficeViewModel:ViewModelBase
     };
     public string PageDescription => Page switch
     {
-        "Accounts" => "Keep account details ready for every service interaction.",
+        "Accounts" => "Review pending registrations and approve service accounts.",
         "Bills" => "Manage district billing records and outstanding balances.",
         "Payments" => "A clear record of verified offline payments.",
         _ => "Keep consumers informed with district news and service notices."
     };
-    [ObservableProperty,NotifyCanExecuteChangedFor(nameof(RefreshCommand)),NotifyCanExecuteChangedFor(nameof(SaveAccountCommand)),NotifyCanExecuteChangedFor(nameof(SaveBillCommand)),NotifyCanExecuteChangedFor(nameof(SavePaymentCommand)),NotifyCanExecuteChangedFor(nameof(SaveAnnouncementCommand)),NotifyCanExecuteChangedFor(nameof(LoadSummaryCommand))]
+    [ObservableProperty,NotifyCanExecuteChangedFor(nameof(ApproveRegistrationCommand)),NotifyCanExecuteChangedFor(nameof(RefreshCommand)),NotifyCanExecuteChangedFor(nameof(SaveBillCommand)),NotifyCanExecuteChangedFor(nameof(SavePaymentCommand)),NotifyCanExecuteChangedFor(nameof(SaveAnnouncementCommand)),NotifyCanExecuteChangedFor(nameof(LoadSummaryCommand))]
     private bool isBusy;
     [ObservableProperty,NotifyPropertyChangedFor(nameof(HasMessage))] private string message="";
     [ObservableProperty] private string pendingText="-";
     [ObservableProperty] private string activeRepairsText="-";
-    [ObservableProperty] private string accountNumber="";
-    [ObservableProperty] private string holderName="";
-    [ObservableProperty] private string serviceAddress="";
     [ObservableProperty] private OfficeAccount? selectedAccount;
     [ObservableProperty] private string billNumber="";
     [ObservableProperty] private DateTimeOffset? periodStart=DateTimeOffset.Now.Date;
@@ -79,7 +78,7 @@ public partial class OfficeViewModel:ViewModelBase
     {
         switch(Page)
         {
-            case "Accounts": Set(Accounts,await client.OfficeAccountsAsync());break;
+            case "Accounts": await LoadAccounts();Set(PendingRegistrations,await client.RegistrationsAsync());SelectedRegistration=null;break;
             case "Bills": await LoadAccounts();Set(Bills,await client.BillsAsync());break;
             case "Payments": Set(Bills,await client.BillsAsync());Set(Payments,await client.PaymentsAsync());break;
             case "Announcements":
@@ -90,14 +89,17 @@ public partial class OfficeViewModel:ViewModelBase
         }
         Message="Records refreshed. Lists show up to 1000 records.";
     });
+    [RelayCommand(CanExecute=nameof(Available))]
+    private Task ApproveRegistrationAsync()=>Run(async()=>
+    {
+        if(SelectedRegistration is null)throw new WorkflowException("registration","Select a pending registration.");
+        var saved=await client.ApproveRegistrationAsync(SelectedRegistration.UserId);
+        SelectedRegistration=null;
+        await LoadAccounts();Set(PendingRegistrations,await client.RegistrationsAsync());
+        Message=$"Registration approved. Account {saved.AccountNumber}. The client can sign in after email confirmation.";
+    });
     private async Task LoadAccounts()
     {var rows=await client.OfficeAccountsAsync();Set(Accounts,rows);Set(ActiveAccounts,rows.Where(row=>row.Active));}
-    [RelayCommand(CanExecute=nameof(Available))]
-    private Task SaveAccountAsync()=>Run(async()=>
-    {
-        var saved=await client.AddAccountAsync(new(AccountNumber,HolderName,ServiceAddress));
-        Accounts.Insert(0,saved);AccountNumber="";HolderName="";ServiceAddress="";Message="Service account saved.";
-    });
     [RelayCommand(CanExecute=nameof(Available))]
     private Task SaveBillAsync()=>Run(async()=>
     {
@@ -134,8 +136,8 @@ public partial class OfficeViewModel:ViewModelBase
     private static void Set<T>(ObservableCollection<T> target,IEnumerable<T> rows){target.Clear();foreach(var row in rows)target.Add(row);}
     public void Clear()
     {
-        Accounts.Clear();ActiveAccounts.Clear();Bills.Clear();Payments.Clear();Announcements.Clear();
-        SelectedAccount=null;SelectedBill=null;SelectedAnnouncement=null;FilterPayments=false;AccountNumber="";HolderName="";ServiceAddress="";BillNumber="";BillAmount="";ReceiptReference="";PaymentAmount="";Verified=false;
+        PendingRegistrations.Clear();SelectedRegistration=null;Accounts.Clear();ActiveAccounts.Clear();Bills.Clear();Payments.Clear();Announcements.Clear();
+        SelectedAccount=null;SelectedBill=null;SelectedAnnouncement=null;FilterPayments=false;BillNumber="";BillAmount="";ReceiptReference="";PaymentAmount="";Verified=false;
         NoticeTitle="";NoticeMessage="";Published=false;Interruption=false;PendingText="-";ActiveRepairsText="-";Message="";
     }
 }
