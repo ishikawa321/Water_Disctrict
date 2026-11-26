@@ -4,7 +4,12 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'billing_history_pdf.dart';
+
+import 'package:printing/printing.dart';
 
 import 'ui_components.dart';
 import 'concern_location.dart';
@@ -826,7 +831,8 @@ class _AccountPageState extends State<AccountPage>
 }
 
 class ServiceAccountsPage extends StatefulWidget {
-  const ServiceAccountsPage({super.key});
+  const ServiceAccountsPage({super.key, this.embedded = false});
+  final bool embedded;
 
   @override
   State<ServiceAccountsPage> createState() => _ServiceAccountsPageState();
@@ -923,17 +929,18 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
 
   @override
   Widget build(BuildContext context) => UtilityScaffold(
-    bottomNavigationBar: const AdminDesignNav(index: 1),
-    appBar: UtilityAppBar(
-      title: const Text('Service accounts'),
-      actions: [
-        IconButton(
-          tooltip: 'Refresh accounts',
-          onPressed: loading || approving ? null : loadAccounts,
-          icon: const Icon(CupertinoIcons.arrow_clockwise),
-        ),
-      ],
-    ),
+    appBar: widget.embedded
+        ? null
+        : UtilityAppBar(
+            title: const Text('Service accounts'),
+            actions: [
+              IconButton(
+                tooltip: 'Refresh accounts',
+                onPressed: loading || approving ? null : loadAccounts,
+                icon: const Icon(CupertinoIcons.arrow_clockwise),
+              ),
+            ],
+          ),
     body: loading && accounts.isEmpty && registrations.isEmpty
         ? const Center(child: SingleChildScrollView(child: LoadingCards()))
         : ListView(
@@ -1022,7 +1029,19 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
 }
 
 class ClientAccountPage extends StatefulWidget {
-  const ClientAccountPage({super.key});
+  const ClientAccountPage({
+    super.key,
+    this.embedded = false,
+    this.announcements,
+    this.onSignOut,
+    this.signingOut = false,
+  });
+  final bool embedded;
+
+  /// Shown under the profile card when the page is used as the Account tab.
+  final Widget? announcements;
+  final Future<void> Function()? onSignOut;
+  final bool signingOut;
 
   @override
   State<ClientAccountPage> createState() => _ClientAccountPageState();
@@ -1109,156 +1128,313 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
         .join()
         .toUpperCase();
     return UtilityScaffold(
-      appBar: UtilityAppBar(
-        title: const Text('My profile'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: loading ? null : loadAccount,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      bottomNavigationBar: const ClientDesignNav(index: 3),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: const Text('My profile'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: loading ? null : loadAccount,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : const ClientDesignNav(index: 3),
       body: loading
           ? const SingleChildScrollView(child: LoadingCards(count: 1))
-          : Align(
-              alignment: Alignment.topCenter,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (error != null) ...[
-                        Text(error!),
-                        TextButton(
-                          onPressed: loadAccount,
-                          child: const Text('Retry'),
-                        ),
-                      ] else if (record == null)
-                        const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'No linked account. Contact district personnel to finish setup.',
-                            ),
-                          ),
-                        )
-                      else
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    width: 48,
-                                    height: 48,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: accentTint,
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: Text(
-                                      initials,
-                                      style: const TextStyle(
-                                        color: ink,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
+          : LayoutBuilder(
+              builder: (context, viewport) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    // At least screen height, so Sign out sits at the bottom; scrolls if taller.
+                    constraints: BoxConstraints(
+                      maxWidth: 640,
+                      minHeight: viewport.maxHeight.isFinite
+                          ? viewport.maxHeight - 32
+                          : 0,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (error != null) ...[
+                              Text(error!),
+                              TextButton(
+                                onPressed: loadAccount,
+                                child: const Text('Retry'),
+                              ),
+                            ] else if (record == null)
+                              const Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text(
+                                    'No linked account. Contact district personnel to finish setup.',
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  holder,
-                                  textAlign: TextAlign.left,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -.5,
-                                    color: ink,
-                                  ),
+                              )
+                            else ...[
+                              profileHeader(record, holder, initials),
+                              const SizedBox(height: 28),
+                              Semantics(
+                                header: true,
+                                child: Text(
+                                  'Account details',
+                                  style: Heading.section,
                                 ),
-                                const Divider(height: 36),
-                                DesignValue(
-                                  'Account number',
-                                  '${record['account_number']}',
-                                  strong: true,
-                                ),
-                                const SizedBox(height: 24),
-                                const Text(
-                                  'Service address',
-                                  style: TextStyle(color: muted, fontSize: 14),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${record['service_address']}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
+                              ),
+                              const SizedBox(height: 12),
+                              Card(
+                                child: Column(
                                   children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Account status',
-                                        style: TextStyle(color: muted),
-                                      ),
+                                    detailRow(
+                                      CupertinoIcons.number,
+                                      'Account number',
+                                      '${record['account_number']}',
                                     ),
-                                    StatusBadge(
-                                      record['active'] == true
-                                          ? 'Active'
-                                          : 'Inactive',
+                                    const Divider(height: 1, indent: 56),
+                                    detailRow(
+                                      CupertinoIcons.location,
+                                      'Service address',
+                                      '${record['service_address']}',
+                                    ),
+                                    const Divider(height: 1, indent: 56),
+                                    detailRow(
+                                      CupertinoIcons.checkmark_shield,
+                                      'Account status',
+                                      null,
+                                      trailing: StatusBadge(
+                                        record['active'] == true
+                                            ? 'Active'
+                                            : 'Inactive',
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
+                            ],
+                            const SizedBox(height: 28),
+                            Semantics(
+                              header: true,
+                              child: Text(
+                                'Notices & help',
+                                style: Heading.section,
+                              ),
                             ),
-                          ),
-                        ),
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: showHelp,
-                        icon: const Icon(CupertinoIcons.question_circle),
-                        label: const Text('Get help'),
-                      ),
-                      const SizedBox(height: 24),
-                      OutlinedButton.icon(
-                        icon: const Icon(CupertinoIcons.square_arrow_right),
-                        label: const Text('Sign out'),
-                        onPressed: () async {
-                          try {
-                            await supabase.auth.signOut();
-                            if (context.mounted) {
-                              Navigator.of(context).popUntil((r) => r.isFirst);
-                            }
-                          } catch (_) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Could not sign out. Please retry.',
+                            const SizedBox(height: 12),
+                            if (widget.announcements != null) ...[
+                              widget.announcements!,
+                              const SizedBox(height: 10),
+                            ],
+                            Card(
+                              child: InkWell(
+                                onTap: showHelp,
+                                borderRadius: BorderRadius.circular(10),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.question_circle,
+                                        size: 22,
+                                        color: royalBlue,
+                                      ),
+                                      const SizedBox(width: 14),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Get help',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            SizedBox(height: 4),
+                                            Text(
+                                              'How to fix account details or ask the district',
+                                              style: TextStyle(
+                                                color: muted,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        CupertinoIcons.chevron_right,
+                                        size: 16,
+                                        color: muted,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 32),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(CupertinoIcons.square_arrow_right),
+                            label: Text(
+                              widget.signingOut ? 'Signing out…' : 'Sign out',
+                            ),
+                            onPressed: widget.signingOut
+                                ? null
+                                : widget.onSignOut ??
+                                      () async {
+                                        try {
+                                          await supabase.auth.signOut();
+                                          if (context.mounted) {
+                                            Navigator.of(context)
+                                                .popUntil((r) => r.isFirst);
+                                          }
+                                        } catch (_) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Could not sign out. Please retry.',
+                                                    ),
+                                                  ),
+                                                );
+                                          }
+                                        }
+                                      },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
     );
   }
+
+  /// Royal-blue header that greets the account holder.
+  Widget profileHeader(
+    Map<String, dynamic> record,
+    String holder,
+    String initials,
+  ) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: royalBlue,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: [
+        BoxShadow(
+          color: royalBlue.withValues(alpha: .22),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            initials,
+            style: const TextStyle(
+              color: royalBlue,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                holder,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Water-service account holder',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .85),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  /// One labelled line in the account details card.
+  Widget detailRow(
+    IconData icon,
+    String label,
+    String? value, {
+    Widget? trailing,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: accentTint,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: royalBlue),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: muted, fontSize: 13)),
+              if (value != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: ink,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        ?trailing,
+      ],
+    ),
+  );
 }
 
 // Use centavos to avoid floating-point rounding in payment totals.
@@ -1284,7 +1460,8 @@ int billPayments(Map<String, dynamic> bill) {
 }
 
 class BillsPage extends StatefulWidget {
-  const BillsPage({super.key, required this.isAdmin});
+  const BillsPage({super.key, this.embedded = false, required this.isAdmin});
+  final bool embedded;
   final bool isAdmin;
   @override
   State<BillsPage> createState() => _BillsPageState();
@@ -1314,7 +1491,8 @@ class _BillsPageState extends State<BillsPage> {
           .from('bills')
           .select(
             'bill_number, billing_period_start, billing_period_end, due_date, '
-            'amount_due, service_accounts(account_number), offline_payments(amount_paid)',
+            'amount_due, service_accounts(account_number, holder_name, service_address), '
+            'offline_payments(amount_paid)',
           )
           .order('due_date', ascending: false);
       // Validate totals before rendering; malformed data must not appear as paid.
@@ -1331,6 +1509,82 @@ class _BillsPageState extends State<BillsPage> {
       }
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  bool exporting = false;
+
+  Future<void> downloadHistory() async {
+    if (exporting || loading) return;
+    setState(() => exporting = true);
+    try {
+      final history = <BillingHistoryLine>[];
+      const pageSize = 500;
+      for (var offset = 0; ; offset += pageSize) {
+        // Export all pages with the signed-in caller's RLS, including paid bills.
+        final query = supabase
+            .from('bills')
+            .select(
+              'id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,'
+              'service_accounts(account_number,holder_name,service_address),offline_payments(amount_paid)',
+            );
+        final page = await query
+            .order('due_date', ascending: false)
+            .order('id')
+            .range(offset, offset + pageSize - 1);
+        for (final bill in page) {
+          final account = bill['service_accounts'] as Map<String, dynamic>?;
+          if (account == null || account['account_number'] == null) {
+            throw StateError('Account details unavailable');
+          }
+          history.add(
+            BillingHistoryLine(
+              accountNumber: '${account['account_number']}',
+              holderName: '${account['holder_name'] ?? 'Unavailable'}',
+              serviceAddress: '${account['service_address'] ?? 'Unavailable'}',
+              billNumber: '${bill['bill_number']}',
+              periodStart: recordDate(bill['billing_period_start']),
+              periodEnd: recordDate(bill['billing_period_end']),
+              dueDate: recordDate(bill['due_date']),
+              billed: moneyCentavos(bill['amount_due']),
+              paid: billPayments(bill),
+            ),
+          );
+        }
+        if (page.length < pageSize) break;
+      }
+      if (history.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No billing history to download.')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      final bytes = await buildBillingHistoryPdf(history);
+      if (!mounted) return;
+      final stamp = DateTime.now()
+          .toUtc()
+          .add(const Duration(hours: 8))
+          .toIso8601String()
+          .substring(0, 10);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'billing-history-$stamp.pdf',
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not download billing history. Check your connection and retry.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => exporting = false);
     }
   }
 
@@ -1353,18 +1607,20 @@ class _BillsPageState extends State<BillsPage> {
         )
         .toList();
     return UtilityScaffold(
-      appBar: UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Manage bills' : 'My bills'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh bills',
-            onPressed: loading ? null : loadBills,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      bottomNavigationBar: widget.isAdmin
-          ? const AdminDesignNav(index: 1)
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Manage bills' : 'My bills'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh bills',
+                  onPressed: loading ? null : loadBills,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
+      bottomNavigationBar: widget.embedded || widget.isAdmin
+          ? null
           : const ClientDesignNav(index: 1),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
@@ -1390,10 +1646,38 @@ class _BillsPageState extends State<BillsPage> {
                 ],
               ),
             ),
+          if (bills.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed:
+                        loading || exporting || error != null || bills.isEmpty
+                        ? null
+                        : downloadHistory,
+                    icon: const Icon(CupertinoIcons.arrow_down_doc),
+                    label: Text(
+                      exporting
+                          ? 'Preparing PDF...'
+                          : 'Download billing history PDF',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Includes paid and outstanding bills.',
+                    style: TextStyle(color: muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Wrap(
               spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ChoiceChip(
                   label: const Text('Outstanding'),
@@ -1414,12 +1698,20 @@ class _BillsPageState extends State<BillsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && bills.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load bills',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadBills,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: loadBills,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
                 : visibleBills.isEmpty
                 ? EmptyState(
@@ -1820,7 +2112,13 @@ class _AddBillPageState extends State<AddBillPage> {
 }
 
 class PaymentsPage extends StatefulWidget {
-  const PaymentsPage({super.key, required this.isAdmin, this.billNumber});
+  const PaymentsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.billNumber,
+  });
+  final bool embedded;
   final String? billNumber;
   final bool isAdmin;
   @override
@@ -1893,19 +2191,18 @@ class _PaymentsPageState extends State<PaymentsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      bottomNavigationBar: widget.isAdmin
-          ? const AdminDesignNav(index: 1)
-          : const ClientDesignNav(index: 1),
-      appBar: UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Verified payments' : 'My payments'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh payments',
-            onPressed: loading ? null : loadPayments,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Verified payments' : 'My payments'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh payments',
+                  onPressed: loading ? null : loadPayments,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
               onPressed: loading ? null : recordPayment,
@@ -1936,12 +2233,20 @@ class _PaymentsPageState extends State<PaymentsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && payments.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load payments',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadPayments,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: loadPayments,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
                 : payments.isEmpty
                 ? EmptyState(
@@ -2260,7 +2565,13 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
 }
 
 class ConcernsPage extends StatefulWidget {
-  const ConcernsPage({super.key, required this.isAdmin, this.concernId});
+  const ConcernsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.concernId,
+  });
+  final bool embedded;
   final bool isAdmin;
   final String? concernId;
   @override
@@ -2327,28 +2638,61 @@ class _ConcernsPageState extends State<ConcernsPage> {
     await loadConcerns();
   }
 
+  /// Clear, always-visible way to report a problem, shown at the top of the
+  /// list (replaces the floating button that covered the cards).
+  Widget reportPanel() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: hairline),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            circleIcon(CupertinoIcons.plus_bubble, diameter: 44, iconSize: 20),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Have a water problem?', style: Heading.card),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tell the district and follow it here.',
+                    style: Heading.sectionGuide,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: loading ? null : () => openConcern(),
+          icon: const Icon(CupertinoIcons.add, size: 20),
+          label: const Text('Report a new concern'),
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      bottomNavigationBar: widget.isAdmin
-          ? const AdminDesignNav(index: 2)
-          : const ClientDesignNav(index: 2),
-      appBar: UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh concerns',
-            onPressed: loading ? null : loadConcerns,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      floatingActionButton: widget.isAdmin
+      appBar: widget.embedded
           ? null
-          : FloatingActionButton.extended(
-              onPressed: loading ? null : () => openConcern(),
-              icon: const Icon(CupertinoIcons.add),
-              label: const Text('Submit concern'),
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh concerns',
+                  onPressed: loading ? null : loadConcerns,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
             ),
       body: Column(
         children: [
@@ -2373,12 +2717,20 @@ class _ConcernsPageState extends State<ConcernsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && concerns.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load concerns',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadConcerns,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: loadConcerns,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
                 : concerns.isEmpty
                 ? EmptyState(
@@ -2391,11 +2743,12 @@ class _ConcernsPageState extends State<ConcernsPage> {
                     onAction: widget.isAdmin ? null : () => openConcern(),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: concerns.length,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    itemCount: concerns.length + (widget.isAdmin ? 0 : 1),
                     separatorBuilder: (_, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final c = concerns[index];
+                      if (!widget.isAdmin && index == 0) return reportPanel();
+                      final c = concerns[index - (widget.isAdmin ? 0 : 1)];
                       final account =
                           c['service_accounts'] as Map<String, dynamic>?;
                       return Card(
@@ -2416,6 +2769,8 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 'Account: ${account?['account_number'] ?? 'Unavailable'}',
                               ),
                               ExpansionTile(
+                                // Closed by default so the list stays short;
+                                // open when arriving from a specific concern.
                                 initiallyExpanded: widget.concernId != null,
                                 tilePadding: EdgeInsets.zero,
                                 expandedCrossAxisAlignment:
@@ -2856,7 +3211,13 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
 }
 
 class RepairTicketsPage extends StatefulWidget {
-  const RepairTicketsPage({super.key, required this.isAdmin, this.concernId});
+  const RepairTicketsPage({
+    super.key,
+    this.embedded = false,
+    required this.isAdmin,
+    this.concernId,
+  });
+  final bool embedded;
   final bool isAdmin;
   final String? concernId;
   @override
@@ -2914,18 +3275,20 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      appBar: UtilityAppBar(
-        title: Text(widget.isAdmin ? 'Repair tickets' : 'Repair updates'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh tickets',
-            onPressed: loading ? null : loadTickets,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      bottomNavigationBar: widget.isAdmin
-          ? const AdminDesignNav(index: 2)
+      appBar: widget.embedded
+          ? null
+          : UtilityAppBar(
+              title: Text(widget.isAdmin ? 'Repair tickets' : 'Repair updates'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh tickets',
+                  onPressed: loading ? null : loadTickets,
+                  icon: const Icon(CupertinoIcons.arrow_clockwise),
+                ),
+              ],
+            ),
+      bottomNavigationBar: widget.embedded || widget.isAdmin
+          ? null
           : const ClientDesignNav(index: 2),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
@@ -2957,12 +3320,20 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && tickets.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load repair tickets',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadTickets,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: loadTickets,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
                 : tickets.isEmpty
                 ? EmptyState(
@@ -2983,6 +3354,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                       final account =
                           concern?['service_accounts'] as Map<String, dynamic>?;
                       return RecordCard(
+                        initiallyExpanded: widget.concernId != null,
                         summary: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -3378,9 +3750,6 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
-      bottomNavigationBar: widget.isAdmin
-          ? const AdminDesignNav(index: 3)
-          : const ClientDesignNav(index: 3),
       appBar: UtilityAppBar(
         title: Text(widget.isAdmin ? 'District notices' : 'Notices'),
         actions: [
@@ -3421,12 +3790,20 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && announcements.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load notices',
-                    message: error!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadAnnouncements,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: loadAnnouncements,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   )
                 : announcements.isEmpty
                 ? EmptyState(
@@ -3699,12 +4076,112 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   }
 }
 
-const royalBlue = UtilityStyle.blue;
-const utilityBlue = UtilityStyle.blue;
-const ink = Color(0xFF0C142B);
-const muted = Color(0xFF626C82);
-const accentTint = UtilityStyle.aqua;
+const royalBlue = Color(0xFF00479D);
+const utilityBlue = Color(0xFF00479D);
+const ink = Color(0xFF111827);
+const muted = Color(0xFF6B7280);
+const accentTint = Color(0xFFEFF4FF);
 const hairline = UtilityStyle.border;
+
+/// One clear heading scale so every screen guides the reader:
+/// page title → one-line guide → section title → card title → body.
+abstract final class Heading {
+  static const page = TextStyle(
+    fontSize: 28,
+    height: 1.15,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.8,
+    color: ink,
+  );
+  static const guide = TextStyle(fontSize: 15, height: 1.45, color: muted);
+  static const section = TextStyle(
+    fontSize: 20,
+    height: 1.25,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.3,
+    color: ink,
+  );
+  static const sectionGuide = TextStyle(
+    fontSize: 14,
+    height: 1.4,
+    color: muted,
+  );
+  static const card = TextStyle(
+    fontSize: 17,
+    height: 1.3,
+    fontWeight: FontWeight.w600,
+    color: ink,
+  );
+}
+
+/// The district's drop mark, drawn from the same path the desktop app uses
+/// ("M12,2 C12,2 3,12 3,18 A9,9 0 0 0 21,18 C21,12 12,2 12,2 Z M7,18 Q7,23 12,23").
+class DistrictDropMark extends StatelessWidget {
+  const DistrictDropMark({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.color,
+    this.strokeWidth = 1.5,
+  });
+  final double width, height, strokeWidth;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: CustomPaint(
+      size: Size(width, height),
+      painter: _DropMarkPainter(color, strokeWidth),
+    ),
+  );
+}
+
+class _DropMarkPainter extends CustomPainter {
+  const _DropMarkPainter(this.color, this.strokeWidth);
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(12, 2)
+      ..cubicTo(12, 2, 3, 12, 3, 18)
+      ..arcToPoint(
+        const Offset(21, 18),
+        radius: const Radius.circular(9),
+        clockwise: false,
+      )
+      ..cubicTo(21, 12, 12, 2, 12, 2)
+      ..close()
+      ..moveTo(7, 18)
+      ..quadraticBezierTo(7, 23, 12, 23);
+    // Scale the 24-unit drawing uniformly into the box, centred (like
+    // Stretch="Uniform" on desktop), leaving room for the stroke.
+    final bounds = path.getBounds();
+    final inset = strokeWidth;
+    final scale = math.min(
+      (size.width - inset * 2) / bounds.width,
+      (size.height - inset * 2) / bounds.height,
+    );
+    canvas.translate(
+      (size.width - bounds.width * scale) / 2 - bounds.left * scale,
+      (size.height - bounds.height * scale) / 2 - bounds.top * scale,
+    );
+    canvas.scale(scale);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth / scale
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DropMarkPainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
+}
 
 /// Solid blue circle with a white line icon and a soft blue shadow.
 Widget circleIcon(
@@ -3777,9 +4254,9 @@ ThemeData waterTheme() {
     onSurface: ink,
     onSurfaceVariant: muted,
     secondary: royalBlue,
-    primaryContainer: UtilityStyle.aqua,
+    primaryContainer: const Color(0xFFEFF4FF),
     onPrimaryContainer: royalBlue,
-    secondaryContainer: UtilityStyle.aqua,
+    secondaryContainer: const Color(0xFFEFF4FF),
     onSecondaryContainer: royalBlue,
     outline: const Color(0xFFE5E7EB),
     outlineVariant: const Color(0xFFE5E7EB),
@@ -3804,7 +4281,7 @@ ThemeData waterTheme() {
       collapsedShape: Border(),
     ),
     colorScheme: scheme,
-    scaffoldBackgroundColor: UtilityStyle.background,
+    scaffoldBackgroundColor: const Color(0xFFF8F9FB),
     textTheme: softTextTheme(
       ThemeData.light().textTheme.apply(
         fontFamily: 'DM Sans',
@@ -3815,7 +4292,7 @@ ThemeData waterTheme() {
     ),
     iconTheme: const IconThemeData(color: ink, size: 22),
     appBarTheme: const AppBarTheme(
-      backgroundColor: UtilityStyle.background,
+      backgroundColor: Color(0xFFF8F9FB),
       foregroundColor: ink,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -4024,8 +4501,8 @@ class WaterPainter extends CustomPainter {
         path,
         Paint()
           ..color = Color.lerp(
-            const Color(0xFFE3F6F8),
-            const Color(0xFFC4EEF0),
+            const Color(0xFFEDF2FF),
+            const Color(0xFFD7E1FA),
             i / 4,
           )!.withValues(alpha: .65),
       );
@@ -4040,7 +4517,7 @@ class WaterPainter extends CustomPainter {
       pool,
       Paint()
         ..shader = const RadialGradient(
-          colors: [Color(0xFFC4EEF0), Color(0xFFE3F6F8)],
+          colors: [Color(0xFFD7E1FA), Color(0xFFEDF2FF)],
         ).createShader(pool),
     );
     for (var i = 1; i <= 4; i++) {
@@ -4180,11 +4657,7 @@ class WaterPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0x00F8FAFD),
-            Color(0x99F8FAFD),
-            UtilityStyle.background,
-          ],
+          colors: [Color(0x00F8F9FB), Color(0x99F8F9FB), Color(0xFFF8F9FB)],
           stops: [0, .58, 1],
         ).createShader(fadeArea),
     );
@@ -4218,7 +4691,11 @@ class _ModernDashboardState extends State<ModernDashboard> {
   bool get initialLoading => loading && !hasLoaded;
   int remaining = 0, billCount = 0;
   int? pendingConcerns, activeRepairs;
-  List<Map<String, dynamic>> recent = [], notices = [], recentPayments = [];
+  List<Map<String, dynamic>> recent = [], notices = [];
+
+  /// Published notices newer than the last time Announcements was opened.
+  int unreadNotices = 0;
+  int billingView = 0, servicesView = 0;
   @override
   void initState() {
     super.initState();
@@ -4227,7 +4704,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
   }
 
   void selectClientTab() {
-    if (mounted) setState(() => tab = clientDesignTab.value);
+    if (mounted && !admin) setState(() => tab = clientDesignTab.value);
   }
 
   @override
@@ -4267,7 +4744,6 @@ class _ModernDashboardState extends State<ModernDashboard> {
       int balance = 0, count = 0;
       String? upcoming;
       int? pending, repairs;
-      List<Map<String, dynamic>> paymentRows = [];
       if (admin) {
         pending = await supabase
             .from('service_concerns')
@@ -4312,22 +4788,18 @@ class _ModernDashboardState extends State<ModernDashboard> {
           }
         }
       }
-      if (!admin) {
-        paymentRows = await supabase
-            .from('offline_payments')
-            .select(
-              'receipt_reference, payment_date, amount_paid, bills(bill_number)',
-            )
-            .order('payment_date', ascending: false)
-            .limit(1);
-      }
+      final seenAt = await AnnouncementSeen.read();
+      final unread = noticeRows.where((n) {
+        final at = DateTime.tryParse('${n['updated_at']}');
+        return at != null && (seenAt == null || at.isAfter(seenAt));
+      }).length;
       if (!mounted) return;
       setState(() {
+        unreadNotices = unread;
         pendingConcerns = pending;
         activeRepairs = repairs;
         recent = concernRows;
         notices = noticeRows;
-        recentPayments = paymentRows;
         accountNumber = number;
         remaining = balance;
         billCount = count;
@@ -4357,14 +4829,153 @@ class _ModernDashboardState extends State<ModernDashboard> {
     await refresh();
   }
 
-  Widget iconBubble(IconData icon) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: accentTint,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Icon(icon, size: 22, color: utilityBlue),
-  );
+  Widget iconBubble(IconData icon) => Icon(icon, size: 22, color: muted);
+
+  /// Opens Announcements and clears the "new" badge on this device.
+  Future<void> openAnnouncements() async {
+    var seen = DateTime.now().toUtc();
+    for (final n in notices) {
+      final at = DateTime.tryParse('${n['updated_at']}');
+      if (at != null && at.isAfter(seen)) seen = at;
+    }
+    await AnnouncementSeen.mark(seen);
+    if (mounted) setState(() => unreadNotices = 0);
+    await open(AnnouncementsPage(isAdmin: admin));
+  }
+
+  Widget announcementsTile() {
+    final fresh = unreadNotices > 0;
+    return Card(
+      child: InkWell(
+        onTap: openAnnouncements,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                CupertinoIcons.speaker_2,
+                size: 22,
+                color: fresh ? alertRed : royalBlue,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Announcements',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      fresh
+                          ? '$unreadNotices new ${unreadNotices == 1 ? 'notice' : 'notices'} from the district'
+                          : 'You are up to date',
+                      style: TextStyle(
+                        color: fresh ? alertRed : muted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (fresh) ...[
+                CountBadge(unreadNotices),
+                const SizedBox(width: 8),
+              ],
+              const Icon(CupertinoIcons.chevron_right, size: 16, color: muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Bills, Services and Account: records are visible as soon as the tab opens.
+  Widget directTabBody(Widget header, String heading, String? guide) {
+    final List<String> views;
+    final int view;
+    final ValueChanged<int> pick;
+    final Widget page;
+    if (tab == 1) {
+      views = admin ? ['Accounts', 'Bills', 'Payments'] : ['Bills', 'Payments'];
+      view = billingView.clamp(0, views.length - 1);
+      pick = (v) => setState(() => billingView = v);
+      final name = views[view];
+      page = name == 'Accounts'
+          ? const ServiceAccountsPage(embedded: true)
+          : name == 'Bills'
+          ? BillsPage(embedded: true, isAdmin: admin)
+          : PaymentsPage(embedded: true, isAdmin: admin);
+    } else if (tab == 2) {
+      views = admin
+          ? ['Service concerns', 'Repair tickets']
+          : ['My concerns', 'Repair updates'];
+      view = servicesView.clamp(0, 1);
+      pick = (v) => setState(() => servicesView = v);
+      page = view == 0
+          ? ConcernsPage(embedded: true, isAdmin: admin)
+          : RepairTicketsPage(embedded: true, isAdmin: admin);
+    } else {
+      views = const [];
+      view = 0;
+      pick = (_) {};
+      page = ClientAccountPage(
+        embedded: true,
+        announcements: announcementsTile(),
+        onSignOut: widget.onSignOut,
+        signingOut: widget.signingOut,
+      );
+    }
+    // The title area scrolls away with the records, so small phones and
+    // large text still have room for the list.
+    return SafeArea(
+      bottom: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      header,
+                      const SizedBox(height: 20),
+                      Semantics(
+                        header: true,
+                        child: Text(heading, style: Heading.page),
+                      ),
+                      if (guide != null) ...[
+                        const SizedBox(height: 6),
+                        Text(guide, style: Heading.guide),
+                      ],
+                      if (views.length > 1) ...[
+                        const SizedBox(height: 16),
+                        SegmentTabs(
+                          labels: views,
+                          selected: view,
+                          onSelect: pick,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            body: KeyedSubtree(key: ValueKey('$tab/$view'), child: page),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
     builder: (context, constraints) {
@@ -4373,16 +4984,25 @@ class _ModernDashboardState extends State<ModernDashboard> {
           : constraints.maxWidth < 280
           ? 2
           : columns;
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final action in actions)
-            SizedBox(
-              width: (constraints.maxWidth - 12 * (count - 1)) / count,
-              child: action,
-            ),
-        ],
+      return Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: hairline),
+            bottom: BorderSide(color: hairline),
+          ),
+        ),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final action in actions)
+              SizedBox(
+                width: (constraints.maxWidth - 12 * (count - 1)) / count,
+                child: action,
+              ),
+          ],
+        ),
       );
     },
   );
@@ -4391,34 +5011,24 @@ class _ModernDashboardState extends State<ModernDashboard> {
       PressFeedback(
         child: Material(
           color: Colors.white,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: hairline),
-          ),
           child: InkWell(
             onTap: action,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 88),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: accentTint,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, size: 25, color: utilityBlue),
-                  ),
-                  const SizedBox(height: 9),
+                  circleIcon(icon, diameter: 48, iconSize: 22),
+                  const SizedBox(height: 12),
                   Text(
                     label,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                       color: ink,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -4436,15 +5046,11 @@ class _ModernDashboardState extends State<ModernDashboard> {
     bool showSubtitle = false,
     Widget? footer,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
+    padding: EdgeInsets.zero,
     child: PressFeedback(
       child: Material(
         color: Colors.white,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: hairline),
-        ),
+        shape: const Border(bottom: BorderSide(color: hairline)),
         child: InkWell(
           onTap: action,
           child: Padding(
@@ -4518,91 +5124,41 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ),
   );
 
-  Widget sectionTitle(String title, VoidCallback action) {
-    final heading = Text(
-      title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+  /// Section heading with an optional one-line guide and "View all" link.
+  Widget sectionTitle(String title, VoidCallback? action, {String? guide}) {
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(header: true, child: Text(title, style: Heading.section)),
+        if (guide != null) ...[
+          const SizedBox(height: 2),
+          Text(guide, style: Heading.sectionGuide),
+        ],
+      ],
     );
-    final button = TextButton(onPressed: action, child: const Text('View all'));
-    if (MediaQuery.textScalerOf(context).scale(18) > 26) {
-      return Column(
+    final button = action == null
+        ? null
+        : TextButton(onPressed: action, child: const Text('View all'));
+    final Widget row;
+    if (button != null && MediaQuery.textScalerOf(context).scale(18) > 26) {
+      row = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           heading,
           Align(alignment: Alignment.centerRight, child: button),
         ],
       );
+    } else {
+      row = Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(child: heading),
+          ?button,
+        ],
+      );
     }
-    return Row(
-      children: [
-        Expanded(child: heading),
-        button,
-      ],
-    );
+    return Padding(padding: const EdgeInsets.only(bottom: 12), child: row);
   }
-
-  Widget activity() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      sectionTitle(
-        'Recent activity',
-        () => open(const PaymentsPage(isAdmin: false)),
-      ),
-      if (initialLoading)
-        const LoadingCards(count: 1)
-      else if (!hasLoaded)
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Text(
-              'Activity unavailable. Pull down to retry.',
-              style: TextStyle(color: muted),
-            ),
-          ),
-        )
-      else if (recentPayments.isEmpty)
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                iconBubble(CupertinoIcons.doc_text),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'No recent transactions',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Updates will appear here.',
-                        style: TextStyle(color: muted, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        )
-      else
-        for (final payment in recentPayments)
-          rowTile(
-            'Payment verified',
-            '${recordDate(payment['payment_date'])} \u00b7 \u20b1${formatCentavos(moneyCentavos(payment['amount_paid']))}',
-            CupertinoIcons.doc_text,
-            () => open(const PaymentsPage(isAdmin: false)),
-            showSubtitle: true,
-          ),
-    ],
-  );
 
   Widget requests() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4610,6 +5166,9 @@ class _ModernDashboardState extends State<ModernDashboard> {
       sectionTitle(
         admin ? 'Needs attention' : 'Recent request',
         () => open(ConcernsPage(isAdmin: admin)),
+        guide: admin
+            ? 'New concerns waiting for review.'
+            : 'The latest problem you reported.',
       ),
       if (initialLoading)
         const LoadingCards(count: 1)
@@ -4721,13 +5280,17 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ),
       );
 
+  /// Home's announcements section: service advisory plus the latest notice.
   Widget announcements() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       sectionTitle(
-        'Latest notice',
-        () => open(AnnouncementsPage(isAdmin: admin)),
+        'Announcements',
+        openAnnouncements,
+        guide: 'Service updates and notices from the district.',
       ),
+      serviceAdvisory(),
+      const SizedBox(height: 12),
       if (hasLoaded && notices.isEmpty)
         const Text(
           'No published announcements.',
@@ -4750,211 +5313,359 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ],
   );
 
-  Widget adminOverview() => Padding(
-    padding: const EdgeInsets.only(bottom: 24),
-    child: WaterSurface(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'DISTRICT OPERATIONS',
-              style: TextStyle(
-                color: Color(0xFFBFDEFF),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.4,
-              ),
+  /// Admin Home: the same two-tile layout as the client Home and desktop.
+  Widget adminOverview() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      sectionTitle(
+        'District overview',
+        null,
+        guide: 'What needs attention right now.',
+      ),
+      tilePair(
+        homeTile(
+          blue: true,
+          icon: CupertinoIcons.chat_bubble,
+          label: 'Pending concerns',
+          hint: 'Opens service concerns',
+          onTap: () => open(const ConcernsPage(isAdmin: true)),
+          value: Text(
+            pendingConcerns?.toString() ?? '—',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'District overview',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          caption: 'Waiting for review',
+        ),
+        homeTile(
+          blue: false,
+          icon: CupertinoIcons.wrench,
+          label: 'Active repairs',
+          hint: 'Opens repair tickets',
+          onTap: () => open(
+            StaffWorkspace(
+              onSignOut: widget.onSignOut,
+              admin: true,
+              initialTab: 1,
             ),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: overviewMetric(
-                    pendingConcerns,
-                    'Pending concerns',
-                    () => open(const ConcernsPage(isAdmin: true)),
-                  ),
-                ),
-                Container(height: 70, width: 1, color: Colors.white24),
-                Expanded(
-                  child: overviewMetric(
-                    activeRepairs,
-                    'Active repairs',
-                    () => open(
-                      StaffWorkspace(
-                        onSignOut: widget.onSignOut,
-                        admin: true,
-                        initialTab: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          value: Text(
+            activeRepairs?.toString() ?? '—',
+            style: const TextStyle(
+              color: ink,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
             ),
-            if (error != null)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Overview could not refresh. Pull down to retry.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              ),
-          ],
+          ),
+          caption: 'Assigned or in progress',
         ),
       ),
-    ),
+      if (error != null)
+        const Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: Text(
+            'Overview could not refresh. Pull down to retry.',
+            style: TextStyle(color: muted, fontSize: 13),
+          ),
+        ),
+      const SizedBox(height: 28),
+    ],
   );
 
-  Widget overviewMetric(int? value, String label, VoidCallback action) =>
-      Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: action,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              children: [
-                Text(
-                  value?.toString() ?? '—',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFD8EAFF),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
+  /// Two tiles side by side; stacked on narrow screens or with large text.
+  Widget tilePair(Widget first, Widget second) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stack =
+          constraints.maxWidth < 300 ||
+          MediaQuery.textScalerOf(context).scale(16) > 22;
+      if (stack) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, const SizedBox(height: 12), second],
+        );
+      }
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 12),
+            Expanded(child: second),
+          ],
         ),
       );
+    },
+  );
 
-  Widget balanceCard() => WaterSurface(
-    radius: 20,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'OUTSTANDING BALANCE',
-                style: TextStyle(
-                  color: Color(0xFFD2DCF1),
-                  fontSize: 11,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.3,
-                ),
-              ),
-              const SizedBox(height: 8),
-              AnimatedSwitcher(
-                duration: motionDuration(context, 200),
-                child: Align(
-                  key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
-                  alignment: Alignment.centerLeft,
-                  child: AmountText(
-                    initialLoading
-                        ? 'Loading\u2026'
-                        : !hasLoaded && error != null
-                        ? 'Unavailable'
-                        : '\u20b1${formatCentavos(remaining)}',
-                    fontSize: 44,
-                    color: Colors.white,
-                    letterSpacing: -1.8,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: const Color(0xFFD2DCF1)),
-                  ),
-                  child: Text(
-                    initialLoading
-                        ? 'Updating records'
-                        : !hasLoaded && error != null
-                        ? 'Please refresh'
-                        : nextDueDate != null
-                        ? 'Due ${recordDate(nextDueDate)}'
-                        : billCount == 0
-                        ? 'No bills yet'
-                        : 'All paid',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(height: 1, color: Colors.white.withValues(alpha: .20)),
-            ],
+  /// Home's two headline tiles: what the customer owes (royal blue) and
+  /// new announcements (white). They stack on narrow screens or large text.
+  Widget summaryTiles() {
+    final caption = initialLoading
+        ? 'Updating records'
+        : !hasLoaded && error != null
+        ? 'Please refresh'
+        : nextDueDate != null
+        ? 'Due ${recordDate(nextDueDate)}'
+        : billCount == 0
+        ? 'No bills yet'
+        : 'All paid';
+    final balance = homeTile(
+      blue: true,
+      icon: CupertinoIcons.doc_text,
+      label: 'Outstanding balance',
+      hint: 'Opens your bills',
+      onTap: () => setState(() => tab = 1),
+      value: AnimatedSwitcher(
+        duration: motionDuration(context, 200),
+        child: Align(
+          key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
+          alignment: Alignment.centerLeft,
+          child: AmountText(
+            initialLoading
+                ? 'Loading…'
+                : !hasLoaded && error != null
+                ? 'Unavailable'
+                : '₱${formatCentavos(remaining)}',
+            fontSize: 30,
+            color: Colors.white,
+            letterSpacing: -1,
           ),
         ),
-        Material(
-          color: utilityBlue,
-          child: InkWell(
-            onTap: () => open(const BillsPage(isAdmin: false)),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(CupertinoIcons.doc_text, color: Colors.white, size: 23),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'View bill',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+      ),
+      caption: caption,
+    );
+    final fresh = unreadNotices > 0;
+    final news = homeTile(
+      blue: false,
+      icon: CupertinoIcons.speaker_2,
+      label: 'Announcements',
+      hint: 'Opens district announcements',
+      onTap: openAnnouncements,
+      badge: fresh,
+      value: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            hasLoaded ? '$unreadNotices' : '—',
+            style: TextStyle(
+              color: fresh ? alertRed : ink,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'new',
+            style: TextStyle(
+              color: fresh ? alertRed : muted,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      caption: fresh
+          ? (unreadNotices == 1 ? 'Notice to read' : 'Notices to read')
+          : 'You are up to date',
+    );
+    return tilePair(balance, news);
+  }
+
+  /// One headline tile: icon box and arrow on top, label, then a big value.
+  Widget homeTile({
+    required bool blue,
+    required IconData icon,
+    required String label,
+    required String hint,
+    required VoidCallback onTap,
+    required Widget value,
+    required String caption,
+    bool badge = false,
+  }) {
+    final fg = blue ? Colors.white : ink;
+    final soft = blue ? Colors.white.withValues(alpha: .85) : muted;
+    return Semantics(
+      button: true,
+      label: '$label. $caption. $hint',
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: blue
+              ? [
+                  BoxShadow(
+                    color: royalBlue.withValues(alpha: .22),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
-                  Icon(
-                    CupertinoIcons.arrow_right,
-                    color: Colors.white,
-                    size: 22,
+                ]
+              : null,
+        ),
+        child: Material(
+          color: blue ? royalBlue : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: blue ? BorderSide.none : const BorderSide(color: hairline),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: blue
+                                  ? Colors.white.withValues(alpha: .16)
+                                  : accentTint,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 20,
+                              color: blue ? Colors.white : royalBlue,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (badge) ...[
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: alertRed,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Icon(
+                            CupertinoIcons.arrow_up_right,
+                            size: 18,
+                            color: fg,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        label,
+                        maxLines: 2,
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 15,
+                          height: 1.25,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        value,
+                        const SizedBox(height: 2),
+                        Text(
+                          caption,
+                          style: TextStyle(color: soft, fontSize: 13),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The one royal-blue focal point on Home: what the customer owes.
+  Widget balanceCard() => Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: royalBlue,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: [
+        BoxShadow(
+          color: royalBlue.withValues(alpha: .22),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Outstanding balance',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .85),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        AnimatedSwitcher(
+          duration: motionDuration(context, 200),
+          child: Align(
+            key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
+            alignment: Alignment.centerLeft,
+            child: AmountText(
+              initialLoading
+                  ? 'Loading…'
+                  : !hasLoaded && error != null
+                  ? 'Unavailable'
+                  : '₱${formatCentavos(remaining)}',
+              fontSize: 42,
+              color: Colors.white,
+              letterSpacing: -1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          initialLoading
+              ? 'Updating records'
+              : !hasLoaded && error != null
+              ? 'Please refresh'
+              : nextDueDate != null
+              ? 'Due ${recordDate(nextDueDate)}'
+              : billCount == 0
+              ? 'No bills yet'
+              : 'All paid',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .85),
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 22),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: royalBlue,
+          ),
+          onPressed: () => setState(() => tab = 1),
+          icon: const Icon(CupertinoIcons.doc_text, size: 20),
+          label: const Text('View my bills'),
         ),
       ],
     ),
@@ -4968,25 +5679,19 @@ class _ModernDashboardState extends State<ModernDashboard> {
               ? 'Checking published notices'
               : 'Service updates unavailable')
         : notice != null
-        ? 'View affected areas and schedule'
+        ? 'Published ${recordDate(notice['updated_at'])}. View affected areas and schedule.'
         : 'No interruption notice in the latest district updates. Live service status is not available.';
     return Material(
-      color: notice != null ? const Color(0xFFFFF5E6) : Colors.white,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: notice != null ? const Color(0xFFFFE6B1) : hairline,
-        ),
-      ),
+      color: notice != null ? const Color(0xFFFFFAF0) : Colors.white,
+      shape: const Border(left: BorderSide(color: Color(0xFFE1E6EB), width: 3)),
       child: InkWell(
         onTap: !hasLoaded
             ? null
             : notice != null
             ? () => showNotice(notice)
-            : () => open(AnnouncementsPage(isAdmin: admin)),
+            : openAnnouncements,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -4995,7 +5700,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
                     ? CupertinoIcons.exclamationmark_triangle
                     : CupertinoIcons.info_circle,
                 size: 20,
-                color: notice != null ? const Color(0xFFDA8D0B) : muted,
+                color: notice != null ? const Color(0xFF78520A) : muted,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -5003,14 +5708,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      notice != null ? 'Service advisory' : 'Service updates',
+                      notice != null
+                          ? 'Read service advisory'
+                          : 'Service updates',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
-                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(message, style: UtilityStyle.metadata),
                   ],
                 ),
@@ -5039,7 +5745,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
           if (!wide) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [...primary, const SizedBox(height: 16), ...secondary],
+              children: [...primary, const SizedBox(height: 24), ...secondary],
             );
           }
           return Row(
@@ -5064,16 +5770,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
       );
 
   List<Widget> homeContent() => [
-    if (admin) ...[serviceAdvisory(), const SizedBox(height: 20)],
     if (admin)
       dashboardColumns(
         [adminOverview(), requests()],
         [
-          const Text(
+          sectionTitle(
             'Manage district',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            null,
+            guide: 'Shortcuts to everyday office tasks.',
           ),
-          const SizedBox(height: 16),
           actionGrid([
             quickAction(
               'Accounts',
@@ -5097,7 +5802,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
             ),
             quickAction(
               'Repairs',
-              Icons.handyman_outlined,
+              CupertinoIcons.wrench,
               () => open(
                 StaffWorkspace(
                   onSignOut: widget.onSignOut,
@@ -5119,57 +5824,42 @@ class _ModernDashboardState extends State<ModernDashboard> {
     else
       dashboardColumns(
         [
-          balanceCard(),
+          summaryTiles(),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  CupertinoIcons.checkmark_seal_fill,
-                  color: Color(0xFF92DDE5),
-                  size: 20,
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Payments appear after district verification.',
-                    style: TextStyle(color: muted, fontSize: 11),
-                  ),
-                ),
-              ],
+            padding: EdgeInsets.fromLTRB(4, 10, 4, 0),
+            child: Text(
+              'Payments appear after district verification.',
+              style: TextStyle(color: muted, fontSize: 13),
             ),
           ),
-          const SizedBox(height: 4),
-          serviceAdvisory(),
-          const SizedBox(height: 20),
-          const Text('Quick actions', style: UtilityStyle.section),
-          const SizedBox(height: 12),
+          const SizedBox(height: 28),
+          sectionTitle(
+            'Quick actions',
+            null,
+            guide: 'Tap a button to get things done.',
+          ),
           actionGrid([
             quickAction(
-              'Bills',
+              'My bills',
               CupertinoIcons.doc_text,
-              () => open(const BillsPage(isAdmin: false)),
+              () => setState(() => tab = 1),
             ),
             quickAction(
-              'Report issue',
-              CupertinoIcons.exclamationmark_triangle,
+              'Report a problem',
+              CupertinoIcons.plus_bubble,
               () => open(const ConcernFormPage()),
             ),
             quickAction(
-              'Repairs',
-              Icons.handyman_outlined,
-              () => open(const RepairTicketsPage(isAdmin: false)),
+              'Repair updates',
+              CupertinoIcons.wrench,
+              () => setState(() {
+                tab = 2;
+                servicesView = 1;
+              }),
             ),
           ]),
         ],
-        [
-          activity(),
-          const SizedBox(height: 16),
-          requests(),
-          const SizedBox(height: 16),
-          announcements(),
-        ],
+        [requests()],
       ),
   ];
 
@@ -5244,21 +5934,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ),
       ];
     }
+    // Admin "More" tab; the client Account tab is built in directTabBody.
     return [
-      if (!admin)
-        rowTile(
-          'My water-service account',
-          'Registered holder and service address',
-          CupertinoIcons.person,
-          () => open(const ClientAccountPage()),
-        ),
-      rowTile(
-        'Announcements',
-        'Read district notices',
-        CupertinoIcons.speaker_2,
-        () => open(AnnouncementsPage(isAdmin: admin)),
-      ),
-      const SizedBox(height: 20),
+      announcementsTile(),
+      const SizedBox(height: 32),
       OutlinedButton.icon(
         onPressed: widget.signingOut ? null : widget.onSignOut,
         icon: const Icon(CupertinoIcons.square_arrow_right),
@@ -5293,6 +5972,67 @@ class _ModernDashboardState extends State<ModernDashboard> {
         : admin
         ? 'More'
         : 'My account';
+    // One plain-language line under each title says what the screen is for.
+    final String? guide = tab == 0
+        ? null
+        : tab == 1
+        ? (admin
+              ? 'Manage service accounts, bills and verified payments.'
+              : 'See what you owe, your payments, and download your bills.')
+        : tab == 2
+        ? (admin
+              ? 'Review concerns from customers and track repair work.'
+              : 'Report a water problem and follow its progress.')
+        : admin
+        ? 'District announcements and signing out.'
+        : 'Your account details, district notices and help.';
+    final header = Row(
+      children: [
+        Image.asset(
+          'assets/images/maramag-water-district-logo.png',
+          width: 40,
+          height: 40,
+          semanticLabel: 'Maramag Water District logo',
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Maramag Water District',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: ink,
+            ),
+          ),
+        ),
+        Tooltip(
+          message: admin ? 'Account menu' : 'My profile',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              if (admin) {
+                setState(() => tab = 3);
+              } else {
+                open(const ClientAccountPage());
+              }
+            },
+            child: HeaderBubble(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: utilityBlue,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    // Bills, Services and the client Account tab show their records directly.
+    final directTab = tab != 0 && !(admin && tab == 3);
     return UtilityScaffold(
       extendBody: false,
       bottomNavigationBar: PillNavBar(
@@ -5308,190 +6048,114 @@ class _ModernDashboardState extends State<ModernDashboard> {
             admin ? CupertinoIcons.person_2 : CupertinoIcons.doc_text,
             admin ? 'Accounts' : 'Bills',
           ),
-          const PillNavItem(CupertinoIcons.gear, 'Services'),
+          const PillNavItem(CupertinoIcons.wrench, 'Services'),
           PillNavItem(
             admin ? CupertinoIcons.ellipsis : CupertinoIcons.person,
             admin ? 'More' : 'Account',
+            badge: unreadNotices > 0,
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: RefreshIndicator(
-              onRefresh: refresh,
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1120),
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          20,
-                          12,
-                          20,
-                          24 + MediaQuery.paddingOf(context).bottom,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Image.asset(
-                                  'assets/images/maramag-water-district-logo.png',
-                                  width: 48,
-                                  height: 48,
-                                  semanticLabel: 'Maramag Water District logo',
-                                ),
-                                Container(
-                                  height: 32,
-                                  width: 1,
-                                  color: const Color(0xFFA8B3C7),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+      body: directTab
+          ? directTabBody(header, heading, guide)
+          : Stack(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: RefreshIndicator(
+                    onRefresh: refresh,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1120),
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                20,
+                                12,
+                                20,
+                                24 + MediaQuery.paddingOf(context).bottom,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  header,
+                                  const SizedBox(height: 24),
+                                  Semantics(
+                                    header: true,
+                                    child: Text(heading, style: Heading.page),
                                   ),
-                                ),
-                                const Expanded(
-                                  child: Text(
-                                    'Maramag Water District',
-                                    style: TextStyle(
-                                      color: ink,
-                                      fontSize: 16,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -.3,
+                                  if (guide != null) ...[
+                                    const SizedBox(height: 6),
+                                    Text(guide, style: Heading.guide),
+                                  ],
+                                  if (!admin && accountNumber != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Account $accountNumber',
+                                      style: const TextStyle(
+                                        color: muted,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Tooltip(
-                                  message: admin
-                                      ? 'Account menu'
-                                      : 'My profile',
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () {
-                                      if (admin) {
-                                        setState(() => tab = 3);
-                                      } else {
-                                        open(const ClientAccountPage());
-                                      }
-                                    },
-                                    child: HeaderBubble(
-                                      child: Text(
-                                        initials,
-                                        style: const TextStyle(
-                                          color: UtilityStyle.navy,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
+                                  ],
+                                  const SizedBox(height: 24),
+                                  if (error != null)
+                                    Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          children: [
+                                            Text(error!),
+                                            TextButton(
+                                              onPressed: refresh,
+                                              child: const Text('Retry'),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              admin
-                                  ? 'DISTRICT WORKSPACE'
-                                  : 'YOUR WATER ACCOUNT',
-                              style: const TextStyle(
-                                color: muted,
-                                fontSize: 11,
-                                height: 1.2,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              heading,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                height: 1.1,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -.9,
-                              ),
-                            ),
-                            if (!admin && accountNumber != null) ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE2EBFA),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Text(
-                                    '$accountNumber',
-                                    style: const TextStyle(
-                                      color: UtilityStyle.navy,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      height: 1.2,
+                                  if (loading && hasLoaded)
+                                    const LinearProgressIndicator(minHeight: 2),
+                                  AnimatedSwitcher(
+                                    duration: motionDuration(context, 220),
+                                    child: Column(
+                                      key: ValueKey(tab),
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: tabContent(),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 18),
-                            if (error != null)
-                              Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      Text(error!),
-                                      TextButton(
-                                        onPressed: refresh,
-                                        child: const Text('Retry'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            if (loading && hasLoaded)
-                              const LinearProgressIndicator(minHeight: 2),
-                            AnimatedSwitcher(
-                              duration: motionDuration(context, 220),
-                              child: Column(
-                                key: ValueKey(tab),
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: tabContent(),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-/// Profile control shared by the branded dashboard headers.
+/// Compact, neutral profile control in the signed-in header.
 class HeaderBubble extends StatelessWidget {
   const HeaderBubble({super.key, required this.child});
   final Widget child;
   @override
   Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     alignment: Alignment.center,
-    decoration: BoxDecoration(color: UtilityStyle.aqua, shape: BoxShape.circle),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFFEEF0F3)),
+    ),
     child: child,
   );
 }
@@ -5587,137 +6251,98 @@ class _WaterStartupState extends State<WaterStartup>
               )
             : Scaffold(
                 key: const ValueKey('loading'),
-                backgroundColor: UtilityStyle.navy,
-                body: WaterLoadingScreen(pulse: pulse, error: error),
+                backgroundColor: royalBlue,
+                body: SafeArea(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedBuilder(
+                              animation: pulse,
+                              builder: (_, child) => Transform.scale(
+                                scale: 1 + pulse.value * .06,
+                                // Same mark as the desktop sign-in: outline
+                                // drop in a white rounded square.
+                                child: Container(
+                                  width: 108,
+                                  height: 108,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(31),
+                                  ),
+                                  child: const DistrictDropMark(
+                                    width: 44,
+                                    height: 55,
+                                    color: royalBlue,
+                                    strokeWidth: 2.1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            const Text(
+                              'Water District\nConnect',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 32,
+                                height: 1.15,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -.8,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Maramag, Philippines',
+                              style: TextStyle(
+                                color: Color(0xFFDCE6FD),
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 38),
+                            if (error == null) ...[
+                              const SizedBox(
+                                width: 25,
+                                height: 25,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                  semanticsLabel: 'Loading',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Preparing your water-service app…',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ] else
+                              Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  error!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
       ),
     );
   }
-}
-
-/// Branded loading and startup errors share the dashboard's exact palette.
-class WaterLoadingScreen extends StatelessWidget {
-  const WaterLoadingScreen({super.key, required this.pulse, this.error});
-  final Animation<double> pulse;
-  final String? error;
-
-  @override
-  Widget build(BuildContext context) => CustomPaint(
-    painter: const WaterSurfacePainter(),
-    child: SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedBuilder(
-                        animation: pulse,
-                        builder: (_, child) => Transform.scale(
-                          scale: 1 + pulse.value * .035,
-                          child: child,
-                        ),
-                        child: Container(
-                          width: 116,
-                          height: 116,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: UtilityStyle.aqua,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: UtilityStyle.aqua.withValues(alpha: .12),
-                                blurRadius: 36,
-                                spreadRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Image.asset(
-                            'assets/images/maramag-water-district-logo.png',
-                            semanticLabel: 'Maramag Water District logo',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      const Text(
-                        'Water District\nConnect',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'DM Sans',
-                          fontSize: 32,
-                          height: 1.15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -.8,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Maramag, Philippines',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'DM Sans',
-                          color: Color(0xFFBDCCDF),
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      if (error == null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: utilityBlue,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: UtilityStyle.aqua,
-                              semanticsLabel: 'Loading',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'Preparing your water-service app\u2026',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'DM Sans',
-                            color: Color(0xFFBDCCDF),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ] else
-                        Semantics(
-                          liveRegion: true,
-                          child: Text(
-                            error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'DM Sans',
-                              color: UtilityStyle.aqua,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }
 
 final clientDesignTab = DesignTabController();
@@ -5747,43 +6372,139 @@ class ClientDesignNav extends StatelessWidget {
         selectedIcon: CupertinoIcons.house_fill,
       ),
       PillNavItem(CupertinoIcons.doc_text, 'Bills'),
-      PillNavItem(CupertinoIcons.gear, 'Services'),
+      PillNavItem(CupertinoIcons.wrench, 'Services'),
       PillNavItem(CupertinoIcons.person, 'Account'),
     ],
   );
 }
 
 class PillNavItem {
-  const PillNavItem(this.icon, this.label, {this.selectedIcon});
+  const PillNavItem(
+    this.icon,
+    this.label, {
+    this.selectedIcon,
+    this.badge = false,
+  });
   final IconData icon;
   final IconData? selectedIcon;
   final String label;
+
+  /// Shows a red dot, e.g. when there are new announcements.
+  final bool badge;
 }
 
-class AdminDesignNav extends StatelessWidget {
-  const AdminDesignNav({super.key, required this.index});
-  final int index;
+/// The app's existing alert red (same as "Overdue" / "Service interruption").
+const alertRed = Color(0xFFA02C24);
+
+/// Remembers, on this device, when the user last opened Announcements.
+class AnnouncementSeen {
+  static const _key = 'announcements_seen_at';
+
+  static Future<DateTime?> read() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getString(_key);
+      return value == null ? null : DateTime.tryParse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> mark(DateTime when) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_key, when.toUtc().toIso8601String());
+    } catch (_) {}
+  }
+}
+
+/// Small red pill with a number, e.g. unread notices.
+class CountBadge extends StatelessWidget {
+  const CountBadge(this.count, {super.key});
+  final int count;
   @override
-  Widget build(BuildContext context) => PillNavBar(
-    selected: index,
-    onSelect: (i) {
-      clientDesignTab.select(i);
-      Navigator.of(context).popUntil((r) => r.isFirst);
-    },
-    items: const [
-      PillNavItem(
-        CupertinoIcons.house,
-        'Home',
-        selectedIcon: CupertinoIcons.house_fill,
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minWidth: 22),
+    height: 22,
+    padding: const EdgeInsets.symmetric(horizontal: 7),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: alertRed,
+      borderRadius: BorderRadius.circular(11),
+    ),
+    child: Text(
+      count > 9 ? '9+' : '$count',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
-      PillNavItem(CupertinoIcons.person_2, 'Accounts'),
-      PillNavItem(CupertinoIcons.gear, 'Services'),
-      PillNavItem(CupertinoIcons.ellipsis, 'More'),
-    ],
+    ),
   );
 }
 
-/// Floating midnight dock with the concept's pale-aqua active capsule.
+/// Two or three always-visible views inside one tab (for example Bills | Payments).
+class SegmentTabs extends StatelessWidget {
+  const SegmentTabs({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onSelect,
+  });
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFEEF0F3)),
+    ),
+    child: Row(
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          Expanded(
+            child: Semantics(
+              button: true,
+              selected: i == selected,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: i == selected ? null : () => onSelect(i),
+                child: AnimatedContainer(
+                  duration: motionDuration(context, 180),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: i == selected ? accentTint : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    labels[i],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: i == selected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: i == selected ? royalBlue : muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Floating white pill with labeled tabs. The active tab sits on a light-blue
+/// capsule; with large text the tabs wrap into two columns.
 class PillNavBar extends StatelessWidget {
   const PillNavBar({
     super.key,
@@ -5796,111 +6517,121 @@ class PillNavBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    minimum: const EdgeInsets.fromLTRB(10, 4, 10, 10),
-    child: Center(
-      heightFactor: 1,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(11) > 16;
+    final columns = largeText ? 2 : items.length;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 14),
+      child: Center(
+        heightFactor: 1,
         child: Container(
-          clipBehavior: Clip.antiAlias,
+          margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: UtilityStyle.navy,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(largeText ? 24 : 36),
+            border: Border.all(color: const Color(0xFFEEF0F3)),
+            boxShadow: const [
               BoxShadow(
-                color: UtilityStyle.navy.withValues(alpha: .12),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
+                color: Color(0x14111827),
+                blurRadius: 30,
+                offset: Offset(0, 12),
               ),
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = MediaQuery.textScalerOf(context).scale(12) > 18
-                    ? 2
-                    : items.length;
-                return Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      for (var i = 0; i < items.length; i++)
-                        SizedBox(
-                          width:
-                              (constraints.maxWidth - 16 - 4 * (columns - 1)) /
-                              columns,
-                          child: Tooltip(
-                            message: items[i].label,
-                            child: Semantics(
-                              button: true,
-                              selected: i == selected,
-                              label: items[i].label,
-                              excludeSemantics: true,
-                              child: InkWell(
-                                onTap: i == selected ? null : () => onSelect(i),
-                                borderRadius: BorderRadius.circular(22),
-                                child: AnimatedContainer(
-                                  duration: motionDuration(context, 180),
-                                  constraints: const BoxConstraints(
-                                    minHeight: 56,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: i == selected
-                                        ? UtilityStyle.aqua
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(22),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        items[i].icon,
-                                        size: 23,
-                                        color: i == selected
-                                            ? UtilityStyle.navy
-                                            : const Color(0xFFEEF5FF),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        items[i].label,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontFamily: 'DM Sans',
-                                          fontSize: 12,
-                                          fontWeight: i == selected
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                          color: i == selected
-                                              ? UtilityStyle.navy
-                                              : const Color(0xFFEEF5FF),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  SizedBox(
+                    width: constraints.maxWidth / columns,
+                    child: navTab(context, i),
                   ),
-                );
-              },
+              ],
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget navTab(BuildContext context, int i) {
+    final active = i == selected;
+    final color = active ? Colors.white : muted;
+    return Tooltip(
+      message: items[i].label,
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: items[i].badge
+            ? '${items[i].label}, new announcements'
+            : items[i].label,
+        excludeSemantics: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: active ? null : () => onSelect(i),
+          child: AnimatedContainer(
+            duration: motionDuration(context, 200),
+            curve: Curves.easeOut,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 7),
+            decoration: BoxDecoration(
+              color: active ? royalBlue : Colors.transparent,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      active
+                          ? items[i].selectedIcon ?? items[i].icon
+                          : items[i].icon,
+                      size: 21,
+                      color: color,
+                    ),
+                    if (items[i].badge)
+                      Positioned(
+                        right: -3,
+                        top: -2,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: alertRed,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  items[i].label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'DM Sans',
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class DesignValue extends StatelessWidget {

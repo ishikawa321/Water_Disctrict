@@ -37,10 +37,11 @@ $previousSigningPath = $env:WATERDISTRICT_ANDROID_SIGNING_PROPERTIES
 $env:WATERDISTRICT_ANDROID_SIGNING_PROPERTIES = $propertiesPath
 Push-Location $repoRoot
 try {
-    & $FlutterExecutable build apk --release --obfuscate --split-debug-info=artifacts/android/symbols
-    if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
     $versionLine = Get-Content pubspec.yaml | Where-Object { $_ -match '^version:' } | Select-Object -First 1
     $releaseVersion = (($versionLine -split ':',2)[1].Trim() -split '\+')[0]
+    $symbolDirectory = Join-Path $repoRoot "artifacts/android/symbols/$releaseVersion"
+    & $FlutterExecutable build apk --release --obfuscate "--split-debug-info=$symbolDirectory"
+    if ($LASTEXITCODE -ne 0) { throw 'Android release build failed.' }
     $releaseDirectory = Join-Path $repoRoot 'artifacts/android'
     New-Item -ItemType Directory -Force -Path $releaseDirectory | Out-Null
     $destination = Join-Path $releaseDirectory "WaterDistrictConnect-$releaseVersion.apk"

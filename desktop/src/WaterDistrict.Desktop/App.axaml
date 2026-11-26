@@ -10,7 +10,11 @@
         <Style Selector="TextBlock"><Setter Property="Foreground" Value="#111827" /></Style>
         <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#6B7280" /></Style>
         <Style Selector="TextBlock.eyebrow"><Setter Property="FontSize" Value="11" /><Setter Property="LetterSpacing" Value="1.6" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Foreground" Value="#6B7280" /></Style>
-        <Style Selector="TextBlock.page-title"><Setter Property="FontSize" Value="30" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="LetterSpacing" Value="-0.7" /></Style>
+        <Style Selector="TextBlock.page-title"><Setter Property="FontSize" Value="36" /><Setter Property="FontWeight" Value="Bold" /><Setter Property="LetterSpacing" Value="-0.8" /></Style>
+        <!-- Heading scale shared with the mobile app: page title, guide line, section title. -->
+        <Style Selector="TextBlock.guide"><Setter Property="FontSize" Value="16" /><Setter Property="Foreground" Value="#6B7280" /><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="LineHeight" Value="22" /></Style>
+        <Style Selector="TextBlock.section-title"><Setter Property="FontSize" Value="23" /><Setter Property="FontWeight" Value="Bold" /><Setter Property="LetterSpacing" Value="-0.3" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style Selector="TextBlock.section-guide"><Setter Property="FontSize" Value="14.5" /><Setter Property="Foreground" Value="#6B7280" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
         <Style Selector="Button"><Setter Property="CornerRadius" Value="10" /><Setter Property="Padding" Value="16,11" /><Setter Property="MinHeight" Value="42" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="#E5E7EB" /><Setter Property="Foreground" Value="#111827" /></Style>
         <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#F1F3F6" /><Setter Property="BorderBrush" Value="#D1D5DB" /></Style>
         <Style Selector="Button.primary"><Setter Property="Background" Value="#2563EB" /><Setter Property="Foreground" Value="White" /><Setter Property="BorderBrush" Value="#2563EB" /></Style>
@@ -52,5 +56,17 @@
         <Style Selector="Border.card"><Setter Property="Background" Value="White" /><Setter Property="CornerRadius" Value="20" /><Setter Property="Padding" Value="24" /><Setter Property="BorderBrush" Value="#E5E7EB" /><Setter Property="BorderThickness" Value="1" /></Style>
         <Style Selector="Border.feedback"><Setter Property="Background" Value="#EFF4FF" /><Setter Property="CornerRadius" Value="12" /><Setter Property="Padding" Value="14" /></Style>
         <Style Selector="Border.badge"><Setter Property="Background" Value="#EFF4FF" /><Setter Property="CornerRadius" Value="12" /><Setter Property="Padding" Value="10,6" /><Setter Property="HorizontalAlignment" Value="Left" /></Style>
+        <!-- Headline tiles (same layout as the mobile Home): icon box + arrow, label, big number. -->
+        <Style Selector="Button.tile"><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="#E5E7EB" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="18" /><Setter Property="Padding" Value="22" /><Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="VerticalAlignment" Value="Stretch" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="VerticalContentAlignment" Value="Stretch" /></Style>
+        <Style Selector="Button.tile:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#F1F3F6" /><Setter Property="BorderBrush" Value="#D1D5DB" /></Style>
+        <Style Selector="Button.tile.primary"><Setter Property="Background" Value="#2563EB" /><Setter Property="BorderBrush" Value="#2563EB" /><Setter Property="Foreground" Value="White" /></Style>
+        <Style Selector="Button.tile.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#1D4ED8" /><Setter Property="BorderBrush" Value="#1D4ED8" /></Style>
+        <Style Selector="Button.tile.primary TextBlock"><Setter Property="Foreground" Value="White" /></Style>
+        <Style Selector="Border.icon-box"><Setter Property="Width" Value="42" /><Setter Property="Height" Value="42" /><Setter Property="CornerRadius" Value="12" /><Setter Property="Background" Value="#EFF4FF" /><Setter Property="HorizontalAlignment" Value="Left" /></Style>
+        <Style Selector="Button.tile.primary Border.icon-box"><Setter Property="Background" Value="#29FFFFFF" /></Style>
+        <!-- Quick actions: blue circle icon above a plain label. -->
+        <Style Selector="Button.quick"><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="#E5E7EB" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="16" /><Setter Property="Padding" Value="14,20" /><Setter Property="MinHeight" Value="124" /><Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="HorizontalContentAlignment" Value="Center" /><Setter Property="VerticalContentAlignment" Value="Center" /></Style>
+        <Style Selector="Button.quick:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#F1F3F6" /><Setter Property="BorderBrush" Value="#D1D5DB" /></Style>
+        <Style Selector="Border.circle-icon"><Setter Property="Width" Value="48" /><Setter Property="Height" Value="48" /><Setter Property="CornerRadius" Value="24" /><Setter Property="Background" Value="#2563EB" /><Setter Property="HorizontalAlignment" Value="Center" /></Style>
     </Application.Styles>
 </Application>

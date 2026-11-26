@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'ui_components.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -210,8 +208,8 @@ class _ConcernLocationPageState extends State<ConcernLocationPage> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    return UtilityScaffold(
-      appBar: UtilityAppBar(
+    return Scaffold(
+      appBar: AppBar(
         title: Text(widget.readOnly ? 'Concern location' : 'Choose location'),
       ),
       body: LayoutBuilder(
