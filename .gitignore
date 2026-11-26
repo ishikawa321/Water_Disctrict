@@ -32,6 +32,13 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/web/node_modules/
+/web/.next/
+/web/test-results/
+/web/playwright-report/
+/web/coverage/
+/web/*.tsbuildinfo
+.vercel/
 
 # Symbolication related
 app.*.symbols
