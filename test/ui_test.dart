@@ -28,6 +28,7 @@ void main() {
   var interruptionPublished = true;
   String? concernFilter, repairFilter;
   var emptyRecords = false, failRecords = false;
+  var conceptPreview = false;
   Completer<void>? recordsGate;
   final boundaryKey = GlobalKey();
   final user = {
@@ -231,6 +232,11 @@ void main() {
           body = {};
         }
         if (emptyRecords && request.url.path.startsWith('/rest/v1/') && request.method == 'GET') body = [];
+        if (conceptPreview && request.method == 'GET' &&
+            ['bills', 'offline_payments', 'service_concerns'].any(
+              (table) => request.url.path.endsWith('/$table'))) {
+          body = [];
+        }
         return http.Response(
           jsonEncode(body),
           code,
@@ -260,6 +266,7 @@ void main() {
     emptyRecords = false;
     failRecords = false;
     recordsGate = null;
+    conceptPreview = false;
   });
 
   Widget app(Widget child, {double textScale = 1}) => MaterialApp(
@@ -311,6 +318,50 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text(role == 'admin' ? 'Service concerns' : 'My concerns'), findsOneWidget);
           expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+        }
+      }
+    }
+  });
+
+  testWidgets('concept dashboard shows empty transactions only when the records are empty', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final empty in [true, false]) {
+      conceptPreview = empty;
+      await tester.pumpWidget(app(ModernDashboard(
+        key: ValueKey(empty),
+        profile: const {'display_name': 'Steven Malnegro', 'role': 'client'},
+        onSignOut: () async {}, signingOut: false)));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pumpAndSettle();
+      expect(find.text('No recent transactions'), empty ? findsOneWidget : findsNothing);
+      expect(find.text('Payment verified'), empty ? findsNothing : findsOneWidget);
+      if (empty) await screenshot(tester, 'concept-client-dashboard');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('branded startup and startup errors fit small and large text', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 390.0, 1280.0]) {
+      for (final scale in [1.0, 2.0]) {
+        for (final fail in [false, true]) {
+          await tester.binding.setSurfaceSize(Size(width, 844));
+          await tester.pumpWidget(app(WaterStartup(
+            initialize: () async { if (fail) throw StateError('Missing configuration'); },
+            destination: const SizedBox()), textScale: scale));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(tester.takeException(), isNull);
+          if (!fail) expect(find.byType(CircularProgressIndicator), findsOneWidget);
+          await screenshot(tester, 'startup-${width.toInt()}-${scale.toInt()}x-${fail ? 'error' : 'loading'}');
+          await tester.pump(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
           await tester.pumpWidget(const SizedBox());
         }
       }
@@ -437,7 +488,7 @@ void main() {
     expect(find.text('Maramag Water District'), findsOneWidget);
     // Wide screens put billing and requests side by side.
     expect(tester.getTopLeft(find.text('Recent request')).dx,
-      greaterThan(tester.getTopLeft(find.text('Outstanding balance')).dx + 300));
+      greaterThan(tester.getTopLeft(find.text('OUTSTANDING BALANCE')).dx + 300));
     await tester.ensureVisible(find.text('Read response'));
     await tester.tap(find.text('Read response'));
     await tester.pumpAndSettle();
@@ -464,7 +515,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Live service status is not available.'), findsOneWidget);
     expect(find.text('Normal service'), findsNothing);
-    expect(find.text('Read service advisory'), findsNothing);
+    expect(find.text('Service advisory'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -763,6 +814,7 @@ void main() {
         if (i == 2) expect(find.text('Edit notice'), admin ? findsOneWidget : findsNothing);
         if (i == 1) expect(find.text('Update on desktop'), admin ? findsOneWidget : findsNothing);
         await tester.ensureVisible(find.text(labels[i]));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(labels[i]));
         await tester.pumpAndSettle();
         expect(find.text(detailTexts[i]), i == 2 ? findsNWidgets(2) : findsOneWidget);
@@ -794,6 +846,35 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(types[i]), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'Route: ${labels[i]}');
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('record navigation returns to the right user or admin destination', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final admin in [false, true]) {
+      await tester.pumpWidget(app(ModernDashboard(
+        profile: {'display_name': 'Test User', 'role': admin ? 'admin' : 'client'},
+        onSignOut: () async {}, signingOut: false)));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(admin ? 'Accounts' : 'Bills'));
+      await tester.pumpAndSettle();
+      final bills = find.text(admin ? 'Billing records' : 'My bills');
+      await tester.ensureVisible(bills);
+      await tester.pumpAndSettle();
+      await tester.tap(bills);
+      await tester.pumpAndSettle();
+      expect(find.byType(BillsPage), findsOneWidget);
+      await tester.tap(find.byTooltip('Services').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(BillsPage), findsNothing);
+      expect(find.text(admin ? 'Service concerns' : 'My concerns'), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     }
   });
@@ -848,7 +929,7 @@ void main() {
     });
   }
 
-  testWidgets('admin fetches the saved pin and review leaves its coordinates unchanged', (tester) async {
+  testWidgets('admin reads the saved pin and hands review off to desktop', (tester) async {
     failAuth = false;
     await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
       email: 'user@example.com', password: 'password123'));
@@ -862,21 +943,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('7.763300, 125.005800'), findsOneWidget);
     expect(find.text('View location'), findsOneWidget);
-    await tester.ensureVisible(find.text('Review concern'));
-    await tester.tap(find.text('Review concern'));
+    await tester.ensureVisible(find.text('Review on desktop'));
+    await tester.tap(find.text('Review on desktop'));
     await tester.pumpAndSettle();
-    expect(find.text('View location'), findsOneWidget);
-    expect(find.text('Choose location'), findsNothing);
-    await tester.enterText(find.byType(TextFormField), 'Crew assigned to inspect the leak.');
-    await tester.ensureVisible(find.text('Save review'));
-    await tester.tap(find.text('Save review'));
-    await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
-    await tester.pumpAndSettle();
-    expect(reviewedConcern!['admin_response'], 'Crew assigned to inspect the leak.');
-    expect(reviewedConcern!.containsKey('latitude'), isFalse);
-    expect(reviewedConcern!.containsKey('longitude'), isFalse);
-    expect(reviewedConcern!.containsKey('location_note'), isFalse);
+    expect(find.text('Review concerns in the office desktop application.'), findsOneWidget);
+    expect(reviewedConcern, isNull);
     expect(find.byType(ConcernFormPage), findsNothing);
     expect(find.byType(ConcernsPage), findsOneWidget);
     expect(tester.takeException(), isNull);

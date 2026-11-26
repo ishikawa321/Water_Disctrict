@@ -2,14 +2,16 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
 abstract final class UtilityStyle {
-  static const blue = Color(0xFF1A4FD6);
-  static const background = Color(0xFFF6F9FC);
-  static const border = Color(0xFFE1E6EB);
+  static const navy = Color(0xFF081B3D);
+  static const blue = Color(0xFF0648D7);
+  static const aqua = Color(0xFFCDF7FA);
+  static const background = Color(0xFFF8FAFD);
+  static const border = Color(0xFFE0E6EF);
   static const title = TextStyle(
     fontFamily: 'DM Sans',
     fontSize: 26,
     fontWeight: FontWeight.w700,
-    color: Color(0xFF172536),
+    color: Color(0xFF0C142B),
     height: 1.2,
     letterSpacing: -.4,
   );
@@ -17,7 +19,7 @@ abstract final class UtilityStyle {
     fontFamily: 'DM Sans',
     fontSize: 18,
     fontWeight: FontWeight.w600,
-    color: Color(0xFF172536),
+    color: Color(0xFF0C142B),
     height: 1.3,
   );
   static const body = TextStyle(
@@ -25,16 +27,66 @@ abstract final class UtilityStyle {
     fontSize: 15,
     fontFamilyFallback: ['Currency Symbols'],
     fontWeight: FontWeight.w400,
-    color: Color(0xFF172536),
+    color: Color(0xFF0C142B),
     height: 1.5,
   );
   static const metadata = TextStyle(
     fontFamily: 'DM Sans',
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: Color(0xFF526077),
+    color: Color(0xFF626C82),
     height: 1.4,
   );
+}
+
+/// Midnight surface and fine aqua ripple artwork from the dashboard concept.
+class WaterSurface extends StatelessWidget {
+  const WaterSurface({super.key, required this.child, this.radius = 24});
+  final Widget child;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: UtilityStyle.navy,
+      borderRadius: BorderRadius.circular(radius),
+      boxShadow: [
+        BoxShadow(
+          color: UtilityStyle.navy.withValues(alpha: .10),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: CustomPaint(painter: const WaterSurfacePainter(), child: child),
+  );
+}
+
+class WaterSurfacePainter extends CustomPainter {
+  const WaterSurfacePainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final center = Offset(size.width * .96, 10);
+    for (var i = 0; i < 8; i++) {
+      final radius = 24.0 + i * 22;
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = .8
+          ..color = const Color(0xFF29DAE8)
+              .withValues(alpha: .48 * (1 - i / 8)),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(WaterSurfacePainter oldDelegate) => false;
 }
 
 /// Content-sized header: title wrapping determines its height at any text scale.
@@ -53,7 +105,10 @@ class UtilityAppBar extends StatelessWidget implements PreferredSizeWidget {
       child: title is Text
           ? Text(
               (title as Text).data ?? '',
-              style: UtilityStyle.title,
+              style: UtilityStyle.title.copyWith(
+                color: UtilityStyle.navy,
+                fontSize: 24,
+              ),
               softWrap: true,
             )
           : title,
@@ -61,44 +116,59 @@ class UtilityAppBar extends StatelessWidget implements PreferredSizeWidget {
     final large = MediaQuery.textScalerOf(context).scale(26) > 39;
     return Material(
       color: UtilityStyle.background,
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          heightFactor: 1,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: large
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (back || actions?.isNotEmpty == true) ...[
-                          Row(
-                            children: [
-                              if (back) const BackButton(),
-                              const Spacer(),
-                              ...?actions,
-                            ],
-                          ),
-                          const SizedBox(height: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          iconTheme: const IconThemeData(color: UtilityStyle.navy),
+          iconButtonTheme: IconButtonThemeData(
+            style: IconButton.styleFrom(
+              foregroundColor: UtilityStyle.navy,
+              backgroundColor: Colors.white,
+              minimumSize: const Size(44, 44),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                child: large
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (back || actions?.isNotEmpty == true) ...[
+                            Row(
+                              children: [
+                                if (back) const BackButton(),
+                                const Spacer(),
+                                ...?actions,
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          heading,
                         ],
-                        heading,
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        if (back) ...[
-                          const BackButton(),
-                          const SizedBox(width: 8),
+                      )
+                    : Row(
+                        children: [
+                          if (back) ...[
+                            const BackButton(),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(child: heading),
+                          if (actions != null) ...[
+                            const SizedBox(width: 8),
+                            ...actions!,
+                          ],
                         ],
-                        Expanded(child: heading),
-                        if (actions != null) ...[
-                          const SizedBox(width: 8),
-                          ...actions!,
-                        ],
-                      ],
-                    ),
+                      ),
+              ),
             ),
           ),
         ),
@@ -107,7 +177,7 @@ class UtilityAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Applied only to signed-in screens, leaving authentication and maps intact.
+/// Shared visual system for customer and office screens.
 class UtilityScaffold extends StatelessWidget {
   const UtilityScaffold({
     super.key,
@@ -122,20 +192,23 @@ class UtilityScaffold extends StatelessWidget {
   final bool extendBody;
 
   static ThemeData themeFor(BuildContext context) {
-    const blue = Color(0xFF1A4FD6);
-    const text = Color(0xFF172536);
-    const border = Color(0xFFE1E6EB);
+    const blue = UtilityStyle.blue;
+    const text = Color(0xFF0C142B);
+    const border = UtilityStyle.border;
     final base = Theme.of(context);
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
     );
     return base.copyWith(
-      scaffoldBackgroundColor: const Color(0xFFF6F9FC),
+      scaffoldBackgroundColor: UtilityStyle.background,
       colorScheme: base.colorScheme.copyWith(
         primary: blue,
         secondary: blue,
         onSurface: text,
-        primaryContainer: const Color(0xFFEDF2FF),
+        primaryContainer: const Color(0xFFE4F2F8),
+        secondaryContainer: const Color(0xFFE4F2F8),
+        onPrimaryContainer: UtilityStyle.navy,
+        onSecondaryContainer: UtilityStyle.navy,
         outline: border,
         outlineVariant: border,
       ),
@@ -164,7 +237,7 @@ class UtilityScaffold extends StatelessWidget {
         ),
       ),
       appBarTheme: base.appBarTheme.copyWith(
-        backgroundColor: const Color(0xFFF6F9FC),
+        backgroundColor: UtilityStyle.background,
         foregroundColor: text,
         titleTextStyle: const TextStyle(
           fontFamily: 'DM Sans',
@@ -175,9 +248,24 @@ class UtilityScaffold extends StatelessWidget {
         ),
       ),
       cardTheme: base.cardTheme.copyWith(
+        color: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(22),
           side: const BorderSide(color: border),
+        ),
+      ),
+      dialogTheme: base.dialogTheme.copyWith(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: base.bottomSheetTheme.copyWith(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       dividerTheme: const DividerThemeData(color: border, thickness: 1),
@@ -188,14 +276,15 @@ class UtilityScaffold extends StatelessWidget {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: const BorderSide(color: border),
         labelStyle: const TextStyle(
           fontFamily: 'DM Sans',
           fontSize: 15,
           fontWeight: FontWeight.w600,
+          color: UtilityStyle.navy,
         ),
-        selectedColor: const Color(0xFFEDF2FF),
+        selectedColor: const Color(0xFFE4F2F8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -238,30 +327,30 @@ class UtilityScaffold extends StatelessWidget {
         focusElevation: 0,
         hoverElevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
-        fillColor: const Color(0xFFF2F5F9),
+        fillColor: const Color(0xFFF2F5FA),
         contentPadding: const EdgeInsets.all(16),
         helperStyle: UtilityStyle.metadata,
         helperMaxLines: 8,
         errorMaxLines: 8,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: base.colorScheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: base.colorScheme.error, width: 2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: blue, width: 2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: border),
         ),
       ),
@@ -378,13 +467,13 @@ class StatusBadge extends StatelessWidget {
       'Rejected',
     ].contains(status);
     final color = neutral
-        ? const Color(0xFF526077)
+        ? const Color(0xFF626C82)
         : done
         ? const Color(0xFF176442)
         : alert
         ? const Color(0xFFA02C24)
         : active
-        ? const Color(0xFF1A4FD6)
+        ? UtilityStyle.blue
         : const Color(0xFF78520A);
     return AnimatedSwitcher(
       duration: motionDuration(context, 180),
@@ -394,7 +483,7 @@ class StatusBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: color.withValues(alpha: .09),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -444,29 +533,37 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 30,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
-          if (onAction != null) ...[
-            const SizedBox(height: 16),
-            FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+    child: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: UtilityStyle.aqua,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(icon, size: 32, color: UtilityStyle.blue),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            if (onAction != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     ),
   );
@@ -643,6 +740,7 @@ class AmountText extends StatelessWidget {
       style: TextStyle(
         color: color ?? Theme.of(context).colorScheme.primary,
         fontSize: fontSize,
+        height: 1.05,
         fontWeight: FontWeight.w700,
         letterSpacing: letterSpacing,
       ),
