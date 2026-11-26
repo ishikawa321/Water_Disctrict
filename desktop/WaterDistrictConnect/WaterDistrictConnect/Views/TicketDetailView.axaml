@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:v="using:WaterDistrictConnect.Views" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="WaterDistrictConnect.Views.TicketDetailView" Classes="page-enter">
+  <StackPanel Spacing="24">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Repair ticket details" Classes="title" />
+        <TextBlock Text="Progress is entered by office personnel; no plumber login or live field tracking." Classes="muted" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Top" />
+    </Grid>
+    <v:Feedback />
+    <WrapPanel>
+      <Button Content="Back to tickets" Command="{Binding BackCommand}" Margin="0,0,12,0" />
+      <Button Content="Open source concern" Command="{Binding ConcernCommand}" />
+    </WrapPanel>
+    <Border Classes="card">
+      <StackPanel Spacing="12">
+        <TextBlock Text="{Binding Detail.Row.Reference}" Classes="section" />
+        <TextBlock Text="{Binding Detail.Row.Subject}" />
+        <Border Classes="status-pill">
+          <TextBlock Text="{Binding Detail.Row.StateLabel}" />
+        </Border>
+        <TextBlock Text="Source concern" Classes="label" />
+        <TextBlock Text="{Binding Detail.Row.ConcernReference}" />
+        <TextBlock Text="Service location" Classes="label" />
+        <TextBlock Text="{Binding Detail.Location}" />
+        <TextBlock Text="Created (PHT)" Classes="label" />
+        <TextBlock Text="{Binding Detail.Row.DateLabel}" />
+        <TextBlock Text="First assignment" Classes="label" />
+        <TextBlock Text="{Binding AssignmentTime}" />
+        <TextBlock Text="Completion summary" Classes="label" />
+        <TextBlock Text="{Binding Detail.Summary}" />
+        <TextBlock Text="Signed Job Order reference" Classes="label" />
+        <TextBlock Text="{Binding Detail.JobOrder}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card" IsVisible="{Binding CanRepair}">
+      <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
+        <TextBlock Text="Process repair ticket" Classes="section" />
+        <TextBlock Text="Office action" Classes="label" />
+        <ComboBox ItemsSource="{Binding Actions}" SelectedItem="{Binding Action}" />
+        <StackPanel Spacing="8" IsVisible="{Binding IsAssign}">
+          <TextBlock Text="Plumber resource" Classes="label" />
+          <ComboBox ItemsSource="{Binding Plumbers}" SelectedItem="{Binding Plumber}" PlaceholderText="Choose an available resource" />
+          <TextBlock Text="Current resource" Classes="label" />
+          <TextBlock Text="{Binding Detail.Row.Plumber}" />
+        </StackPanel>
+        <TextBlock Text="Update / reason / completion summary / signed Job Order reference *" Classes="label" />
+        <TextBox AutomationProperties.Name="Ticket update or required reference" Text="{Binding Update}" PlaceholderText="Required for this action. Reassignment and reopening require a reason." AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxLength="2000" />
+        <TextBlock Text="For Close, enter the signed Job Order reference (maximum 160 characters). Start requires assignment; Resolve requires In Progress. Reopen returns to Assigned and retains all event history." Classes="muted" />
+        <CheckBox Content="Internal progress note — hidden from clients" IsChecked="{Binding InternalNote}" IsVisible="{Binding CanInternal}" />
+        <Button Content="Apply ticket action" Classes="primary" Command="{Binding ApplyCommand}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel Spacing="16">
+        <TextBlock Text="Preserved event history" Classes="section" />
+        <ItemsControl ItemsSource="{Binding Detail.Timeline}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1" Padding="0,12" Classes="record-row">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Header}" Classes="muted" />
+                  <TextBlock Text="{Binding Visibility}" FontSize="12" Foreground="{StaticResource Warning}" IsVisible="{Binding Internal}" />
+                  <TextBlock Text="{Binding Text}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<Application xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:WaterDistrictConnect.ViewModels" xmlns:v="using:WaterDistrictConnect.Views" x:Class="WaterDistrictConnect.App" RequestedThemeVariant="Light">
+  <Application.DataTemplates>
+    <DataTemplate DataType="{x:Type vm:BillingViewModel}"><v:BillingView/></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ConcernOverviewViewModel}"><v:ConcernOverviewView/></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:FoundationOverviewViewModel}"><v:FoundationOverviewView/></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:LoginViewModel}">
+      <v:LoginView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:WorkspaceViewModel}">
+      <v:WorkspaceView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:OverviewViewModel}">
+      <v:OverviewView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SubmitViewModel}">
+      <v:SubmitView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ConcernsViewModel}">
+      <v:ConcernsView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TicketsViewModel}">
+      <v:TicketsView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ConcernDetailViewModel}">
+      <v:ConcernDetailView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TicketDetailViewModel}">
+      <v:TicketDetailView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:AccountsViewModel}">
+      <v:AccountsView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:PlumbersViewModel}">
+      <v:PlumbersView/>
+    </DataTemplate>
+  </Application.DataTemplates>
+  <Application.Styles>
+    <FluentTheme/>
+    <StyleInclude Source="/Styles/Theme.axaml"/>
+  </Application.Styles>
+</Application>

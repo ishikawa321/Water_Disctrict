@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:v="using:WaterDistrictConnect.Views" x:Class="WaterDistrictConnect.Views.FoundationOverviewView" Classes="page-enter">
+  <StackPanel Spacing="24">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16"><StackPanel Spacing="8"><TextBlock Text="Overview" Classes="title"/><TextBlock Text="{Binding Greeting}" Classes="muted"/></StackPanel><Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Top"/></Grid>
+    <v:Feedback/>
+    <Border Classes="card"><StackPanel Spacing="16">
+      <TextBlock Text="{Binding Experience}" Classes="eyebrow"/>
+      <TextBlock Text="Your account and access" Classes="section"/>
+      <TextBlock Text="{Binding Who.RoleLabel}" FontWeight="SemiBold"/>
+      <TextBlock Text="{Binding Who.Username, StringFormat='Username: {0}'}" Classes="muted"/>
+      <ItemsControl ItemsSource="{Binding AccessLabels}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    </StackPanel></Border>
+    <Border Classes="card"><StackPanel Spacing="16">
+      <TextBlock Text="Saved reference information" Classes="section"/>
+      <TextBlock Text="{Binding AccountSummary}"/>
+      <TextBlock Text="{Binding ResourceSummary}" IsVisible="{Binding IsOffice}"/>
+      <Button Content="View customer account information" Command="{Binding AccountsCommand}" Classes="primary"/>
+    </StackPanel></Border>
+    <Border Classes="notice"><StackPanel Spacing="8"><TextBlock Text="Phase 1 · Foundation" FontWeight="SemiBold"/><TextBlock Text="This build provides sign in, account ownership checks, read-only reference information, and role-based navigation. All accounts and resources are fictional. No operational activity totals are presented in this phase." Classes="muted"/></StackPanel></Border>
+  </StackPanel>
+</UserControl>

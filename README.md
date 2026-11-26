@@ -1,5 +1,16 @@
 # Water District Connect
 
+## Latest WaterDistrictConnect desktop source
+
+The current standalone Avalonia/.NET desktop workspace is available in
+[`desktop/WaterDistrictConnect/`](desktop/WaterDistrictConnect/README.md).
+Open `desktop/WaterDistrictConnect/WaterDistrictConnect.slnx` in Visual Studio,
+or run `dotnet build desktop/WaterDistrictConnect/WaterDistrictConnect.slnx -c Release`.
+Its README covers PostgreSQL configuration, migrations, demo setup and verification.
+Local database credentials and generated build output are excluded.
+The existing `desktop/WaterDistrict.sln` implementation is also retained.
+
+
 ## Configure authentication
 
 The app uses the existing Supabase project `kaeespcylucvsazfdaks`.

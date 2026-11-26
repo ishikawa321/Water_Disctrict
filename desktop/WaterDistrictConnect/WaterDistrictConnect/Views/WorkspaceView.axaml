@@ -1,0 +1,23 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:v="using:WaterDistrictConnect.Views" x:Class="WaterDistrictConnect.Views.WorkspaceView">
+ <Grid ColumnDefinitions="208,*" Background="{StaticResource PageSurface}">
+  <Border Background="{StaticResource SidebarSurface}" BorderBrush="{StaticResource Divider}" BorderThickness="0,0,1,0">
+   <Grid RowDefinitions="Auto,*,Auto" Margin="12,22,12,16">
+    <Grid ColumnDefinitions="36,*" ColumnSpacing="9" Margin="8,0,0,28"><v:BrandMark Width="32" Height="40"/><StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1"><TextBlock Text="Maramag Water" FontSize="14" FontWeight="Bold"/><TextBlock Text="Service Desk" FontSize="12"/></StackPanel></Grid>
+    <ListBox Grid.Row="1" Classes="navigation" ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedNavigation}" AutomationProperties.Name="Main navigation">
+     <ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="20,*" ColumnSpacing="10"><Path Data="{Binding Icon}" Stroke="{Binding $parent[ListBoxItem].Foreground}" StrokeThickness="1.6" Width="18" Height="18" Stretch="Uniform"/><TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13" Foreground="{Binding $parent[ListBoxItem].Foreground}" VerticalAlignment="Center"/></Grid></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <StackPanel Grid.Row="2" Spacing="12" Margin="8,16,8,0">
+     <Grid ColumnDefinitions="36,*" ColumnSpacing="10"><Border Background="#BDE4E7" CornerRadius="20" Width="34" Height="34"><TextBlock Text="{Binding Initials}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/></Border><StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center"><TextBlock Text="{Binding Who.Name}" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="{Binding Who.RoleLabel}" Classes="caption" FontSize="11"/></StackPanel></Grid>
+     <Border Classes="demo-badge" IsVisible="{Binding DemoMode}" HorizontalAlignment="Center" MinWidth="80"><TextBlock Text="Demo" HorizontalAlignment="Center"/></Border>
+     <Button Command="{Binding LogoutCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="compact"><StackPanel Orientation="Horizontal" Spacing="9"><Path Data="{StaticResource IconLogout}" Classes="icon" Width="16" Height="16"/><TextBlock Text="Sign out"/></StackPanel></Button>
+    </StackPanel>
+   </Grid>
+  </Border>
+  <Grid Grid.Column="1" RowDefinitions="Auto,*">
+   <Border Background="#F8FBFD" BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1" Padding="28,10" IsVisible="{Binding Who.IsClient}">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="16"><Border Classes="demo-badge" IsVisible="{Binding DemoMode}" VerticalAlignment="Center"><TextBlock Text="Demo"/></Border><Path Data="{StaticResource IconUser}" Classes="icon" Width="17" Height="17" VerticalAlignment="Center"/><TextBlock Text="{Binding Who.Name}" Classes="caption" VerticalAlignment="Center"/></StackPanel>
+   </Border>
+   <ScrollViewer x:Name="PageScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled"><ContentControl Content="{Binding Page}" Margin="{StaticResource PagePadding}" HorizontalContentAlignment="Stretch"/></ScrollViewer>
+  </Grid>
+ </Grid>
+</UserControl>

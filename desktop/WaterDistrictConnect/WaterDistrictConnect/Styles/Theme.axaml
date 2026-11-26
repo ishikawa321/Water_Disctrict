@@ -1,0 +1,100 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <Styles.Resources>
+  <SolidColorBrush x:Key="Primary">#0075AD</SolidColorBrush>
+  <SolidColorBrush x:Key="PrimaryHover">#006798</SolidColorBrush>
+  <SolidColorBrush x:Key="PrimaryPressed">#005882</SolidColorBrush>
+  <SolidColorBrush x:Key="PrimarySubtle">#DDF2FD</SolidColorBrush>
+  <SolidColorBrush x:Key="AppBackground">#F5FAFD</SolidColorBrush>
+  <SolidColorBrush x:Key="Surface">#FFFFFF</SolidColorBrush>
+  <SolidColorBrush x:Key="MainText">#141D35</SolidColorBrush>
+  <SolidColorBrush x:Key="SecondaryText">#384861</SolidColorBrush>
+  <SolidColorBrush x:Key="MutedText">#718096</SolidColorBrush>
+  <SolidColorBrush x:Key="Divider">#D8E3EC</SolidColorBrush>
+  <SolidColorBrush x:Key="Success">#17734D</SolidColorBrush>
+  <SolidColorBrush x:Key="SuccessBackground">#E0F3E9</SolidColorBrush>
+  <SolidColorBrush x:Key="Warning">#95600C</SolidColorBrush>
+  <SolidColorBrush x:Key="WarningBackground">#FFF1D4</SolidColorBrush>
+  <SolidColorBrush x:Key="Error">#B63838</SolidColorBrush>
+  <SolidColorBrush x:Key="ErrorBackground">#FFF0F0</SolidColorBrush>
+  <SolidColorBrush x:Key="Teal">#087C86</SolidColorBrush>
+  <SolidColorBrush x:Key="TealSubtle">#E1F2F1</SolidColorBrush>
+  <LinearGradientBrush x:Key="PageSurface" StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Color="#FFFFFF" Offset="0"/><GradientStop Color="#F3F9FD" Offset="1"/></LinearGradientBrush>
+  <LinearGradientBrush x:Key="SidebarSurface" StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Color="#FFFFFF" Offset="0"/><GradientStop Color="#EDF5FA" Offset="1"/></LinearGradientBrush>
+  <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Color="#0089BB" Offset="0"/><GradientStop Color="#00699E" Offset="1"/></LinearGradientBrush>
+  <LinearGradientBrush x:Key="SelectedGradient" StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Color="#D9F4FF" Offset="0"/><GradientStop Color="#BFE8FC" Offset="1"/></LinearGradientBrush>
+  <Thickness x:Key="PagePadding">28,24</Thickness>
+  <Thickness x:Key="CardPadding">20</Thickness>
+  <CornerRadius x:Key="CardRadius">9</CornerRadius>
+  <x:Double x:Key="BodySize">14</x:Double><x:Double x:Key="TitleSize">26</x:Double><x:Double x:Key="SectionSize">17</x:Double>
+  <BoxShadows x:Key="SurfaceShadow">0 2 5 0 #050B2030</BoxShadows>
+  <StreamGeometry x:Key="IconHome">M3,10 L12,3 21,10 M5,9 V21 H19 V9 M9,21 V14 H15 V21</StreamGeometry>
+  <StreamGeometry x:Key="IconConcern">M5,3 H19 V21 H5 Z M8,7 H16 M8,11 H16 M8,15 H14</StreamGeometry>
+  <StreamGeometry x:Key="IconAdd">M12,3 A9,9 0 1 1 12,21 A9,9 0 1 1 12,3 M7,12 H17 M12,7 V17</StreamGeometry>
+  <StreamGeometry x:Key="IconUser">M12,3 A4,4 0 1 1 12,11 A4,4 0 1 1 12,3 M3,21 V18 C3,12 21,12 21,18 V21 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconClock">M12,2 A10,10 0 1 1 12,22 A10,10 0 1 1 12,2 M12,6 V12 L16,14</StreamGeometry>
+  <StreamGeometry x:Key="IconReply">M3,4 H21 V17 H8 L3,21 Z M7,10 H8 M11,10 H12 M15,10 H16</StreamGeometry>
+  <StreamGeometry x:Key="IconPin">M12,22 C10,18 4,13 4,9 A8,8 0 1 1 20,9 C20,13 14,18 12,22 Z M12,6 A3,3 0 1 1 12,12 A3,3 0 1 1 12,6</StreamGeometry>
+  <StreamGeometry x:Key="IconInfo">M12,2 A10,10 0 1 1 12,22 A10,10 0 1 1 12,2 M12,10 V17 M12,6 V7</StreamGeometry>
+  <StreamGeometry x:Key="IconArrow">M4,12 H20 M14,6 L20,12 14,18</StreamGeometry>
+  <StreamGeometry x:Key="IconSearch">M10,3 A7,7 0 1 1 10,17 A7,7 0 1 1 10,3 M15,15 L22,22</StreamGeometry>
+  <StreamGeometry x:Key="IconLogout">M10,3 H3 V21 H10 M9,12 H22 M16,6 L22,12 16,18</StreamGeometry>
+ </Styles.Resources>
+ <Style Selector="Window"><Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="{StaticResource BodySize}"/><Setter Property="Foreground" Value="{StaticResource MainText}"/><Setter Property="Background" Value="{StaticResource AppBackground}"/></Style>
+ <Style Selector="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style Selector="TextBlock.title"><Setter Property="FontSize" Value="{StaticResource TitleSize}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="LineHeight" Value="32"/></Style>
+ <Style Selector="TextBlock.section"><Setter Property="FontSize" Value="{StaticResource SectionSize}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+ <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="{StaticResource SecondaryText}"/><Setter Property="FontSize" Value="13"/></Style>
+ <Style Selector="TextBlock.caption"><Setter Property="Foreground" Value="{StaticResource SecondaryText}"/><Setter Property="FontSize" Value="12"/></Style>
+ <Style Selector="TextBlock.label"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,4,0,0"/></Style>
+ <Style Selector="TextBlock.validation"><Setter Property="Foreground" Value="{StaticResource Error}"/><Setter Property="FontSize" Value="12"/><Setter Property="IsVisible" Value="{Binding Text, RelativeSource={RelativeSource Self}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/></Style>
+ <Style Selector="TextBlock.stat-value"><Setter Property="FontSize" Value="29"/><Setter Property="FontWeight" Value="Bold"/></Style>
+ <Style Selector="TextBlock.eyebrow"><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource Primary}"/></Style>
+ <Style Selector="Path.icon"><Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="{StaticResource SecondaryText}"/><Setter Property="StrokeThickness" Value="1.6"/></Style>
+ <Style Selector="Path.heading-icon"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="{StaticResource PrimaryPressed}"/><Setter Property="StrokeThickness" Value="1.7"/><Setter Property="VerticalAlignment" Value="Top"/><Setter Property="Margin" Value="0,3,0,0"/></Style>
+ <Style Selector="Border.card"><Setter Property="Background" Value="{StaticResource PageSurface}"/><Setter Property="BorderBrush" Value="{StaticResource Divider}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{StaticResource CardRadius}"/><Setter Property="Padding" Value="{StaticResource CardPadding}"/></Style>
+ <Style Selector="Border.notice"><Setter Property="Background" Value="{StaticResource PrimarySubtle}"/><Setter Property="BorderBrush" Value="#C4E3F2"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="16"/></Style>
+ <Style Selector="Border.service-notice"><Setter Property="Background" Value="{StaticResource TealSubtle}"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="16"/></Style>
+ <Style Selector="Button"><Setter Property="MinHeight" Value="38"/><Setter Property="Padding" Value="14,8"/><Setter Property="CornerRadius" Value="6"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource PrimaryPressed}"/><Setter Property="Background" Value="{StaticResource PageSurface}"/><Setter Property="BorderBrush" Value="#C8D9E6"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="Template"><ControlTemplate><ContentPresenter Name="PART_ContentPresenter" Background="{TemplateBinding Background}" Foreground="{TemplateBinding Foreground}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/></ControlTemplate></Setter>
+ </Style>
+ <Style Selector="Button:pointerover"><Setter Property="Background" Value="{StaticResource PrimarySubtle}"/><Setter Property="BorderBrush" Value="{StaticResource Primary}"/></Style>
+ <Style Selector="Button:pressed"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/></Style>
+ <Style Selector="Button.primary"><Setter Property="Background" Value="{StaticResource PrimaryGradient}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#0078AC"/></Style>
+ <Style Selector="Button.primary:pointerover"><Setter Property="Background" Value="{StaticResource PrimaryHover}"/><Setter Property="Foreground" Value="White"/></Style>
+ <Style Selector="Button.primary:pressed"><Setter Property="Background" Value="{StaticResource PrimaryPressed}"/></Style>
+ <Style Selector="Button.subtle"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/></Style>
+ <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0,5"/><Setter Property="MinHeight" Value="28"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+ <Style Selector="Button.compact"><Setter Property="MinHeight" Value="30"/><Setter Property="Padding" Value="10,4"/><Setter Property="FontSize" Value="12"/></Style>
+ <Style Selector="Button:focus-visible"><Setter Property="BorderBrush" Value="{StaticResource Primary}"/><Setter Property="BorderThickness" Value="2"/></Style>
+ <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.5"/><Setter Property="Cursor" Value="Arrow"/></Style>
+ <Style Selector="TextBox"><Setter Property="MinHeight" Value="38"/><Setter Property="CornerRadius" Value="6"/><Setter Property="BorderBrush" Value="#C8D9E6"/><Setter Property="Background" Value="{StaticResource PageSurface}"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="10,7"/></Style>
+ <Style Selector="TextBox:focus"><Setter Property="BorderBrush" Value="{StaticResource Primary}"/></Style>
+ <Style Selector="ComboBox"><Setter Property="MinHeight" Value="38"/><Setter Property="CornerRadius" Value="6"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="FontSize" Value="13"/><Setter Property="Background" Value="{StaticResource PageSurface}"/><Setter Property="BorderBrush" Value="#C8D9E6"/></Style>
+ <Style Selector="ListBox"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+ <Style Selector="ListBoxItem"><Setter Property="MinHeight" Value="42"/><Setter Property="Padding" Value="10,8"/><Setter Property="CornerRadius" Value="6"/></Style>
+ <Style Selector="ListBoxItem"><Setter Property="Template"><ControlTemplate><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"><ContentPresenter Name="ListItemContent" Background="Transparent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center"/></Border></ControlTemplate></Setter></Style>
+ <Style Selector="ListBoxItem:focus-visible"><Setter Property="BorderBrush" Value="{StaticResource Primary}"/><Setter Property="BorderThickness" Value="2"/></Style>
+ <Style Selector="ListBoxItem:selected"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/><Setter Property="Foreground" Value="{StaticResource PrimaryPressed}"/></Style>
+ <Style Selector="ListBox.navigation"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
+ <Style Selector="ListBox.navigation ListBoxItem"><Setter Property="MinHeight" Value="40"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="12,9"/><Setter Property="Foreground" Value="{StaticResource MainText}"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="Template"><ControlTemplate><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter Name="NavContent" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"/></Border></ControlTemplate></Setter>
+ </Style>
+ <Style Selector="ListBox.navigation ListBoxItem:pointerover"><Setter Property="Background" Value="{StaticResource PrimarySubtle}"/></Style>
+ <Style Selector="ListBox.navigation ListBoxItem:selected"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/><Setter Property="Foreground" Value="{StaticResource PrimaryPressed}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+ <Style Selector="ListBox.navigation ListBoxItem:focus-visible"><Setter Property="BorderBrush" Value="{StaticResource Primary}"/><Setter Property="BorderThickness" Value="1"/></Style>
+ <Style Selector="Border.record-row"><Setter Property="Padding" Value="14"/><Setter Property="CornerRadius" Value="8"/></Style>
+ <Style Selector="Border.record-row:pointerover"><Setter Property="Background" Value="#F0F8FD"/></Style>
+ <Style Selector="Border.status-pill"><Setter Property="Background" Value="{StaticResource PrimarySubtle}"/><Setter Property="CornerRadius" Value="20"/><Setter Property="Padding" Value="10,4"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+ <Style Selector="Border.status-pill TextBlock"><Setter Property="Foreground" Value="{StaticResource PrimaryPressed}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="11"/></Style>
+ <Style Selector="Border.status-pill.resolved"><Setter Property="Background" Value="{StaticResource SuccessBackground}"/></Style>
+ <Style Selector="Border.status-pill.resolved TextBlock"><Setter Property="Foreground" Value="{StaticResource Success}"/></Style>
+ <Style Selector="Border.status-pill.closed"><Setter Property="Background" Value="#E7ECF1"/></Style>
+ <Style Selector="Border.status-pill.closed TextBlock"><Setter Property="Foreground" Value="{StaticResource SecondaryText}"/></Style>
+ <Style Selector="Border.status-pill.submitted"><Setter Property="Background" Value="{StaticResource WarningBackground}"/></Style>
+ <Style Selector="Border.status-pill.submitted TextBlock"><Setter Property="Foreground" Value="{StaticResource Warning}"/></Style>
+ <Style Selector="Border.stat-icon"><Setter Property="Background" Value="{StaticResource TealSubtle}"/><Setter Property="CornerRadius" Value="24"/><Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/></Style>
+ <Style Selector="Border.demo-badge"><Setter Property="Background" Value="#CEF0F8"/><Setter Property="CornerRadius" Value="6"/><Setter Property="Padding" Value="10,3"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+ <Style Selector="Border.demo-badge TextBlock"><Setter Property="Foreground" Value="{StaticResource PrimaryPressed}"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+ <Style Selector="Border.table-header"><Setter Property="Background" Value="#F0F5FA"/><Setter Property="Padding" Value="12,10"/><Setter Property="CornerRadius" Value="5"/></Style>
+ <Style Selector="Border.table-header TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="Bold"/></Style>
+</Styles>

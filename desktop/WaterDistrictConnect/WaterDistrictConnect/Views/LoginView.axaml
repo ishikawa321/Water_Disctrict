@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:v="using:WaterDistrictConnect.Views" x:Class="WaterDistrictConnect.Views.LoginView" Classes="page-enter">
+ <Grid ColumnDefinitions="1.08*,1*" Background="{StaticResource PageSurface}">
+  <Border Background="#EEF9FD" ClipToBounds="True" BorderBrush="{StaticResource Divider}" BorderThickness="0,0,1,0">
+   <Grid>
+    <Viewbox Stretch="Fill" VerticalAlignment="Bottom" Height="470" IsHitTestVisible="False"><Canvas Width="600" Height="500">
+     <Path Data="M0,230 C170,100 200,400 600,40 L600,500 H0 Z" Fill="#DCF3FA"/>
+     <Path Data="M0,255 C190,160 230,440 600,110 L600,500 H0 Z" Fill="#B7E5F0"/>
+     <Path Data="M0,320 C160,205 330,500 600,160 L600,500 H0 Z" Fill="#76C7DA"/>
+     <Path Data="M0,345 C180,235 300,480 600,225 L600,500 H0 Z"><Path.Fill><LinearGradientBrush StartPoint="0%,0%" EndPoint="90%,80%"><GradientStop Color="#007DAE" Offset="0"/><GradientStop Color="#65C7D9" Offset="1"/></LinearGradientBrush></Path.Fill></Path>
+     <Path Data="M0,375 C170,250 370,530 600,270 L600,500 H0 Z" Fill="#DBF4FA"/>
+     <Path Data="M0,395 C170,300 320,530 600,330 L600,500 H0 Z" Fill="#A6DEEB"/>
+     <Path Data="M0,420 C160,290 350,560 600,355 L600,500 H0 Z" Fill="#52B0CD"/>
+     <Path Data="M0,445 C180,335 335,550 600,390 L600,500 H0 Z" Fill="#91D3E1"/>
+    </Canvas></Viewbox>
+    <StackPanel Margin="60,85,45,230" Spacing="32" VerticalAlignment="Top">
+     <Grid ColumnDefinitions="68,*" ColumnSpacing="18"><v:BrandMark Width="64" Height="76"/><StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3"><TextBlock Text="Maramag Water" FontSize="29" FontWeight="Bold"/><TextBlock Text="Service Desk" FontSize="22" Foreground="{StaticResource PrimaryPressed}"/></StackPanel></Grid>
+     <TextBlock Text="Customer concerns.&#10;Clear office responses.&#10;Reliable water service." Foreground="#26465F" FontSize="17" LineHeight="26" Margin="8,0"/>
+    </StackPanel>
+   </Grid>
+  </Border>
+  <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <StackPanel Spacing="20" Margin="48,60" MaxWidth="390" VerticalAlignment="Center" HorizontalAlignment="Stretch">
+    <StackPanel Spacing="8"><TextBlock Text="Sign in to Service Desk" FontSize="26" FontWeight="Bold"/><TextBlock Text="Use your account to continue." Classes="muted"/></StackPanel>
+    <v:Feedback/>
+    <StackPanel Spacing="10" IsEnabled="{Binding !IsBusy}">
+     <TextBlock Text="Username" Classes="label"/><TextBox Text="{Binding Username}" PlaceholderText="Enter your username" AutomationProperties.Name="Username" MaxLength="64"><TextBox.InnerLeftContent><Path Data="{StaticResource IconUser}" Classes="icon" Width="16" Height="16" Margin="10,0,0,0"/></TextBox.InnerLeftContent></TextBox>
+     <TextBlock Text="Password" Classes="label" Margin="0,10,0,0"/><TextBox Text="{Binding Password}" PasswordChar="{Binding PasswordCharacter}" PlaceholderText="Enter your password" AutomationProperties.Name="Password" MaxLength="500"><TextBox.InnerLeftContent><Path Data="M5,10 H19 V22 H5 Z M8,10 V6 A4,4 0 0 1 16,6 V10" Classes="icon" Width="16" Height="16" Margin="10,0,0,0"/></TextBox.InnerLeftContent><TextBox.InnerRightContent><ToggleButton IsChecked="{Binding ShowPassword}" AutomationProperties.Name="Show password" Background="Transparent" BorderThickness="0" Padding="10,6"><Path Data="M1,12 C6,3 18,3 23,12 C18,21 6,21 1,12 Z M12,8 A4,4 0 1 1 12,16 A4,4 0 1 1 12,8" Classes="icon" Width="17" Height="17"/></ToggleButton></TextBox.InnerRightContent></TextBox>
+     <Button Classes="primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding LoginCommand}" IsDefault="True" Margin="0,16,0,0" MinHeight="42"><StackPanel Orientation="Horizontal" Spacing="10"><Path Data="{StaticResource IconLogout}" Classes="icon" Stroke="White" Width="18" Height="18"/><TextBlock Text="Sign in"/></StackPanel></Button>
+    </StackPanel>
+    <Border Classes="card" Background="#F0F8FC" IsVisible="{Binding DemoMode}" Margin="0,4,0,0" Padding="16"><Grid ColumnDefinitions="20,*" ColumnSpacing="10"><Path Data="{StaticResource IconInfo}" Classes="icon" Stroke="{StaticResource Primary}" Width="17" Height="17" VerticalAlignment="Top" Margin="0,2,0,0"/><StackPanel Grid.Column="1" Spacing="7"><TextBlock Text="Demo accounts (fictional data)" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="admin / handler - Concern handling&#10;viewer - Read-only office access&#10;amara / benito / clara - Clients" FontSize="11" LineHeight="19"/><TextBlock Text="Password: WaterDemo!2026" FontSize="11" Foreground="{StaticResource SecondaryText}"/></StackPanel></Grid></Border>
+   </StackPanel>
+  </ScrollViewer>
+ </Grid>
+</UserControl>
