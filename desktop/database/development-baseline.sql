@@ -18,7 +18,8 @@ CREATE TABLE public.service_concerns (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), account_id uuid NOT NULL REFERENCES public.service_accounts(id),
  submitted_by uuid NOT NULL REFERENCES public.profiles(user_id), category text NOT NULL, subject text NOT NULL, description text NOT NULL,
  status text NOT NULL DEFAULT 'Submitted' CHECK(status IN ('Submitted','Under review','Resolved','Closed')),
- admin_response text, reviewed_by uuid REFERENCES public.profiles(user_id), reviewed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+ admin_response text, reviewed_by uuid REFERENCES public.profiles(user_id), reviewed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
+ latitude double precision, longitude double precision, location_note text);
 CREATE TABLE public.repair_tickets (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), concern_id uuid NOT NULL UNIQUE REFERENCES public.service_concerns(id),
  assigned_to text, status text NOT NULL DEFAULT 'Open' CHECK(status IN ('Open','Assigned','In progress','Resolved')),

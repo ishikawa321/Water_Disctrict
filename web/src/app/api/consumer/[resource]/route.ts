@@ -13,6 +13,7 @@ import {
   relatedOne,
 } from "@/lib/policy";
 import { balance } from "@/lib/format";
+import { parseConcernLocation } from "@/lib/location";
 import {
   errorResponse,
   HttpError,
@@ -135,7 +136,7 @@ export async function GET(
       let builder = supabase
         .from("service_concerns")
         .select(
-          "id,account_id,category,subject,description,status,admin_response,created_at,reviewed_at,repair_tickets(id)",
+          "id,account_id,category,subject,description,status,admin_response,created_at,reviewed_at,latitude,longitude,location_note,repair_tickets(id)",
         )
         .eq("account_id", account.id);
       if (query.get("id")) builder = builder.eq("id", uuid(query.get("id")));
@@ -171,6 +172,9 @@ export async function GET(
           reviewedAt: r.reviewed_at,
           ticketId: relatedOne<{ id: string }>(r.repair_tickets)?.id ?? null,
           version: 0,
+          latitude: r.latitude ?? null,
+          longitude: r.longitude ?? null,
+          locationNote: r.location_note ?? null,
         })),
         hasMore: (data?.length ?? 0) > PAGE_SIZE,
         page,
@@ -253,6 +257,16 @@ export async function POST(
       throw new HttpError(422, "Select a supported concern category.");
     const subject = textField(body.subject, "Subject", 150);
     const description = textField(body.description, "Description", 3000);
+    let location;
+    try {
+      location = parseConcernLocation(body);
+    } catch (error) {
+      throw new HttpError(
+        422,
+        error instanceof Error ? error.message : "Choose a valid location.",
+        "location",
+      );
+    }
     const values = {
       id,
       account_id: account.id,
@@ -260,17 +274,31 @@ export async function POST(
       category,
       subject,
       description,
+      ...(location
+        ? {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            location_note: location.locationNote || null,
+          }
+        : {}),
     };
     // Reuse the request UUID on an uncertain retry; never upsert or overwrite a saved concern.
     const { data: existing, error: readError } = await supabase
       .from("service_concerns")
-      .select("id,account_id,submitted_by,category,subject,description")
+      .select(
+        "id,account_id,submitted_by,category,subject,description,latitude,longitude,location_note",
+      )
       .eq("id", id)
       .maybeSingle();
     checkData(readError);
     if (existing) {
       if (
-        Object.entries(values).every(
+        Object.entries({
+          ...values,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+          location_note: location?.locationNote || null,
+        }).every(
           ([key, value]) => existing[key as keyof typeof existing] === value,
         )
       )

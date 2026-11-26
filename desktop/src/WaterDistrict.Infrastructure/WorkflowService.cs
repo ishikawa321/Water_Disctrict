@@ -46,7 +46,8 @@ public sealed class WorkflowService(WaterDistrictDbContext db) : IWorkflowServic
     private IQueryable<ConcernRecord> ConcernRows(IQueryable<ServiceConcern> source) => source.Select(row => new ConcernRecord(
         row.Id, row.AccountId, row.Account.AccountNumber, row.Account.HolderName, row.Category, row.Subject,
         row.Description, row.Status, row.AdminResponse, row.CreatedAt, row.ReviewedAt,
-        db.Tickets.Where(ticket => ticket.ConcernId == row.Id).Select(ticket => (Guid?)ticket.Id).FirstOrDefault(), row.Version));
+        db.Tickets.Where(ticket => ticket.ConcernId == row.Id).Select(ticket => (Guid?)ticket.Id).FirstOrDefault(), row.Version,
+        row.Latitude, row.Longitude, row.LocationNote));
 
     public async Task<IReadOnlyList<ConcernRecord>> ConcernsAsync(SessionProfile actor, string? search, string? status, CancellationToken token)
     {
@@ -74,10 +75,12 @@ public sealed class WorkflowService(WaterDistrictDbContext db) : IWorkflowServic
         if (!WorkflowRules.Categories.Contains(category)) throw new WorkflowException("category", "Select a supported concern category.");
         var subject = WorkflowRules.Required(input.Subject, "Subject", 150);
         var description = WorkflowRules.Required(input.Description, "Description", 3000);
+        var locationNote = WorkflowRules.ConcernLocation(input.Latitude, input.Longitude, input.LocationNote);
         var existing = await db.Concerns.AsNoTracking().SingleOrDefaultAsync(row => row.Id == input.RequestId, token);
         if (existing is not null)
         {
-            if (existing.SubmittedBy != actor.UserId || existing.AccountId != input.AccountId || existing.Category != category || existing.Subject != subject || existing.Description != description)
+            if (existing.SubmittedBy != actor.UserId || existing.AccountId != input.AccountId || existing.Category != category || existing.Subject != subject || existing.Description != description ||
+                existing.Latitude != input.Latitude || existing.Longitude != input.Longitude || existing.LocationNote != locationNote)
                 throw new WorkflowException("conflict", "That request identifier is already in use. Refresh before retrying.", 409);
             await transaction.CommitAsync(token);
             return await ConcernAsync(actor, existing.Id, token);
@@ -85,7 +88,8 @@ public sealed class WorkflowService(WaterDistrictDbContext db) : IWorkflowServic
         if (!await db.Accounts.AnyAsync(row => row.Id == input.AccountId && row.Active, token))
             throw new WorkflowException("account", "Select an existing active service account.");
         db.Concerns.Add(new() { Id = input.RequestId, AccountId = input.AccountId, SubmittedBy = actor.UserId,
-            Category = category, Subject = subject, Description = description, Status = "Submitted" });
+            Category = category, Subject = subject, Description = description, Status = "Submitted",
+            Latitude = input.Latitude, Longitude = input.Longitude, LocationNote = locationNote });
         await db.SaveChangesAsync(token);
         await transaction.CommitAsync(token);
         return await ConcernAsync(actor, input.RequestId, token);

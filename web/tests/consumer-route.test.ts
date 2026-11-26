@@ -170,6 +170,83 @@ describe("consumer request ownership", () => {
       description: "Test description",
     });
   });
+  it("saves validated coordinates with server-owned identity and preserves the trimmed landmark", async () => {
+    let reads = 0;
+    state.tables.set("service_concerns", {
+      get data() {
+        return reads++ ? { id: requestId } : null;
+      },
+      error: null,
+    });
+    const response = await POST(
+      new Request("https://district.test/api/consumer/concerns", {
+        method: "POST",
+        headers: {
+          origin: "https://district.test",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          requestId,
+          category: "Other",
+          subject: "Pinned concern",
+          description: "An issue at this location",
+          latitude: 7.7633,
+          longitude: 125.0058,
+          locationNote: "  Near meter  ",
+        }),
+      }),
+      context("concerns"),
+    );
+    expect(response.status).toBe(201);
+    expect(
+      state.calls.find((c) => c.method === "insert")?.args[0],
+    ).toMatchObject({
+      account_id: accountId,
+      submitted_by: "11111111-1111-4111-8111-111111111111",
+      latitude: 7.7633,
+      longitude: 125.0058,
+      location_note: "Near meter",
+    });
+  });
+  it("rejects partial coordinates without writing, and does not overwrite an existing request with a different pin", async () => {
+    const send = (longitude?: number) =>
+      POST(
+        new Request("https://district.test/api/consumer/concerns", {
+          method: "POST",
+          headers: {
+            origin: "https://district.test",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            requestId,
+            category: "Other",
+            subject: "Pinned concern",
+            description: "An issue at this location",
+            latitude: 7.7633,
+            longitude,
+          }),
+        }),
+        context("concerns"),
+      );
+    expect((await send()).status).toBe(422);
+    state.tables.set("service_concerns", {
+      data: {
+        id: requestId,
+        account_id: accountId,
+        submitted_by: "11111111-1111-4111-8111-111111111111",
+        category: "Other",
+        subject: "Pinned concern",
+        description: "An issue at this location",
+        latitude: 7.7633,
+        longitude: 125,
+        location_note: null,
+      },
+      error: null,
+    });
+    expect((await send(125)).status).toBe(200);
+    expect((await send(126)).status).toBe(409);
+    expect(state.calls.some((c) => c.method === "insert")).toBe(false);
+  });
   it("denies unlinked or inactive account submissions without a write", async () => {
     state.tables.set("account_access", { data: [], error: null });
     const response = await POST(

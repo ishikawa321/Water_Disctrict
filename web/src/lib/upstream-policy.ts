@@ -5,7 +5,7 @@ export function allowOfficeRequest(role: Role, method: string, path: string) {
   if (role === "client") return false;
   if (
     method === "GET" &&
-    (/^workflow\/(accounts|concerns|tickets)$/.test(path) ||
+    (/^workflow\/(accounts|capabilities|concerns|tickets)$/.test(path) ||
       new RegExp(`^workflow/(concerns|tickets)/${guid}$`).test(path))
   )
     return true;

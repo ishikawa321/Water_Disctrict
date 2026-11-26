@@ -22,9 +22,11 @@ async function forward(
         "forbidden",
       );
     let payload: string | undefined;
+    let input: Record<string, unknown> | undefined;
     if (request.method !== "GET") {
       requireSameOrigin(request);
-      payload = JSON.stringify(await readBody(request));
+      input = await readBody(request);
+      payload = JSON.stringify(input);
     }
     const configured = process.env.WATERDISTRICT_API_URL;
     if (!configured)
@@ -67,6 +69,40 @@ async function forward(
         "Your session has ended. Sign in again.",
         "session_lost",
       );
+    if (
+      request.method === "POST" &&
+      route === "workflow/concerns" &&
+      (input?.latitude != null ||
+        input?.longitude != null ||
+        input?.locationNote)
+    ) {
+      // An older API ignores unknown JSON fields. Check support before any write.
+      let supported = false;
+      try {
+        const capabilities = await fetch(
+          new URL(
+            `${base.toString().replace(/\/$/, "")}/api/workflow/capabilities`,
+          ),
+          {
+            cache: "no-store",
+            redirect: "error",
+            signal: AbortSignal.timeout(15000),
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          },
+        );
+        supported =
+          capabilities.ok &&
+          (await capabilities.json()).concernLocation === true;
+      } catch {
+        /* Report an unconfirmed dependency without sending the concern. */
+      }
+      if (!supported)
+        throw new HttpError(
+          503,
+          "The office service must be updated before saving an issue location. Your report has not been submitted; keep the draft and contact the system administrator.",
+          "location_upgrade",
+        );
+    }
     let result: Response;
     try {
       result = await fetch(target, {

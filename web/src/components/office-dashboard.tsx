@@ -9,11 +9,11 @@ import {
   CreditCard,
   Megaphone,
   Contact,
-  Droplets,
 } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { useResource } from "@/lib/hooks";
 import { Card } from "./ui";
+import { DashboardHeader } from "./dashboard-header";
 import { DataState, Refresh } from "./data-ui";
 export function OfficeDashboard({ profile }: { profile: Profile }) {
   const summary = useResource<{
@@ -73,20 +73,14 @@ export function OfficeDashboard({ profile }: { profile: Profile }) {
   ];
   return (
     <>
-      <div className="welcome">
-        <div>
-          <div className="eyebrow" style={{ color: "var(--blue)" }}>
-            Office workspace
-          </div>
-          <h1>Welcome back, {profile.displayName.split(" ")[0]}.</h1>
-          <p>
-            {profile.role === "admin"
-              ? "A clear view of the work keeping your district moving."
-              : "Review service concerns and record progress on repairs assigned to you."}
-          </p>
-        </div>
-        <Droplets size={62} className="welcome-icon" strokeWidth={1.3} />
-      </div>
+      <DashboardHeader
+        title={`Welcome back, ${profile.displayName.split(" ")[0]}.`}
+        subtitle={
+          profile.role === "admin"
+            ? "Receive concerns, manage district records and coordinate repairs."
+            : "Review concerns and update repairs assigned to you."
+        }
+      />
       {profile.role === "admin" && (
         <>
           <div className="page-header">

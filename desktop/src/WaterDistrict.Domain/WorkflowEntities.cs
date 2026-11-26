@@ -17,6 +17,9 @@ public sealed class ServiceConcern
     public string Category { get; set; } = "";
     public string Subject { get; set; } = "";
     public string Description { get; set; } = "";
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? LocationNote { get; set; }
     public string Status { get; set; } = "Submitted";
     public string? AdminResponse { get; set; }
     public Guid? ReviewedBy { get; set; }

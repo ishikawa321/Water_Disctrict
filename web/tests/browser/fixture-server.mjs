@@ -44,6 +44,7 @@ function reset() {
     revoked: [],
     unlinked: false,
     failNextWrite: false,
+    locationSupported: true,
     accounts: [account],
     bills: [bill],
     payments: [payment],
@@ -62,6 +63,9 @@ function reset() {
         reviewedAt: null,
         ticketId: null,
         version: 1,
+        latitude: 7.7633,
+        longitude: 125.0058,
+        locationNote: "Beside the test service connection",
       },
     ],
     tickets: [],
@@ -306,6 +310,9 @@ createServer(async (request, response) => {
           ticketId: null,
           version: 1,
           submittedBy: ids[role],
+          latitude: body.latitude ?? null,
+          longitude: body.longitude ?? null,
+          locationNote: body.location_note ?? null,
         };
         state.concerns.push(c);
         return rows(request, response, [{ id: c.id }], url);
@@ -322,6 +329,9 @@ createServer(async (request, response) => {
           description: c.description,
           status: c.status,
           admin_response: c.response,
+          latitude: c.latitude ?? null,
+          longitude: c.longitude ?? null,
+          location_note: c.locationNote ?? null,
           created_at: c.createdAt,
           reviewed_at: c.reviewedAt,
           repair_tickets: c.ticketId ? [{ id: c.ticketId }] : [],
@@ -416,7 +426,27 @@ createServer(async (request, response) => {
         ])
       : fail(response, "Admin required");
   if (path === "workflow/accounts") return respond(response, state.accounts);
-  if (path === "workflow/concerns") return respond(response, state.concerns);
+  if (path === "workflow/capabilities")
+    return respond(response, { concernLocation: state.locationSupported });
+  if (path === "workflow/concerns") {
+    if (request.method === "POST") {
+      const c = {
+        id: body.requestId,
+        ...body,
+        accountNumber: account.accountNumber,
+        holderName: account.holderName,
+        status: "Submitted",
+        response: null,
+        createdAt: now,
+        reviewedAt: null,
+        ticketId: null,
+        version: 1,
+      };
+      state.concerns.push(c);
+      return respond(response, c);
+    }
+    return respond(response, state.concerns);
+  }
   if (path.startsWith("workflow/concerns/")) {
     const c = state.concerns.find((c) => c.id === path.split("/")[2]);
     if (!c) return fail(response, "Concern unavailable", 404);

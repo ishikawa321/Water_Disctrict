@@ -29,6 +29,18 @@ public static class WorkflowRules
         if (response?.Length > 3000) throw new WorkflowException("validation", "Response must be at most 3000 characters.");
     }
 
+    public static string? ConcernLocation(double? latitude, double? longitude, string? note)
+    {
+        if (latitude.HasValue != longitude.HasValue ||
+            latitude is double lat && (!double.IsFinite(lat) || lat < -90 || lat > 90) ||
+            longitude is double lon && (!double.IsFinite(lon) || lon < -180 || lon > 180))
+            throw new WorkflowException("location", "Choose a valid latitude and longitude together.");
+        var trimmed = note?.Trim();
+        if (trimmed?.Length > 300) throw new WorkflowException("location", "The location landmark must be at most 300 characters.");
+        if (latitude is null && !string.IsNullOrEmpty(trimmed)) throw new WorkflowException("location", "Choose a location pin before adding a landmark.");
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
+
     public static void TicketTransition(string current, string next, Guid? assignee, string note)
     {
         Required(note, "Update note", 3000);

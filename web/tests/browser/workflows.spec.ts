@@ -108,7 +108,7 @@ test("consumer sees linked billing, published notices and keeps a failed concern
     .locator("form")
     .getByRole("button", { name: "Submit concern", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator(".feedback.error")).toBeVisible();
   await expect(page.getByLabel("Subject", { exact: true })).toHaveValue(
     "Browser saved draft",
   );
@@ -173,7 +173,7 @@ test("Admin review conflict retains response, then dispatches, assigns and Staff
   });
   await page.getByRole("button", { name: "Save review", exact: true }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "This record changed" }),
+    page.locator(".feedback.error").filter({ hasText: "This record changed" }),
   ).toContainText("Reload");
   await expect(page.getByLabel("Office response")).toHaveValue(
     "Reviewed with district records.",
@@ -379,6 +379,361 @@ test("navigation and forms fit a narrow mobile viewport", async ({ page }) => {
     path: test.info().outputPath("mobile-concern.png"),
     fullPage: true,
   });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+// Location and payment checks use only the isolated loopback fixture.
+async function stubTiles(page: Page) {
+  await page.route("https://tile.openstreetmap.org/**", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jGZkAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
+}
+async function chooseCoordinates(
+  page: Page,
+  latitude: string,
+  longitude: string,
+  note: string,
+) {
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText("Enter coordinates manually", { exact: true }).click();
+  await dialog.getByLabel("Latitude", { exact: true }).fill(latitude);
+  await dialog.getByLabel("Longitude", { exact: true }).fill(longitude);
+  await dialog
+    .getByRole("button", { name: "Use coordinates", exact: true })
+    .click();
+  await dialog.getByLabel("Landmark / location note (optional)").fill(note);
+  await dialog
+    .getByRole("button", { name: "Confirm location", exact: true })
+    .click();
+}
+test("consumer pins survive cancellation and a failed save, and saved maps are read-only", async ({
+  page,
+  request,
+}) => {
+  await stubTiles(page);
+  await page.addInitScript(() => {
+    let calls = 0;
+    Object.defineProperty(window, "__gpsCalls", { get: () => calls });
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (
+          _success: unknown,
+          failure: (error: { code: number }) => void,
+        ) => {
+          calls++;
+          failure({ code: 1 });
+        },
+      },
+    });
+  });
+  await login(page, "client");
+  await page.goto("/portal/concerns?new=1");
+  await page
+    .getByLabel("Subject", { exact: true })
+    .fill("Pinned browser report");
+  await page
+    .getByLabel("Description", { exact: true })
+    .fill("Issue near a test connection.");
+  await page
+    .getByRole("button", { name: "Choose location", exact: true })
+    .click();
+  await expect(page.locator(".leaflet-container")).toBeVisible();
+  expect(await page.evaluate(() => Reflect.get(window, "__gpsCalls"))).toBe(0);
+  await page
+    .getByRole("button", { name: "Use my location", exact: true })
+    .click();
+  await expect(page.locator(".feedback.error")).toContainText(
+    "permission was denied",
+  );
+  await chooseCoordinates(page, "7.7633", "125.0058", "Beside QA meter");
+  await page
+    .getByRole("button", { name: "Change location", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Landmark / location note (optional)")
+    .fill("Cancelled change");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator(".location-field")).toContainText(
+    "Beside QA meter",
+  );
+  await expect(page.locator(".location-field")).not.toContainText(
+    "Cancelled change",
+  );
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { failNextWrite: true },
+  });
+  await page
+    .locator("form")
+    .getByRole("button", { name: "Submit concern", exact: true })
+    .click();
+  await expect(page.locator(".feedback.error")).toBeVisible();
+  await expect(page.locator(".location-field")).toContainText(
+    "7.763300, 125.005800",
+  );
+  await page
+    .locator("form")
+    .getByRole("button", { name: "Submit concern", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Concern submitted and confirmed" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /QA-001.*Pinned browser report/ })
+    .click();
+  await expect(page.locator(".location-details")).toContainText(
+    "Beside QA meter",
+  );
+  await page
+    .getByRole("button", { name: "View location", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("read-only");
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Use my location" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Confirm location" }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Close location", exact: true })
+    .click();
+  await page.reload();
+  await expect(page.locator(".record-list")).toContainText(
+    "Pinned browser report",
+  );
+});
+test("office refuses a pin before an old API write, then saves and preserves it on review", async ({
+  page,
+  request,
+}) => {
+  await stubTiles(page);
+  await login(page, "staff");
+  await page.goto("/office/concerns");
+  await page
+    .getByRole("button", { name: "New office report", exact: true })
+    .click();
+  await page
+    .getByLabel("Active service account")
+    .selectOption({ label: "QA-001 / QA Consumer" });
+  await page
+    .getByLabel("Subject", { exact: true })
+    .fill("Pinned office report");
+  await page
+    .getByLabel("Description", { exact: true })
+    .fill("Pinned office report description.");
+  await page
+    .getByRole("button", { name: "Choose location", exact: true })
+    .click();
+  await chooseCoordinates(page, "7.76", "125.0", "Beside office meter");
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { locationSupported: false },
+  });
+  await page
+    .locator("form")
+    .getByRole("button", { name: "Submit concern", exact: true })
+    .click();
+  await expect(page.locator(".feedback.error")).toContainText(
+    "must be updated",
+  );
+  await expect(page.locator(".record-list")).not.toContainText(
+    "Pinned office report",
+  );
+  await expect(page.locator(".location-field")).toContainText(
+    "Beside office meter",
+  );
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { locationSupported: true },
+  });
+  await page
+    .locator("form")
+    .getByRole("button", { name: "Submit concern", exact: true })
+    .click();
+  await expect(page.locator(".record-list")).toContainText(
+    "Pinned office report",
+  );
+  await page
+    .getByRole("button", { name: /QA-001.*Pinned office report/ })
+    .click();
+  await expect(page.locator(".location-details")).toContainText(
+    "7.760000, 125.000000",
+  );
+  await page
+    .getByLabel("Office response", { exact: true })
+    .fill("Reviewed at saved location.");
+  await page.getByRole("button", { name: "Save review", exact: true }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: /saved/i }).last(),
+  ).toBeVisible();
+  await expect(page.locator(".location-details")).toContainText(
+    "Beside office meter",
+  );
+});
+test("payment guidance shows bill references and latest notices follow publication date", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      notices: [
+        {
+          id: "60000000-0000-4000-8000-000000000001",
+          title: "[Service interruption] Old maintenance",
+          message: "Older published notice",
+          published: true,
+          updatedAt: "2026-11-24T08:00:00Z",
+        },
+        {
+          id: "60000000-0000-4000-8000-000000000002",
+          title: "New district update",
+          message: "Newest published notice",
+          published: true,
+          updatedAt: "2026-11-26T08:00:00Z",
+        },
+      ],
+    },
+  });
+  await login(page, "client");
+  await expect(
+    page.getByText("New district update", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Old maintenance", { exact: true })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Payment instructions", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("QA-001");
+  await expect(dialog).toContainText("QA-BILL-001");
+  await expect(dialog).toContainText("after district verification");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("link", { name: /Report issue/ }).click();
+  await expect(page.getByLabel("Subject", { exact: true })).toBeVisible();
+  await stubTiles(page);
+  await page
+    .getByRole("button", { name: "Choose location", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Place pin at map center", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirm location", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Remove location", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Choose location", exact: true }),
+  ).toBeVisible();
+});
+
+test("GPS success stays editable, timeout and tile failures keep manual selection available", async ({
+  page,
+}) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) =>
+    route.abort(),
+  );
+  await page.addInitScript(() => {
+    let calls = 0;
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (
+          success: (value: {
+            coords: { latitude: number; longitude: number };
+          }) => void,
+          failure: (error: { code: number }) => void,
+        ) => {
+          if (calls++ === 0)
+            success({ coords: { latitude: 7.77, longitude: 125.01 } });
+          else failure({ code: 3 });
+        },
+      },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page, "client");
+  await page.goto("/portal/concerns?new=1");
+  await page
+    .getByRole("button", { name: "Choose location", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Use my location", exact: true })
+    .click();
+  await expect(dialog).toContainText("7.770000, 125.010000");
+  await expect(dialog).toContainText("may be approximate");
+  await expect(dialog).toContainText("Map tiles could not load");
+  await dialog
+    .getByRole("button", { name: "Use my location", exact: true })
+    .click();
+  await expect(dialog.locator(".feedback.error")).toContainText("timed out");
+  await expect(dialog).toContainText("7.770000, 125.010000");
+  await dialog.getByRole("button", { name: "Retry map", exact: true }).click();
+  await expect(dialog).toContainText("7.770000, 125.010000");
+  await dialog
+    .locator(".leaflet-container")
+    .click({ position: { x: 80, y: 100 } });
+  await dialog
+    .getByLabel("Landmark / location note (optional)")
+    .fill("Adjusted GPS pin");
+  await page.screenshot({
+    path: test.info().outputPath("mobile-location-picker.png"),
+    fullPage: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Confirm location", exact: true })
+    .click();
+  await expect(page.locator(".location-field")).toContainText(
+    "Adjusted GPS pin",
+  );
+  await expect(page.locator(".location-field")).not.toContainText(
+    "7.770000, 125.010000",
+  );
+  // Double rendered text sizes to check wrapping independently of device pixel density.
+  await page.evaluate(() => {
+    const elements = [
+      ...document.querySelectorAll<HTMLElement>(".shell, .shell *"),
+    ];
+    const sizes = elements.map(
+      (element) => parseFloat(getComputedStyle(element).fontSize) * 2,
+    );
+    elements.forEach(
+      (element, index) => (element.style.fontSize = `${sizes[index]}px`),
+    );
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "Service concerns", exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

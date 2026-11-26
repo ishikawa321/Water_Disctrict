@@ -2,9 +2,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  Bell,
   CircleHelp,
-  Droplets,
   FileText,
   MessageSquare,
   ArrowUpRight,
@@ -28,7 +26,8 @@ import type {
 } from "@/lib/types";
 import { Badge, Card, Empty } from "./ui";
 import { DataState, PageHeader, Pager, Refresh } from "./data-ui";
-import { PaymentTable } from "./payment-table";
+import { Modal } from "./modal";
+import { DashboardHeader } from "./dashboard-header";
 import { ConcernsPage, RepairsPage } from "./workflows";
 
 export function AccountGate({
@@ -66,54 +65,102 @@ export function AccountGate({
 }
 
 export function BillCard({ bill }: { bill: Bill }) {
+  const [instructions, setInstructions] = useState(false);
+  const paid = Number(bill.remaining) <= 0;
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   return (
-    <article className="notice">
+    <article className="notice bill-card">
       <div className="row spread wrap">
-        <div>
-          <span className="eyebrow">Bill {bill.billNumber}</span>
-          <h3>
-            {dateLabel(bill.periodStart)} – {dateLabel(bill.periodEnd)}
-          </h3>
-        </div>
+        <h3>Bill {bill.billNumber}</h3>
         <Badge>
-          {Number(bill.remaining) <= 0
-            ? "Paid"
-            : bill.dueDate <
-                new Intl.DateTimeFormat("en-CA", {
-                  timeZone: "Asia/Manila",
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                }).format(new Date())
-              ? "Overdue"
-              : "Unpaid"}
+          {paid ? "Paid" : bill.dueDate < today ? "Overdue" : "Unpaid"}
         </Badge>
       </div>
-      <p>
-        Due {dateLabel(bill.dueDate)} · Account {bill.accountNumber}
-      </p>
-      <div className="bill-summary">
-        <div>
-          <small>Original amount</small>
-          <strong>{money(bill.amountDue)}</strong>
-        </div>
-        <div>
-          <small>Verified payments</small>
-          <strong>{money(bill.paid)}</strong>
-        </div>
-        <div>
-          <small>Remaining balance</small>
-          <strong style={{ color: "var(--blue)" }}>
-            {money(bill.remaining)}
-          </strong>
-        </div>
+      <strong className="bill-amount">{money(bill.remaining)}</strong>
+      <p>Remaining balance · Due {dateLabel(bill.dueDate)}</p>
+      <details className="record-details">
+        <summary>Billing details</summary>
+        <dl className="detail-grid">
+          <div>
+            <dt>Service account</dt>
+            <dd>{bill.accountNumber}</dd>
+          </div>
+          <div>
+            <dt>Billing period</dt>
+            <dd>
+              {dateLabel(bill.periodStart)} – {dateLabel(bill.periodEnd)}
+            </dd>
+          </div>
+          <div>
+            <dt>Original amount</dt>
+            <dd>{money(bill.amountDue)}</dd>
+          </div>
+          <div>
+            <dt>Verified payments</dt>
+            <dd>{money(bill.paid)}</dd>
+          </div>
+        </dl>
+      </details>
+      <div className="row wrap">
+        {!paid && (
+          <button className="primary" onClick={() => setInstructions(true)}>
+            Payment instructions
+          </button>
+        )}
+        <Link
+          className="button secondary"
+          href={`/portal/payments?billId=${bill.id}`}
+        >
+          View payment history <ArrowUpRight size={16} />
+        </Link>
       </div>
-      <Link
-        className="button secondary"
-        href={`/portal/payments?billId=${bill.id}`}
-      >
-        View payment history <ArrowUpRight size={16} />
-      </Link>
+      {instructions && (
+        <Modal
+          title="Payment instructions"
+          onClose={() => setInstructions(false)}
+        >
+          <div className="stack">
+            <h3>Maramag Water District</h3>
+            <p>
+              Contact the district for accepted payment channels and
+              requirements.
+            </p>
+            <dl className="detail-grid">
+              <div>
+                <dt>Service account</dt>
+                <dd>{bill.accountNumber}</dd>
+              </div>
+              <div>
+                <dt>Bill reference</dt>
+                <dd>{bill.billNumber}</dd>
+              </div>
+              <div>
+                <dt>Remaining balance</dt>
+                <dd>{money(bill.remaining)}</dd>
+              </div>
+              <div>
+                <dt>Due date</dt>
+                <dd>{dateLabel(bill.dueDate)}</dd>
+              </div>
+            </dl>
+            <p>
+              Keep your official receipt. Payments appear in your account after
+              district verification.
+            </p>
+            <button
+              className="secondary"
+              onClick={() => setInstructions(false)}
+            >
+              Close instructions
+            </button>
+          </div>
+        </Modal>
+      )}
     </article>
   );
 }
@@ -177,7 +224,44 @@ export function ConsumerPayments({ billId }: { billId: string }) {
               loaded={!!records.data}
               empty={records.data?.items.length === 0}
             >
-              {records.data && <PaymentTable payments={records.data.items} />}
+              <div className="stack">
+                {records.data?.items.map((payment, index) => (
+                  <article
+                    className="notice"
+                    key={`${payment.receiptReference}-${index}`}
+                  >
+                    <div className="row spread wrap">
+                      <h3>{payment.receiptReference}</h3>
+                      <Badge>Verified</Badge>
+                    </div>
+                    <strong className="bill-amount">
+                      {money(payment.amountPaid)}
+                    </strong>
+                    <p>Paid {dateLabel(payment.paymentDate)}</p>
+                    <details className="record-details">
+                      <summary>Payment details</summary>
+                      <dl className="detail-grid">
+                        <div>
+                          <dt>Bill reference</dt>
+                          <dd>{payment.billNumber}</dd>
+                        </div>
+                        <div>
+                          <dt>Service account</dt>
+                          <dd>{payment.accountNumber}</dd>
+                        </div>
+                        <div>
+                          <dt>Verified</dt>
+                          <dd>
+                            {payment.verifiedAt
+                              ? timeLabel(payment.verifiedAt)
+                              : "Verification date unavailable"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </details>
+                  </article>
+                ))}
+              </div>
             </DataState>
             {records.data && (
               <Pager
@@ -215,7 +299,10 @@ export function NoticeCard({ notice }: { notice: Notice }) {
         <Badge>Service interruption</Badge>
       )}
       <h3>{noticeTitle(notice.title)}</h3>
-      <p>{notice.message}</p>
+      <details className="record-details">
+        <summary>Read notice</summary>
+        <p className="prose">{notice.message}</p>
+      </details>
       <small>Updated {timeLabel(notice.updatedAt)}</small>
     </article>
   );
@@ -268,7 +355,7 @@ export function ConsumerProfile({ profile }: { profile: Profile }) {
       >
         <Refresh onClick={records.reload} busy={records.busy} />
       </PageHeader>
-      <Card title="Profile">
+      <Card title="Account details">
         <dl className="detail-grid">
           <div>
             <dt>Name</dt>
@@ -283,8 +370,8 @@ export function ConsumerProfile({ profile }: { profile: Profile }) {
             <dd>Consumer</dd>
           </div>
         </dl>
-      </Card>
-      <Card title="Linked service account">
+        <hr />
+        <h3>Linked service account</h3>
         <DataState {...records} loaded={!!records.data}>
           {a ? (
             <>
@@ -312,6 +399,15 @@ export function ConsumerProfile({ profile }: { profile: Profile }) {
             )
           )}
         </DataState>
+      </Card>
+      <Card>
+        <div className="row wrap">
+          <CircleHelp size={20} />
+          <p>Need help with your account or a payment?</p>
+          <Link className="button secondary" href="/portal/help">
+            Help & guidance
+          </Link>
+        </div>
       </Card>
     </>
   );
@@ -402,37 +498,22 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
     void concerns.reload();
     void notices.reload();
   };
-  const recentNotices = [...(notices.data?.items.slice(0, 10) ?? [])]
-    .sort(
-      (a, b) =>
-        Number(b.title.startsWith(interruptionPrefix)) -
-        Number(a.title.startsWith(interruptionPrefix)),
-    )
-    .slice(0, 2);
+  const latestNotice = [...(notices.data?.items ?? [])].sort(
+    (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
+  )[0];
+  const recent = concerns.data?.items[0];
   return (
     <>
-      <div className="welcome">
-        <div>
-          <div className="eyebrow" style={{ color: "var(--blue)" }}>
-            Your district. Connected.
-          </div>
-          <h1>Hello, {profile.displayName.split(" ")[0]}.</h1>
-          <p>
-            Your water services, a little closer. View your account, follow up
-            on a concern, and stay informed.
-          </p>
-        </div>
-        <Droplets className="welcome-icon" size={64} strokeWidth={1.3} />
-      </div>
+      <DashboardHeader
+        title={`Hello, ${profile.displayName.split(" ")[0]}.`}
+        subtitle="Your water services and district updates."
+      />
       <div className="page-header">
-        <div>
-          <h2 style={{ marginBottom: 0 }}>Your services</h2>
-          <p>
-            {account.data?.account
-              ? `Service account ${account.data.account.accountNumber}`
-              : "Your connected district account"}
-          </p>
-        </div>
+        <p>
+          {account.data?.account
+            ? `Service account ${account.data.account.accountNumber}`
+            : "Your connected district account"}
+        </p>
         <Refresh
           onClick={refresh}
           busy={
@@ -456,135 +537,129 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
           </Card>
         )}
       </DataState>
-      {account.data?.account && (
-        <Card title="Outstanding balance" className="consumer-balance">
-          <DataState {...summary} loaded={!!summary.data}>
-            {summary.data && (
-              <>
-                <strong
-                  style={{
-                    display: "block",
-                    fontSize: 38,
-                    fontWeight: 600,
-                    letterSpacing: -1,
-                  }}
+      <div className="dashboard-columns">
+        <div className="stack">
+          {account.data?.account && (
+            <Card title="Outstanding balance" className="consumer-balance">
+              <DataState {...summary} loaded={!!summary.data}>
+                {summary.data && (
+                  <>
+                    <strong className="balance-amount">
+                      {money(summary.data.outstanding)}
+                    </strong>
+                    <p>
+                      {summary.data.nextDueDate
+                        ? `Next unpaid due date: ${dateLabel(summary.data.nextDueDate)}`
+                        : "No unpaid bills"}
+                    </p>
+                    <small>
+                      {summary.data.billCount} saved billing records for your
+                      linked account
+                    </small>
+                  </>
+                )}
+              </DataState>
+            </Card>
+          )}
+          <Card title="Quick access">
+            <div className="quick-grid">
+              {[
+                {
+                  href: "bills",
+                  title: "My bills",
+                  text: "Charges and balances",
+                  Icon: FileText,
+                },
+                {
+                  href: "concerns?new=1",
+                  title: "Report issue",
+                  text: "Submit a service concern",
+                  Icon: MessageSquare,
+                },
+                {
+                  href: "repairs",
+                  title: "Repairs",
+                  text: "Follow saved progress",
+                  Icon: Wrench,
+                },
+              ].map(({ href, title, text, Icon }) => (
+                <Link
+                  className="quick-link"
+                  key={href}
+                  href={`/portal/${href}`}
                 >
-                  {money(summary.data.outstanding)}
-                </strong>
-                <p>
-                  {summary.data.nextDueDate
-                    ? `Next unpaid due date: ${dateLabel(summary.data.nextDueDate)}`
-                    : "No unpaid bills"}
-                </p>
-                <small>
-                  {summary.data.billCount} saved billing records for your linked
-                  account
-                </small>
-              </>
-            )}
-          </DataState>
-        </Card>
-      )}
-      {account.data?.account && (
-        <div className="split">
-          <Card title="Latest billing record">
-            <DataState
-              {...bills}
-              loaded={!!bills.data}
-              empty={bills.data?.items.length === 0}
-            >
-              {bills.data?.items[0] && <BillCard bill={bills.data.items[0]} />}
-            </DataState>
-            <Link
-              className="text-button"
-              style={{ display: "inline-block", marginTop: 12 }}
-              href="/portal/bills"
-            >
-              View all my bills →
-            </Link>
+                  <Icon size={22} />
+                  <span>
+                    {title}
+                    <small>{text}</small>
+                  </span>
+                  <ArrowUpRight size={17} />
+                </Link>
+              ))}
+            </div>
           </Card>
-          <Card title="Recent concern">
-            <DataState
-              {...concerns}
-              loaded={!!concerns.data}
-              empty={concerns.data?.items.length === 0}
-            >
-              {concerns.data?.items[0] && (
-                <>
-                  <Badge>{concerns.data.items[0].status}</Badge>
-                  <h3 style={{ margin: "14px 0 8px" }}>
-                    {concerns.data.items[0].subject}
-                  </h3>
-                  <p>
-                    {concerns.data.items[0].response ||
-                      concerns.data.items[0].description}
-                  </p>
-                </>
+          {account.data?.account && (
+            <Card title="Latest billing record">
+              <DataState
+                {...bills}
+                loaded={!!bills.data}
+                empty={bills.data?.items.length === 0}
+              >
+                {bills.data?.items[0] && (
+                  <BillCard bill={bills.data.items[0]} />
+                )}
+              </DataState>
+              <Link className="text-button" href="/portal/bills">
+                View all my bills →
+              </Link>
+            </Card>
+          )}
+        </div>
+        <div className="stack">
+          {account.data?.account && (
+            <Card title="Recent concern">
+              <DataState
+                {...concerns}
+                loaded={!!concerns.data}
+                empty={concerns.data?.items.length === 0}
+              >
+                {recent && (
+                  <>
+                    <Badge>{recent.status}</Badge>
+                    <h3>{recent.subject}</h3>
+                    <p className="prose">
+                      {recent.response || recent.description}
+                    </p>
+                    <small>Received {timeLabel(recent.createdAt)}</small>
+                    <Link
+                      className="button secondary"
+                      href={`/portal/concerns?concernId=${recent.id}`}
+                    >
+                      View concern
+                    </Link>
+                  </>
+                )}
+              </DataState>
+            </Card>
+          )}
+          <Card title="Latest district notice">
+            <DataState {...notices} loaded={!!notices.data}>
+              {latestNotice ? (
+                <NoticeCard notice={latestNotice} />
+              ) : (
+                notices.data && (
+                  <Empty title="No published advisory">
+                    Published district updates will appear here.
+                  </Empty>
+                )
               )}
             </DataState>
-            <Link
-              className="text-button"
-              style={{ display: "inline-block", marginTop: 16 }}
-              href="/portal/concerns"
-            >
-              View or submit a concern →
+            <Link className="text-button" href="/portal/announcements">
+              View all published notices →
             </Link>
           </Card>
         </div>
-      )}
-      <Card title="Quick access">
-        <div className="quick-grid">
-          {[
-            {
-              href: "bills",
-              title: "My bills",
-              text: "Charges and verified balances",
-              Icon: FileText,
-            },
-            {
-              href: "concerns",
-              title: "Service concerns",
-              text: "Reports and saved responses",
-              Icon: MessageSquare,
-            },
-            {
-              href: "announcements",
-              title: "Announcements",
-              text: "District news and notices",
-              Icon: Bell,
-            },
-          ].map(({ href, title, text, Icon }) => (
-            <Link className="quick-link" key={href} href={`/portal/${href}`}>
-              <Icon size={22} />
-              <span>
-                {title}
-                <small>{text}</small>
-              </span>
-              <ArrowUpRight size={17} />
-            </Link>
-          ))}
-        </div>
-      </Card>
-      <Card title="District notices">
-        <DataState
-          {...notices}
-          loaded={!!notices.data}
-          empty={notices.data?.items.length === 0}
-        >
-          <div className="stack">
-            {recentNotices.map((n) => (
-              <NoticeCard key={n.id} notice={n} />
-            ))}
-          </div>
-        </DataState>
-        <Link
-          className="text-button"
-          style={{ display: "inline-block", marginTop: 14 }}
-          href="/portal/announcements"
-        >
-          View all published notices →
-        </Link>
-      </Card>
+      </div>
     </>
   );
 }
@@ -594,12 +669,14 @@ export function ConsumerSection({
   billId = "",
   concernId = "",
   ticketId = "",
+  new: newConcern = "",
 }: {
   section: string;
   profile: Profile;
   billId?: string;
   concernId?: string;
   ticketId?: string;
+  new?: string;
 }) {
   if (section === "announcements") return <ConsumerNotices />;
   if (section === "help") return <ConsumerHelp />;
@@ -616,6 +693,7 @@ export function ConsumerSection({
             profile={profile}
             account={account}
             initialSelected={concernId}
+            initialShow={newConcern === "1"}
           />
         ) : (
           <RepairsPage profile={profile} initialSelected={ticketId} />

@@ -6,7 +6,8 @@ public sealed record AccountOption(Guid Id, string AccountNumber, string HolderN
 }
 public sealed record ConcernRecord(Guid Id, Guid AccountId, string AccountNumber, string HolderName,
     string Category, string Subject, string Description, string Status, string? Response,
-    DateTimeOffset CreatedAt, DateTimeOffset? ReviewedAt, Guid? TicketId, uint Version)
+    DateTimeOffset CreatedAt, DateTimeOffset? ReviewedAt, Guid? TicketId, uint Version,
+    double? Latitude = null, double? Longitude = null, string? LocationNote = null)
 {
     public string Label => $"{AccountNumber} | {Subject} | {Status}";
 }
@@ -19,7 +20,8 @@ public sealed record TicketRecord(Guid Id, Guid ConcernId, string AccountNumber,
 public sealed record HistoryRecord(long Id, string Status, string Note, string ChangedBy,
     string? AssignedTo, DateTimeOffset ChangedAt);
 public sealed record TicketDetails(TicketRecord Ticket, IReadOnlyList<HistoryRecord> History);
-public sealed record CreateConcern(Guid RequestId, Guid AccountId, string Category, string Subject, string Description);
+public sealed record CreateConcern(Guid RequestId, Guid AccountId, string Category, string Subject, string Description,
+    double? Latitude = null, double? Longitude = null, string? LocationNote = null);
 public sealed record ReviewConcern(uint Version, string Status, string? Response);
 public sealed record CreateTicket(Guid ConcernId, uint ConcernVersion, string Note);
 public sealed record UpdateTicket(uint Version, string Status, Guid? AssignedToUserId, string Note);

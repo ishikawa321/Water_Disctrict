@@ -2,6 +2,19 @@
 
 Executed 26 November 2026 (Asia/Manila), on `feature/web-platform-parity` based on desktop `68bc1590`. This file records current checks separately from the repository's historical deployment notes.
 
+## Latest app synchronization
+
+Compared and merged main `dbdc382` into the existing web branch (merge `7cba6e1`). Detailed scope and prerequisites are in [web-update-comparison.md](web-update-comparison.md).
+
+- Web unit/contract suite: 41 tests in six files passed, including optional-location validation, server-stamped consumer identity, mismatched retry rejection, and a capability handshake that blocks pinned office writes to an older API.
+- Full browser suite: 14 Chrome workflows passed. Added pin confirmation/cancellation/removal, draft retention after a failed save, saved read-only map, old API refusal followed by supported office intake/review, actual bill/account payment references, newest published notice selection, explicit GPS success/denial/timeout, editable GPS selection, tile-failure retry preserving the pin, and 390-pixel map/dialog controls. Existing 320-pixel form/navigation checks still pass. A separate computed-text-size doubling check at 390 pixels verified form/navigation wrapping without horizontal document overflow; this does not claim native browser zoom testing.
+- Original shared .NET solution: 87 tests passed, zero failures/skips against disposable loopback PostgreSQL 18 databases. New tests cover durable coordinates/landmark through review, idempotency, invalid pairs, authenticated API capability and field transport through resolution. Upstream location SQL was applied twice to a disposable copy of the verified public schema; an owned consumer pin succeeds, other-account reads/writes remain blocked, and an incomplete coordinate pair is rejected.
+- Flutter source: `flutter analyze` found no issues. Full `flutter test` had 33 passes and one existing upstream failure: `admin fetches the saved pin and review leaves its coordinates unchanged` expects a `Review concern` button at `test/ui_test.dart:865`, while the merged shared mobile UI intentionally uses `Review on desktop`. No mobile production workflow was changed to satisfy this stale test. Generated platform registrants were restored after the source check.
+- Visual review: consumer dashboard and mobile concern/location-picker screenshots use isolated QA records. The signed-in compact utility palette, disclosure details, official logo and peso glyph render. Public landing/auth designs remain separate.
+- No live operational record, grant, migration, account or role was changed. The local test cluster was stopped after verification. Office production acceptance remains blocked by the unhosted API and operational location-grant verification.
+
+The historical checks below describe earlier web releases.
+
 ## Landing-first follow-up
 
 The existing adjacent landing page is now included in the same Vercel deployment at `/`, with primary demo actions opening `/app`. This entry restores an authorized workspace or redirects to sign-in; sign-in links back to the landing page. The static snapshot preserves the original design, assets and fictional concept tour. Browser checks passed for all three demo actions, returning to the landing page, asset loading, signed-in workspace restoration and anonymous protected-route denial (3 targeted cases). Landing JavaScript checks, route type generation, TypeScript, zero-warning lint, all 26 unit/contract tests and the production build passed. No backend or database code changed in this follow-up.

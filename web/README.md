@@ -8,7 +8,7 @@ The deployed landing snapshot lives in `public/landing/`. In this workspace, upd
 
 ## Run locally
 
-Use Node 22 or newer. From this directory:
+Use Node 24. From this directory:
 
 ```powershell
 npm ci
@@ -40,6 +40,12 @@ Never put service-role keys, database credentials or connection strings in this 
 - Drafts live only in the current signed-in browser memory, survive forms closing and client navigation, and clear on sign-out/access loss. A browser reload clears unsaved drafts. Concern retries reuse their UUID; ticket creation and version conflicts use existing API safeguards.
 - Office lists retain the established 1,000 / 500 / 200 limits and label them. Consumer lists paginate 30 records at a time. Dashboard admin counts use the exact summary endpoint rather than a list's length.
 - Consumer billing shows individual saved bill balances. The dashboard pages through all linked bills/payments to calculate the exact outstanding balance, bill count and next unpaid due date. It does not total a truncated district list. Consumer repair progress is the current saved personnel update; office staff can see chronological append-only history.
+
+## Latest app update
+
+Concern intake now supports optional map pins and landmarks, with explicit GPS/manual selection, draft retention and read-only saved maps. The shared office API carries those fields and exposes an authenticated capability check so older APIs cannot silently discard a pin. Unpaid bills offer payment guidance using their actual account and bill references. Signed-in screens follow the latest mobile utility palette and compact layout.
+
+Review [the source comparison and deployment prerequisites](../docs/web-update-comparison.md). Verify upstream `database/add_concern_locations.sql` has been applied by an authorized operator before using pins against the shared database; this website does not run migrations. Office modules require the separately hosted updated API. Optional map tile provider variables are documented in `.env.example`. The default OpenStreetMap tiles retain visible attribution; GPS is requested only by the button and requires HTTPS.
 
 ## Checks
 

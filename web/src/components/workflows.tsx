@@ -23,6 +23,8 @@ import type {
 } from "@/lib/types";
 import { Badge, Card, Empty, Feedback, Field } from "./ui";
 import { DataState, PageHeader, Pager, Refresh, useMutation } from "./data-ui";
+import { LocationDetails, LocationField } from "./concern-location";
+import type { ConcernLocation } from "@/lib/location";
 
 function Filters({
   kind,
@@ -88,6 +90,7 @@ export function ConcernIntake({
     category: "Water supply",
     subject: "",
     description: "",
+    location: null as ConcernLocation | null,
   });
   const [draft, setDraft] = useDraft(
     consumer ? "consumer:concern-intake" : "office:concern-intake",
@@ -101,7 +104,12 @@ export function ConcernIntake({
         throw new Error("Enter a subject and description.");
       await save(
         consumer ? "/api/consumer/concerns" : "/api/office/workflow/concerns",
-        draft,
+        {
+          ...draft,
+          latitude: draft.location?.latitude ?? null,
+          longitude: draft.location?.longitude ?? null,
+          locationNote: draft.location?.locationNote ?? null,
+        },
       );
       setDraft(blank());
       onSave();
@@ -191,6 +199,11 @@ export function ConcernIntake({
               rows={5}
             />
           </Field>
+          <LocationField
+            value={draft.location}
+            onChange={(location) => setDraft({ ...draft, location })}
+            disabled={mutation.busy}
+          />
           <div className="row wrap">
             <button className="primary" type="submit">
               {mutation.busy ? "Submitting…" : "Submit concern"}
@@ -220,16 +233,18 @@ export function ConcernsPage({
   profile,
   account,
   initialSelected = "",
+  initialShow = false,
 }: {
   profile: Profile;
   account?: Account;
   initialSelected?: string;
+  initialShow?: boolean;
 }) {
   const consumer = profile.role === "client";
   const [filters, setFilters] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState(initialSelected);
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(initialShow);
   const records = useResource<Concern[] | PageResult<Concern>>(
     `${consumer ? "/api/consumer/concerns" : "/api/office/workflow/concerns"}?${filters}&page=${page}`,
   );
@@ -345,25 +360,29 @@ function ConcernBody({ concern }: { concern: Concern }) {
         <h2 style={{ marginBottom: 0 }}>{concern.subject}</h2>
         <Badge>{concern.status}</Badge>
       </div>
-      <dl className="detail-grid">
-        <div>
-          <dt>Account</dt>
-          <dd>{concern.accountNumber}</dd>
-        </div>
-        <div>
-          <dt>Category</dt>
-          <dd>{concern.category}</dd>
-        </div>
-        <div>
-          <dt>Received</dt>
-          <dd>{timeLabel(concern.createdAt)}</dd>
-        </div>
-        <div>
-          <dt>Account holder</dt>
-          <dd>{concern.holderName}</dd>
-        </div>
-      </dl>
+      <details className="record-details">
+        <summary>Supporting details</summary>
+        <dl className="detail-grid">
+          <div>
+            <dt>Account</dt>
+            <dd>{concern.accountNumber}</dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd>{concern.category}</dd>
+          </div>
+          <div>
+            <dt>Received</dt>
+            <dd>{timeLabel(concern.createdAt)}</dd>
+          </div>
+          <div>
+            <dt>Account holder</dt>
+            <dd>{concern.holderName}</dd>
+          </div>
+        </dl>
+      </details>
       <p className="prose">{concern.description}</p>
+      <LocationDetails concern={concern} />
       {concern.response && (
         <>
           <hr />
@@ -727,20 +746,23 @@ function RepairBody({
         <h2 style={{ marginBottom: 0 }}>{ticket.subject}</h2>
         <Badge>{ticket.status}</Badge>
       </div>
-      <dl className="detail-grid">
-        <div>
-          <dt>Service account</dt>
-          <dd>{ticket.accountNumber}</dd>
-        </div>
-        <div>
-          <dt>Assigned personnel</dt>
-          <dd>{ticket.assignedTo ?? "Not yet assigned"}</dd>
-        </div>
-        <div>
-          <dt>Last saved update</dt>
-          <dd>{timeLabel(ticket.updatedAt)}</dd>
-        </div>
-      </dl>
+      <details className="record-details">
+        <summary>Supporting details</summary>
+        <dl className="detail-grid">
+          <div>
+            <dt>Service account</dt>
+            <dd>{ticket.accountNumber}</dd>
+          </div>
+          <div>
+            <dt>Assigned personnel</dt>
+            <dd>{ticket.assignedTo ?? "Not yet assigned"}</dd>
+          </div>
+          <div>
+            <dt>Last saved update</dt>
+            <dd>{timeLabel(ticket.updatedAt)}</dd>
+          </div>
+        </dl>
+      </details>
       <div className="repair-stages" aria-label="Current saved repair state">
         {repairStates.map((s) => (
           <span className={ticket.status === s ? "current" : ""} key={s}>

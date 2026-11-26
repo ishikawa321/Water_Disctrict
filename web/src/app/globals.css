@@ -1107,6 +1107,320 @@ fieldset {
   flex-direction: column;
   gap: 17px;
 }
-.consumer-balance { margin-bottom: 24px; }
-.split + .card, .card + .toolbar { margin-top: 24px; }
-.stack > .card + .card { margin-top: 0; }
+.consumer-balance {
+  margin-bottom: 24px;
+}
+.split + .card,
+.card + .toolbar {
+  margin-top: 24px;
+}
+.stack > .card + .card {
+  margin-top: 0;
+}
+
+/* Signed-in utility theme from the shared mobile service interface. */
+@font-face {
+  font-family: "Currency Symbols";
+  src: url("/fonts/CurrencySymbols.ttf") format("truetype");
+  font-display: swap;
+  unicode-range: U+20B1;
+}
+.shell,
+.utility-modal {
+  --blue: #1a4fd6;
+  --bg: #f6f9fc;
+  --border: #e1e6eb;
+  --ink: #172536;
+  --muted: #526077;
+  --tint: #edf2ff;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: var(--font-dm-sans), "Currency Symbols", sans-serif;
+  font-size: 15px;
+}
+.workspace h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.workspace h2,
+.utility-modal h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.shell .card,
+.shell .notice,
+.shell .quick-link,
+.shell .record-button {
+  border-radius: 10px;
+  box-shadow: none;
+}
+.shell .card {
+  padding: 22px;
+}
+.shell .card h2 {
+  margin-bottom: 16px;
+}
+.shell .navigation a,
+.shell .avatar,
+.shell .stat-icon {
+  border-radius: 8px;
+}
+.shell .navigation a {
+  min-height: 48px;
+}
+.shell svg,
+.utility-modal svg {
+  flex-shrink: 0;
+}
+.shell .quick-link svg:first-child,
+.shell .stat-icon {
+  color: var(--muted);
+}
+.shell button,
+.shell .button,
+.shell input,
+.shell select,
+.utility-modal button,
+.utility-modal .button,
+.utility-modal input,
+.utility-modal select {
+  min-height: 48px;
+  border-radius: 8px;
+}
+.shell input,
+.shell textarea,
+.shell select,
+.utility-modal input,
+.utility-modal textarea,
+.utility-modal select {
+  background: #f2f5f9;
+  border-radius: 8px;
+}
+.shell .text-button,
+.utility-modal .text-button {
+  padding: 8px 0;
+}
+.shell .page-header {
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.shell .card,
+.shell .notice,
+.shell .quick-link,
+.shell .detail-grid > div,
+.dashboard-columns > *,
+.utility-modal {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shell .quick-link {
+  padding: 16px;
+  min-height: 72px;
+}
+.shell .quick-link small {
+  font-size: 12px;
+}
+.shell .topbar {
+  height: auto;
+  min-height: 80px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.shell .identity .name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.shell .topbar-role {
+  white-space: normal;
+  overflow: visible;
+  max-width: none;
+}
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.dashboard-header img {
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.dashboard-header h1 {
+  margin: 4px 0 6px;
+}
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+.dashboard-columns .consumer-balance {
+  margin-bottom: 0;
+}
+.dashboard-columns .quick-grid {
+  grid-template-columns: 1fr;
+}
+.balance-amount {
+  display: block;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+.bill-amount {
+  display: block;
+  font-size: 26px;
+  line-height: 1.3;
+  margin: 12px 0 6px;
+}
+.bill-card > .row:last-of-type {
+  margin-top: 16px;
+}
+.record-details {
+  margin: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.record-details summary {
+  min-height: 48px;
+  padding: 12px 0;
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+.record-details .detail-grid {
+  margin: 0 0 16px;
+}
+.record-details p {
+  padding-bottom: 12px;
+}
+.utility-modal {
+  margin: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  padding: 24px;
+  width: min(560px, calc(100% - 24px));
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.utility-modal.wide {
+  width: min(720px, calc(100% - 24px));
+}
+.utility-modal::backdrop {
+  background: rgba(23, 37, 54, 0.5);
+}
+.modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.modal-heading h2 {
+  margin: 0;
+}
+.icon-button {
+  width: 48px;
+  padding: 10px;
+}
+.location-field,
+.location-details {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 12px;
+}
+.location-field h3,
+.location-details h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.location-field p,
+.location-details p {
+  margin: 8px 0;
+}
+.location-field .row {
+  margin-top: 12px;
+}
+.coordinates {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.concern-map {
+  height: clamp(260px, 40dvh, 380px);
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 0;
+  background: #edf2f7;
+}
+.concern-map .leaflet-control-attribution {
+  font-size: 11px;
+  color: #172536;
+}
+.concern-map .leaflet-control-zoom a {
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 44px;
+}
+.issue-pin {
+  color: #1a4fd6;
+  font-size: 24px;
+  text-align: center;
+  line-height: 26px;
+  text-shadow:
+    -2px 0 white,
+    0 2px white,
+    2px 0 white,
+    0 -2px white;
+}
+.map-center {
+  align-self: flex-start;
+}
+@media (max-width: 1000px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .shell .card {
+    padding: 18px;
+  }
+  .dashboard-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .dashboard-header img {
+    width: 44px;
+    height: 44px;
+  }
+  .dashboard-header h1 {
+    font-size: 26px;
+  }
+  .utility-modal {
+    padding: 18px;
+  }
+  .utility-modal .form-row {
+    grid-template-columns: 1fr;
+  }
+  .utility-modal .row > button {
+    flex: 1 1 auto;
+  }
+  .shell .navigation a {
+    white-space: normal;
+  }
+  .shell .breadcrumb {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .shell .content {
+    padding-top: 24px;
+  }
+  .shell .button {
+    white-space: normal;
+    text-align: center;
+  }
+}

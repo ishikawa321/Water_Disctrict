@@ -52,6 +52,9 @@ export type Concern = {
   reviewedAt: string | null;
   ticketId: string | null;
   version: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationNote?: string | null;
 };
 export type Ticket = {
   id: string;

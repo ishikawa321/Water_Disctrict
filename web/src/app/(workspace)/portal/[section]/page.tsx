@@ -11,6 +11,7 @@ export default async function Page({
     billId?: string;
     concernId?: string;
     ticketId?: string;
+    new?: string;
   }>;
 }) {
   const { profile } = await requirePage(["client"]);

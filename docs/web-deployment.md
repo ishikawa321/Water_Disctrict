@@ -65,6 +65,12 @@ The website calls this API through its authenticated Next.js server handlers, so
 
 Deploy the updated API from this branch: `/api/office/payments?billId=<UUID>` now filters bill history **before** the established 1,000-row limit. Existing desktop calls without that optional parameter retain their contract. All dispatch, assignment, status transitions, append-only history, actor stamping and concurrency rules remain in the original server.
 
+## Concern-location update
+
+Before enabling location submissions against the operational database, an authorized operator must verify/apply `database/add_concern_locations.sql` (or its column-grant repair if the columns already exist). See [the update comparison](web-update-comparison.md). No production migration runs automatically. Deploy the updated original API from `desktop/src/WaterDistrict.Api`; authenticated `GET /api/workflow/capabilities` must return `concernLocation: true` before pinned office intake is forwarded. It preserves the existing shared database, workflows and roles. Do not deploy the separate fictional `desktop/WaterDistrictConnect` prototype as this website's API.
+
+`NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` optionally select a compatible raster tile provider and attribution. Both are build-time public variables. The default uses OpenStreetMap HTTPS tiles with visible attribution, normal browser caching and a cross-origin Referer. No bulk/offline download is implemented. Keep geolocation permission restricted to self; the user must click Use my location and confirm a pin.
+
 ## Final live acceptance
 
 The original local landing page's header demo link, hero button and final Explore button navigate to the published app entry in `config.js`. The integrated copy uses `/app` on its own deployment. Its illustrative tour remains separate. A separately hosted static copy, if any, still needs its own redeployment after local edits.
@@ -73,7 +79,7 @@ Use authorized demonstration accounts and isolated demonstration records. Do not
 
 1. Load `/login`, then refresh a direct `/portal/bills` or `/office/concerns` URL. Anonymous API/data requests must return 401.
 2. Sign in as a linked consumer. Verify account information, bill original/paid/balance, bill-specific payment history, notices and password recovery.
-3. Submit a demonstration concern. Refresh Desktop and the office website to verify the same saved row appears.
+3. Submit a demonstration concern with an optional pin/landmark. Cancel a changed pin and confirm the previous selection is retained; test a denied GPS request with manual selection. Refresh Desktop and the office website to verify the same saved row appears.
 4. Admin reviews, dispatches once, and assigns an active Staff identity. Confirm duplicate dispatch and stale updates fail.
 5. Assigned Staff records In progress and Resolved with required notes. Other Staff must be unable to view/update that ticket.
 6. Refresh consumer web/mobile. The saved concern result and repair summary must agree. Verify verified payments and published notices agree across platforms; drafts remain private.
