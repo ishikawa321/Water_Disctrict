@@ -1,0 +1,29 @@
+# Deploy the shared ASP.NET API, preserving the existing Supabase database.
+# Supply the existing private connection string in Render, never in this file.
+services:
+  - type: web
+    name: maramag-waterdistrict-api
+    runtime: docker
+    repo: https://github.com/ishikawa321/Water_Disctrict
+    branch: feature/web-platform-parity
+    plan: free
+    region: singapore
+    dockerfilePath: ./desktop/Dockerfile.api
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "10000"
+      - key: TZ
+        value: Asia/Manila
+      - key: AllowedHosts
+        value: "*.onrender.com"
+      - key: Supabase__Url
+        value: https://kaeespcylucvsazfdaks.supabase.co
+      - key: Supabase__PublishableKey
+        value: sb_publishable_X81fBSYttDlVEYEiFCuoRQ_IQlSRsNo
+      - key: ConnectionStrings__WaterDistrict
+        sync: false

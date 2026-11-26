@@ -12,3 +12,14 @@
 **/*.pfx
 **/*.key
 **/test-results
+**/*.jks
+**/*.keystore
+**/key.properties
+/.dart_tool
+/build
+/artifacts
+/android
+/ios
+/linux
+/macos
+/windows
