@@ -1,5 +1,18 @@
 # Web verification evidence
 
+## Desktop separation follow-up
+
+The office handler now reads and writes the existing Supabase Data API with the validated caller session. The obsolete API URL is ignored and the old desktop service error no longer exists in application source. Desktop source remains separate and excluded from Vercel. Staff policies and atomic workflow functions are in `database/web-office-workflows.sql`; production installation requires an authorized Supabase operator and is not claimed completed by frontend deployment.
+
+- All 90 .NET/PostgreSQL tests passed, zero failed or skipped. New tests install the SQL twice, enforce role/account isolation, preserve versions and history, reject invalid assignment, serialize concurrent dispatch and roll back after a controlled trigger failure.
+- An official local PostgREST 16.6 process exercised actual HTTP calls against a disposable verified-schema database: authenticated intake/review/dispatch/assignment/progress, system `xmin`, nested relations, exact HEAD counts, history author names and consumer/Staff isolation. A targeted follow-up also passed both matching and empty nested account-number search filters.
+- All 17 Chrome browser workflows passed with zero calls to the disabled desktop API. The screenshot regression loads saved repairs and real stored history even before workflow installation, finds tickets by account number, and prevents Staff reviewing a concern already dispatched to someone else. Existing landing, APK download, clean demo login, billing, office writes, pinned drafts, sequential repair resolution and 320-pixel layouts remain covered.
+- Visual inspection of `independent-office-repairs.png` confirmed the saved repair list and chronological history render without the old service banner, using isolated QA records.
+- Final `npm run check` passed after the search refinement: landing JavaScript checks, generated route types, TypeScript, zero-warning ESLint, all 50 unit/contract tests and optimized production build.
+- No operational record, production policy, role or migration was changed by these checks. The shared project still needs [one-time SQL setup](web-supabase-office.md) for Staff access and atomic repair saves. No private connection string or service-role key is used in Vercel.
+
+The sections below describe prior releases and their historical API dependency.
+
 Executed 26 November 2026 (Asia/Manila), on `feature/web-platform-parity` based on desktop `68bc1590`. This file records current checks separately from the repository's historical deployment notes.
 
 ## Android download follow-up

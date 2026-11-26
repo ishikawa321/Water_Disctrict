@@ -1,4 +1,5 @@
-# Deploy the shared ASP.NET API, preserving the existing Supabase database.
+# Optional legacy desktop API; the web no longer depends on this host.
+# Current web setup: docs/web-supabase-office.md.
 # Supply the existing private connection string in Render, never in this file.
 services:
   - type: web

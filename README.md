@@ -2,9 +2,9 @@
 
 ## Browser application
 
-The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities/database and ASP.NET Core API as the existing applications. See the [feature matrix](docs/web-parity.md), [deployment guide](docs/web-deployment.md) and [verification evidence](docs/web-verification.md).
+The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities and database as mobile. It no longer depends on the desktop ASP.NET API. Desktop source remains separate under `desktop/`. See [Supabase office setup](docs/web-supabase-office.md), [feature parity](docs/web-parity.md), [deployment](docs/web-deployment.md) and [verification](docs/web-verification.md).
 
-Run `npm ci` and `npm run dev` from `web/` after configuring its `.env.local`. Deploy that folder as the Vercel project root; the office API requires a separately hosted HTTPS address. The Flutter browser launcher files are preserved for the original Flutter workflow described below.
+Run `npm ci` and `npm run dev` from `web/` after configuring its public Supabase URL/key in `.env.local`. Deploy that folder as the Vercel project root. An authorized operator runs `database/web-office-workflows.sql` once in the existing Supabase project for Staff access and atomic repair saves; no Render host or database password is needed by the web. The Flutter browser launcher files are preserved for the original Flutter workflow below.
 
 ## Latest WaterDistrictConnect desktop source
 

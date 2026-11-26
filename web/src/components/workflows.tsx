@@ -462,6 +462,11 @@ function OfficeConcern({
                   <Wrench size={16} />
                   Open linked repair ticket
                 </Link>
+              ) : record.data.repairDispatchedAt ? (
+                <p className="feedback info">
+                  A repair ticket is linked to this concern. Only its assigned
+                  Staff and Admin can open the repair details.
+                </p>
               ) : (
                 ["Submitted", "Under review"].includes(record.data.status) && (
                   <ReviewForm

@@ -1,5 +1,7 @@
 # App-to-web update comparison
 
+**Architecture follow-up:** the current website no longer needs the hosted API described in this historical comparison. Office records use caller-scoped Supabase; atomic repair functions and Staff policies are in [web Supabase office setup](web-supabase-office.md). Desktop source remains separate.
+
 Source audit: 26 November 2026, Asia/Manila. Compared the published web baseline `49abbfd` with upstream main `3336607` (including `e560a93` concern locations/service UI and `7d089af` standalone desktop). Main was merged first at `7cba6e1`; a second fetch found the newly pushed midnight/aqua update `3336607`, merged at `b375354` before final publication.
 
 ## Changes carried into the web client

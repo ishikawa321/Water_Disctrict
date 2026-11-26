@@ -12,6 +12,10 @@ async function login(page: Page, role: string) {
 test.beforeEach(async ({ request }) => {
   await request.post(`${fixture}/__test/reset`);
 });
+test.afterEach(async ({ request }) => {
+  const response = await request.get(`${fixture}/__test/state`);
+  expect((await response.json()).legacyApiRequests).toBe(0);
+});
 
 test("landing page is first and every primary demo button opens the app sign-in", async ({
   page,
@@ -524,7 +528,7 @@ test("consumer pins survive cancellation and a failed save, and saved maps are r
     "Pinned browser report",
   );
 });
-test("office refuses a pin before an old API write, then saves and preserves it on review", async ({
+test("office retains a pinned draft before SQL setup, then saves and preserves it on review", async ({
   page,
   request,
 }) => {
@@ -548,14 +552,14 @@ test("office refuses a pin before an old API write, then saves and preserves it 
     .click();
   await chooseCoordinates(page, "7.76", "125.0", "Beside office meter");
   await request.post(`${fixture}/__test/scenario`, {
-    data: { locationSupported: false },
+    data: { workflowAvailable: false },
   });
   await page
     .locator("form")
     .getByRole("button", { name: "Submit concern", exact: true })
     .click();
   await expect(page.locator(".feedback.error")).toContainText(
-    "must be updated",
+    "one-time Supabase",
   );
   await expect(page.locator(".record-list")).not.toContainText(
     "Pinned office report",
@@ -564,7 +568,7 @@ test("office refuses a pin before an old API write, then saves and preserves it 
     "Beside office meter",
   );
   await request.post(`${fixture}/__test/scenario`, {
-    data: { locationSupported: true },
+    data: { workflowAvailable: true },
   });
   await page
     .locator("form")
@@ -875,4 +879,75 @@ test("landing Android downloads open release instructions with the signed APK li
   await page.getByRole("link", { name: "Open web app", exact: false }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator(".feedback.error")).toHaveCount(0);
+});
+
+test("saved repairs load without the desktop server or workflow setup, and Staff cannot review a dispatched concern", async ({
+  page,
+  request,
+}) => {
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  const ticketId = "50000000-0000-4000-8000-000000000001";
+  state.concerns[0].ticketId = ticketId;
+  state.concerns[0].status = "Under review";
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      workflowAvailable: false,
+      concerns: state.concerns,
+      tickets: [
+        {
+          id: ticketId,
+          concernId: state.concerns[0].id,
+          accountNumber: "QA-001",
+          subject: "QA low pressure",
+          status: "Open",
+          assignedTo: null,
+          assignedToUserId: null,
+          latestUpdate: "Saved inspection request",
+          updatedAt: "2026-11-26T08:00:00Z",
+          version: 2,
+          history: [
+            {
+              id: 1,
+              status: "Open",
+              note: "Saved inspection request",
+              changedBy: "QA Admin",
+              assignedTo: null,
+              changedAt: "2026-11-26T08:00:00Z",
+            },
+          ],
+        },
+      ],
+    },
+  });
+  await login(page, "admin");
+  await page.getByRole("link", { name: "Repair tickets", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Saved repair tickets" }),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Search subject or account" })
+    .fill("QA-001");
+  await page
+    .getByRole("button", { name: "Apply filters", exact: true })
+    .click();
+  await page.getByRole("button", { name: /QA low pressure/ }).click();
+  await expect(page.locator(".timeline li")).toHaveCount(1);
+  await expect(
+    page.getByText("The office service is not connected yet", { exact: false }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: test.info().outputPath("independent-office-repairs.png"),
+    fullPage: true,
+  });
+  await login(page, "staff");
+  await page
+    .getByRole("link", { name: "Service concerns", exact: true })
+    .click();
+  await page.getByRole("button", { name: /QA low pressure/ }).click();
+  await expect(
+    page.getByText("Only its assigned Staff and Admin", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save review", exact: true }),
+  ).toHaveCount(0);
 });
