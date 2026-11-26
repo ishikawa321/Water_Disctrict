@@ -17,6 +17,8 @@ Use Node 24. From `web/`: run `npm ci`, copy `.env.example` to `.env.local`, set
 
 No Render host, `WATERDISTRICT_API_URL`, database password or service-role key is needed by the web.
 
+For automatic bill/payment numbers, per-account monthly billing, the 28th issuance schedule and daily simple interest, follow [billing setup](../docs/billing-automation.md). It requires the two billing SQL files in the existing project; frontend deployment does not install them. Billing reports the schedule's actual configured state.
+
 An authorized operator must run [database/web-office-workflows.sql](../database/web-office-workflows.sql) once in the existing project's SQL Editor. See [Supabase office setup](../docs/web-supabase-office.md). Admin lists and existing repair details use existing RLS immediately. Staff access and atomic repair saves require the added policies/functions. Until installed, saves report the required setup and retain drafts. No migration runs during deployment.
 
 ## Data boundaries

@@ -17,6 +17,95 @@ test.afterEach(async ({ request }) => {
   expect((await response.json()).legacyApiRequests).toBe(0);
 });
 
+test("monthly billing saves per-account amounts and confirmed full payment appears on the consumer balance", async ({
+  page,
+  request,
+}) => {
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  const savedBill = {
+    ...state.bills[0],
+    dueDate: "2026-11-24",
+    baseAmount: "500.00",
+    interestAmount: "15.00",
+    interestDays: 3,
+    amountDue: "515.00",
+  };
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { bills: [savedBill], payments: [] },
+  });
+  await login(page, "admin");
+  await page.getByRole("link", { name: "Billing", exact: true }).click();
+  await page
+    .getByLabel("Monthly billing account")
+    .selectOption({ label: "QA-001 / QA Consumer" });
+  await page.getByLabel("Monthly amount (PHP)").fill("1000.00");
+  await page
+    .getByRole("button", { name: "Save monthly billing", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Monthly billing settings saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "Enabled", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("monthly-billing-interest.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("link", { name: "Verified payments", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Record payment", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Bill", exact: true })
+    .selectOption(savedBill.id);
+  await page
+    .getByRole("button", { name: "Use full remaining balance", exact: true })
+    .click();
+  await expect(page.getByLabel("Verified amount (PHP)")).toHaveValue("515.00");
+  await page
+    .getByLabel(
+      "I have verified this offline payment against district records.",
+    )
+    .check();
+  await request.post(`${fixture}/__test/scenario`, {
+    data: { failNextWrite: true },
+  });
+  await page
+    .getByRole("button", { name: "Confirm payment", exact: true })
+    .click();
+  await expect(page.locator(".feedback.error")).toBeVisible();
+  await expect(page.getByLabel("Verified amount (PHP)")).toHaveValue("515.00");
+  await page
+    .getByRole("button", { name: "Confirm payment", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Payment confirmed. Reference:" }),
+  ).toContainText("1000000000");
+  await login(page, "client");
+  await expect(page.locator(".consumer-balance")).toContainText("₱0.00");
+  await page
+    .getByRole("navigation", { name: "Workspace", exact: true })
+    .getByRole("link", { name: "My bills", exact: true })
+    .click();
+  await expect(page).toHaveURL(/portal\/bills$/);
+  await page.getByText("Billing details", { exact: true }).click();
+  await expect(
+    page.getByText("Daily interest (3 overdue days)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("₱15.00", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("consumer-settled-interest.png"),
+    fullPage: true,
+  });
+});
+
 test("landing page is first and every primary demo button opens the app sign-in", async ({
   page,
 }) => {
@@ -280,14 +369,14 @@ test("Admin creates accounts, bills, verified payments and notices using working
   await page
     .getByLabel("Active service account")
     .selectOption({ label: "QA-001 / QA Consumer" });
-  await page.getByLabel("Bill number", { exact: true }).fill("QA-NEW-BILL");
+  await expect(page.getByLabel("Bill number", { exact: true })).toHaveCount(0);
   await page.getByLabel("District-computed amount (PHP)").fill("120.50");
-  await page.getByLabel("Period start").fill("2026-11-01");
-  await page.getByLabel("Period end").fill("2026-11-30");
+  await expect(page.getByLabel("Period start")).toHaveCount(0);
+  await expect(page.getByLabel("Period end")).toHaveCount(0);
   await page.getByLabel("Due date", { exact: true }).fill("2026-12-15");
   await page.getByRole("button", { name: "Create bill", exact: true }).click();
   await expect(
-    page.getByRole("cell").filter({ hasText: "QA-NEW-BILL" }),
+    page.getByRole("cell").filter({ hasText: "MWD-202611-1000000001" }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Verified payments", exact: true })
@@ -298,9 +387,9 @@ test("Admin creates accounts, bills, verified payments and notices using working
   await page
     .getByRole("combobox", { name: "Bill", exact: true })
     .selectOption({ label: "QA-BILL-001 / QA-001 / ₱350.00 remaining" });
-  await page
-    .getByLabel("Receipt / reference", { exact: true })
-    .fill("QA-NEW-RECEIPT");
+  await expect(
+    page.getByLabel("Receipt / reference", { exact: true }),
+  ).toHaveCount(0);
   await page.getByLabel("Payment date", { exact: true }).fill("2026-11-25");
   await page.getByLabel("Verified amount (PHP)").fill("50.00");
   await page
@@ -309,11 +398,9 @@ test("Admin creates accounts, bills, verified payments and notices using working
     )
     .check();
   await page
-    .getByRole("button", { name: "Record verified payment", exact: true })
+    .getByRole("button", { name: "Confirm payment", exact: true })
     .click();
-  await expect(
-    page.getByRole("cell", { name: "QA-NEW-RECEIPT" }),
-  ).toBeVisible();
+  await expect(page.getByRole("cell", { name: "1000000001" })).toBeVisible();
   await page.getByRole("link", { name: "Announcements", exact: true }).click();
   await page.getByRole("button", { name: "New notice", exact: true }).click();
   await page.getByLabel("Title").fill("QA new notice");

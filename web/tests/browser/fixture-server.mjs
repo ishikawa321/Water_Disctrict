@@ -45,6 +45,8 @@ function reset() {
     unlinked: false,
     failNextWrite: false,
     workflowAvailable: true,
+    billingAvailable: true,
+    billingPlans: [],
     legacyApiRequests: 0,
     accounts: [account],
     bills: [bill],
@@ -323,6 +325,83 @@ createServer(async (request, response) => {
       url,
     );
   if (url.pathname.startsWith("/rest/v1/rpc/")) {
+    if (table.startsWith("wd_billing_")) {
+      if (!state.billingAvailable)
+        return respond(
+          response,
+          { code: "PGRST202", message: "Billing setup missing" },
+          404,
+        );
+      if (table === "wd_billing_refresh")
+        return respond(response, { asOf: "2026-11-27" });
+      if (table === "wd_billing_status")
+        return respond(response, { scheduleActive: true });
+      if (role !== "admin") return fail(response, "Admin required");
+      if (state.failNextWrite) {
+        state.failNextWrite = false;
+        return fail(response, "Simulated save failure", 503);
+      }
+      if (table === "wd_billing_set_plan") {
+        const p = {
+          account_id: body.p_account_id,
+          monthly_amount: body.p_monthly_amount,
+          enabled: body.p_enabled,
+          next_issue_date: "2026-11-28",
+        };
+        state.billingPlans = state.billingPlans.filter(
+          (p) => p.account_id !== body.p_account_id,
+        );
+        state.billingPlans.push(p);
+        return respond(response, p);
+      }
+      if (table === "wd_billing_create_bill") {
+        const existing = state.bills.find(
+          (b) => b.requestId === body.p_request_id,
+        );
+        if (existing) return respond(response, { id: existing.id });
+        const b = {
+          id: crypto.randomUUID(),
+          requestId: body.p_request_id,
+          billNumber: `MWD-202611-${1000000000 + state.bills.length}`,
+          accountNumber: account.accountNumber,
+          periodStart: "2026-11-01",
+          periodEnd: "2026-11-30",
+          dueDate: body.p_due_date,
+          amountDue: body.p_amount,
+          paid: "0.00",
+          remaining: body.p_amount,
+        };
+        state.bills.push(b);
+        return respond(response, { id: b.id });
+      }
+      if (table === "wd_billing_confirm_payment") {
+        const existing = state.payments.find(
+          (p) => p.requestId === body.p_request_id,
+        );
+        if (existing) return respond(response, { id: existing.id });
+        const b = state.bills.find((b) => b.id === body.p_bill_id);
+        if (!b) return fail(response, "Bill unavailable", 404);
+        const paid = state.payments
+          .filter((p) => (p.billId ?? ids.bill) === b.id)
+          .reduce((n, p) => n + Number(p.amountPaid), 0);
+        if (Number(body.p_amount) > Number(b.amountDue) - paid)
+          return respond(response, { code: "22023" }, 400);
+        const p = {
+          id: crypto.randomUUID(),
+          requestId: body.p_request_id,
+          billId: b.id,
+          receiptReference: String(1000000000 + state.payments.length),
+          billNumber: b.billNumber,
+          accountNumber: b.accountNumber,
+          paymentDate: body.p_payment_date,
+          amountPaid: body.p_amount,
+          verifiedAt: now,
+        };
+        state.payments.push(p);
+        return respond(response, { id: p.id });
+      }
+      return fail(response, "Unknown billing function", 404);
+    }
     if (!state.workflowAvailable)
       return respond(
         response,
@@ -490,6 +569,13 @@ createServer(async (request, response) => {
       url,
     );
   }
+  if (table === "billing_plans")
+    return rows(
+      request,
+      response,
+      role === "admin" ? state.billingPlans : [],
+      url,
+    );
   if (table === "bills") {
     let values = state.bills;
     if (request.method === "POST") {
@@ -518,6 +604,9 @@ createServer(async (request, response) => {
         billing_period_end: b.periodEnd,
         due_date: b.dueDate,
         amount_due: b.amountDue,
+        base_amount_due: b.baseAmount ?? b.amountDue,
+        interest_amount: b.interestAmount ?? "0.00",
+        interest_days: b.interestDays ?? 0,
         service_accounts: { account_number: b.accountNumber },
       })),
       url,
@@ -542,7 +631,7 @@ createServer(async (request, response) => {
       request,
       response,
       values.map((p, i) => ({
-        id: `qa-${i}`,
+        id: p.id ?? `qa-${i}`,
         bill_id: p.billId ?? ids.bill,
         receipt_reference: p.receiptReference,
         payment_date: p.paymentDate,

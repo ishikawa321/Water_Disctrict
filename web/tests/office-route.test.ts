@@ -311,4 +311,101 @@ describe("Supabase office routes without a desktop server", () => {
     expect((await call("GET", "workflow/tickets")).status).toBe(403);
     expect(state.calls).toEqual([]);
   });
+  it("creates bills with a server-generated number and no supplied billing period", async () => {
+    state.rpcResult = { data: { id: ticketId }, error: null };
+    state.tables.set("bills", {
+      data: {
+        id: ticketId,
+        bill_number: "MWD-202611-1000000000",
+        billing_period_start: "2026-11-01",
+        billing_period_end: "2026-11-30",
+        due_date: "2026-12-01",
+        amount_due: "200.00",
+        base_amount_due: "200.00",
+        interest_amount: 0,
+        interest_days: 0,
+        service_accounts: { account_number: "TEST-001" },
+      },
+      error: null,
+    });
+    const response = await call("POST", "office/bills", {
+      requestId: id,
+      accountId,
+      amountDue: "200.00",
+      dueDate: "2026-12-01",
+      billNumber: "forged",
+      createdBy: "forged",
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).billNumber).toBe("MWD-202611-1000000000");
+    expect(state.calls).toContainEqual({
+      table: "wd_billing_create_bill",
+      method: "rpc",
+      args: [
+        {
+          p_request_id: id,
+          p_account_id: accountId,
+          p_amount: "200.00",
+          p_due_date: "2026-12-01",
+        },
+      ],
+    });
+    expect(state.calls.some((c) => c.method === "insert")).toBe(false);
+  });
+  it("confirms a payment atomically and returns the generated reference", async () => {
+    state.rpcResult = { data: { id: ticketId }, error: null };
+    state.tables.set("offline_payments", {
+      data: {
+        id: ticketId,
+        receipt_reference: "1000000001",
+        payment_date: "2026-11-25",
+        amount_paid: "50.00",
+        verified_at: "2026-11-27T00:00:00Z",
+        bills: {
+          bill_number: "BILL-1",
+          service_accounts: { account_number: "TEST-001" },
+        },
+      },
+      error: null,
+    });
+    const response = await call("POST", "office/payments", {
+      requestId: id,
+      billId: ticketId,
+      amountPaid: "50.00",
+      paymentDate: "2026-11-25",
+      verified: true,
+      receiptReference: "forged",
+      verifiedBy: "forged",
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).receiptReference).toMatch(/^\d{10}$/);
+    expect(state.calls).toContainEqual({
+      table: "wd_billing_confirm_payment",
+      method: "rpc",
+      args: [
+        {
+          p_request_id: id,
+          p_bill_id: ticketId,
+          p_amount: "50.00",
+          p_payment_date: "2026-11-25",
+        },
+      ],
+    });
+    expect(state.calls.some((c) => c.method === "insert")).toBe(false);
+  });
+  it("retains a billing setup error instead of attempting a legacy payment insert", async () => {
+    state.rpcResult = { data: null, error: { code: "PGRST202" } };
+    const response = await call("POST", "office/payments", {
+      requestId: id,
+      billId: ticketId,
+      amountPaid: "50.00",
+      paymentDate: "2026-11-25",
+      verified: true,
+    });
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe("billing_setup_required");
+    expect(state.calls.some((c) => c.method === "insert")).toBe(false);
+    state.role = "staff";
+    expect((await call("POST", "office/billing-plans", {})).status).toBe(403);
+  });
 });

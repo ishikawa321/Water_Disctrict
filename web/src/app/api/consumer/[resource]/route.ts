@@ -13,6 +13,7 @@ import {
   relatedOne,
 } from "@/lib/policy";
 import { balance } from "@/lib/format";
+import { refreshBilling } from "@/lib/server/billing";
 import { parseConcernLocation } from "@/lib/location";
 import {
   errorResponse,
@@ -63,6 +64,8 @@ export async function GET(
         "No active service account link is available. Contact authorized district personnel.",
         "account_unlinked",
       );
+    if (resource === "summary" || resource === "bills")
+      await refreshBilling(supabase);
     if (resource === "summary")
       return json(await consumerSummary(supabase, account.id));
     if (resource === "activity") {
@@ -95,9 +98,7 @@ export async function GET(
     if (resource === "bills") {
       const { data, error } = await supabase
         .from("bills")
-        .select(
-          "id,bill_number,billing_period_start,billing_period_end,due_date,amount_due",
-        )
+        .select("*")
         .eq("account_id", account.id)
         .order("due_date", { ascending: false })
         .order("id")
@@ -116,6 +117,9 @@ export async function GET(
           periodEnd: r.billing_period_end,
           dueDate: r.due_date,
           amountDue: String(r.amount_due),
+          baseAmount: String(r.base_amount_due ?? r.amount_due),
+          interestAmount: String(r.interest_amount ?? 0),
+          interestDays: Number(r.interest_days ?? 0),
           ...balance(String(r.amount_due), [
             (totals.get(r.id) ?? 0).toString(),
           ]),

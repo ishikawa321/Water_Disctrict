@@ -18,6 +18,7 @@ import {
 import { parseConcernLocation } from "@/lib/location";
 import { HttpError, textField, uuid } from "./http";
 import { paymentTotals } from "./consumer";
+import { billingCall, refreshBilling } from "./billing";
 
 type Row = Record<string, unknown>;
 type Context = { supabase: SupabaseClient; profile: Profile };
@@ -419,32 +420,68 @@ export async function officeRequest(
     check(error);
     return rows(data).map(account);
   }
+  if (route === "office/billing-status") {
+    const result = await billingCall(supabase, "wd_billing_status");
+    check(result.error);
+    return result.data;
+  }
+  if (route === "office/billing-plans") {
+    if (method === "POST") {
+      if (typeof input.enabled !== "boolean")
+        throw new HttpError(422, "Choose whether monthly billing is enabled.");
+      const result = await billingCall(supabase, "wd_billing_set_plan", {
+        p_account_id: uuid(input.accountId),
+        p_monthly_amount: amount(input.monthlyAmount),
+        p_enabled: input.enabled,
+      });
+      check(result.error);
+      const p = row(result.data);
+      return {
+        accountId: text(p.account_id),
+        monthlyAmount: String(p.monthly_amount),
+        enabled: p.enabled === true,
+        nextIssueDate: text(p.next_issue_date),
+      };
+    }
+    const result = await supabase
+      .from("billing_plans")
+      .select("account_id,monthly_amount,enabled,next_issue_date")
+      .order("account_id")
+      .limit(1000);
+    if (result.error?.code === "PGRST205")
+      throw new HttpError(
+        503,
+        "Complete the Supabase billing setup before setting monthly amounts.",
+        "billing_setup_required",
+      );
+    check(result.error);
+    return rows(result.data).map((p) => ({
+      accountId: text(p.account_id),
+      monthlyAmount: String(p.monthly_amount),
+      enabled: p.enabled === true,
+      nextIssueDate: text(p.next_issue_date),
+    }));
+  }
   if (route === "office/bills") {
-    const fields =
-      "id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,service_accounts(account_number)";
+    const fields = "*,service_accounts(account_number)";
     let records: Row[];
     if (method === "POST") {
-      const start = inputDate(input.periodStart),
-        end = inputDate(input.periodEnd),
-        due = inputDate(input.dueDate);
-      if (end < start)
-        throw new HttpError(422, "Period end cannot precede period start.");
+      const result = await billingCall(supabase, "wd_billing_create_bill", {
+        p_request_id: uuid(input.requestId),
+        p_account_id: uuid(input.accountId),
+        p_amount: amount(input.amountDue),
+        p_due_date: inputDate(input.dueDate),
+      });
+      check(result.error);
       const { data, error } = await supabase
         .from("bills")
-        .insert({
-          account_id: uuid(input.accountId),
-          bill_number: textField(input.billNumber, "Bill number", 100),
-          billing_period_start: start,
-          billing_period_end: end,
-          due_date: due,
-          amount_due: amount(input.amountDue),
-          created_by: profile.userId,
-        })
         .select(fields)
+        .eq("id", uuid(row(result.data).id))
         .single();
       check(error);
       records = [row(data)];
     } else {
+      await refreshBilling(supabase);
       const { data, error } = await supabase
         .from("bills")
         .select(fields)
@@ -468,6 +505,9 @@ export async function officeRequest(
       periodEnd: text(b.billing_period_end),
       dueDate: text(b.due_date),
       amountDue: String(b.amount_due),
+      baseAmount: String(b.base_amount_due ?? b.amount_due),
+      interestAmount: String(b.interest_amount ?? 0),
+      interestDays: Number(b.interest_days ?? 0),
       ...balance(String(b.amount_due), [
         (totals.get(text(b.id)) ?? 0).toString(),
       ]),
@@ -484,20 +524,17 @@ export async function officeRequest(
         );
       if (date > todayInManila())
         throw new HttpError(422, "Payment date cannot be in the future.");
+      const result = await billingCall(supabase, "wd_billing_confirm_payment", {
+        p_request_id: uuid(input.requestId),
+        p_bill_id: uuid(input.billId),
+        p_amount: amount(input.amountPaid),
+        p_payment_date: date,
+      });
+      check(result.error);
       const { data, error } = await supabase
         .from("offline_payments")
-        .insert({
-          bill_id: uuid(input.billId),
-          receipt_reference: textField(
-            input.receiptReference,
-            "Receipt/reference",
-            150,
-          ),
-          payment_date: date,
-          amount_paid: amount(input.amountPaid),
-          verified_by: profile.userId,
-        })
         .select(paymentFields)
+        .eq("id", uuid(row(result.data).id))
         .single();
       check(error);
       return payment(row(data));

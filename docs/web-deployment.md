@@ -4,6 +4,8 @@ Published frontend: https://maramag-waterdistrict-web.vercel.app. Web and mobile
 
 ## Supabase setup
 
+For monthly bills and confirmed payments, also apply [billing setup](billing-automation.md): the atomic billing SQL first, then its Cron schedule. This applies the requested retroactive overdue interest to existing unpaid bills. No new database or hosted API is involved.
+
 Follow [one-time office setup](web-supabase-office.md) for Staff access and atomic repair saves. An authorized operator runs `database/web-office-workflows.sql` in the existing project's SQL Editor. No migration runs on Vercel. No Render account, replacement database, private PostgreSQL connection or service-role key is required by the website.
 
 Retain existing mobile/desktop Auth configuration. Add these web redirect destinations alongside existing entries in Authentication > URL Configuration:
