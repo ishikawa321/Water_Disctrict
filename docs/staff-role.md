@@ -1,14 +1,14 @@
 # Staff role on web and Android
 
-The role follows the six choices confirmed by the owner: office/customer service and field repairs; read bills and confirm payments; all concerns and only assigned repair tickets; Admin invitations; web and mobile sign-in; Admin confirmation of completed repairs.
+The role follows the six choices confirmed by the owner: office/customer service and field repairs; read bills and confirm payments; all concerns and only assigned repair tickets; Admin invitations; web and mobile sign-in; direct resolution by Admin or assigned Staff.
 
 | Action | Staff | Admin |
 |---|---|---|
 | Read/receive/review concerns | Yes | Yes |
 | Read repair tickets/history | Own assignments only | All |
 | Assign or dispatch repairs | No | Yes |
-| Move assigned repairs to In progress / Completed | Yes | Yes |
-| Confirm Completed as Resolved or return to In progress | No | Yes |
+| Move assigned repairs to In progress / Resolved | Yes | Yes |
+| Resolve legacy Completed tickets or return to In progress | Own assignments | Yes |
 | Read bills and verified payments; confirm payments | Yes | Yes |
 | Issue bills/change monthly plans | No | Yes |
 | Approve Consumer registration/manage Staff | No | Yes |
@@ -17,7 +17,7 @@ The role follows the six choices confirmed by the owner: office/customer service
 
 Run **the entire `database/staff-role.sql`** in the existing project's SQL Editor as the project owner, after `web-office-workflows.sql` and `billing-automation.sql`. The migration checks those prerequisites, preserves existing records and users, expands the existing role/status constraints and applies the Staff financial policies and invitation functions. It is safe to rerun. It does not provision real employees or change any existing user's role.
 
-The web/mobile public key cannot apply database migrations. A published frontend/APK alone does not install these rules. Until an authorized operator runs the SQL, invitations and Staff payment confirmation report missing setup/permission rather than bypassing it. Do not rerun older workflow/billing scripts afterward: they restore their older function definitions and can undo the new behavior. Apply this Staff upgrade last.
+The web/mobile public key cannot apply database migrations. A published frontend/APK alone does not install these rules. Until an authorized operator runs the SQL, invitations and Staff payment confirmation report missing setup/permission rather than bypassing it. Do not rerun older workflow/billing scripts afterward: they restore their older function definitions and can undo the new behavior. Apply this Staff upgrade, followed by `database/allow_staff_repair_resolution.sql`, last.
 
 The role is `staff` in the existing `public.profiles` table, with an `active` flag. RLS protects data even when a caller skips the UI. Staff financial reads include customer bills/payments for office verification; billing plan writes and issuance stay Admin-only. Payment confirmation retains atomic bill locking, current interest calculation, generated 10-digit receipts, actor stamping, duplicate-request checks and overpayment protection.
 
@@ -34,9 +34,11 @@ Email confirmation still depends on existing Supabase email/redirect configurati
 
 ## Repair completion
 
-The shared sequence is **Open → Assigned → In progress → Completed → Resolved**. Completed means the assigned Staff member reports work finished. The concern remains Under review, and the customer sees awaiting Admin confirmation. Only Admin can confirm resolution, with a required note; Admin may instead return the work to In progress. Every successful change appends a real history event and compares the saved `xmin` under a database lock. A direct Staff attempt to resolve is rejected by PostgreSQL.
+The client sequence is **Open ? Assigned ? In progress ? Resolved**. Admin and the currently assigned active Staff member can resolve from Assigned or In progress with a required note. A saved resolution also resolves the linked concern and appends its history event. Other Staff, clients and inactive users cannot update the ticket, and Resolved is terminal.
 
-Existing Resolved repairs remain resolved. Mobile Admin repair links open the new review workspace, where Admin can confirm completed tickets. The desktop source is retained separately; its older client still lacks a Completed choice and should use the office website for this new workflow.
+Run `database/allow_staff_repair_resolution.sql` after `staff-role.sql`. The follow-up migration is idempotent and retains existing tickets/history. Older Completed tickets remain in storage and office audit history; both Admin and their assigned Staff can resolve them or return them to In progress. Client displays map that legacy state to In progress, with only four visible stages. Refresh the other workspace to see the saved status.
+
+This follow-up was applied to the shared Supabase project on 27 November 2026. Publish/rebuild the web and Flutter clients to distribute the new menus and timeline. Rerunning an older workflow migration requires rerunning this follow-up afterward.
 
 ## Mobile and verification
 

@@ -3362,7 +3362,11 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            StatusBadge('${t['status']}'),
+                            StatusBadge(
+                              !widget.isAdmin && t['status'] == 'Completed'
+                                  ? 'In progress'
+                                  : '${t['status']}',
+                            ),
                             Text(
                               '${t['latest_update']}',
                               maxLines: 2,
@@ -6033,6 +6037,28 @@ class _ModernDashboardState extends State<ModernDashboard>
             ),
           ),
         ),
+        if (tab == 0) ...[
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Refresh home',
+            onPressed: loading ? null : refresh,
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: utilityBlue,
+              minimumSize: const Size(44, 44),
+            ),
+            icon: loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: utilityBlue,
+                    ),
+                  )
+                : const Icon(CupertinoIcons.arrow_clockwise),
+          ),
+        ],
       ],
     );
     // Bills, Services and the client Account tab show their records directly.
@@ -6766,8 +6792,10 @@ class DesignRepairStages extends StatelessWidget {
   final String status;
   @override
   Widget build(BuildContext context) {
-    const stages = ['Open', 'Assigned', 'In progress', 'Completed', 'Resolved'];
-    final current = stages.indexOf(status);
+    const stages = ['Open', 'Assigned', 'In progress', 'Resolved'];
+    final current = stages.indexOf(
+      status == 'Completed' ? 'In progress' : status,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(

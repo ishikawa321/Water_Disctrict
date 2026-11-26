@@ -640,12 +640,14 @@ createServer(async (request, response) => {
         return fail(response, "Ticket unavailable", 403);
       if (body.p_version !== t.version)
         return respond(response, { code: "40001" }, 409);
-      if (
-        (input.status === "Resolved" &&
-          (role !== "admin" || t.status !== "Completed")) ||
-        (t.status === "Completed" && role !== "admin")
-      )
-        return fail(response, "Administrator confirmation required", 403);
+      const transitions = {
+        Open: ["Open", "Assigned"],
+        Assigned: ["Assigned", "In progress", "Resolved"],
+        "In progress": ["In progress", "Completed", "Resolved"],
+        Completed: ["Completed", "In progress", "Resolved"],
+      };
+      if (!transitions[t.status]?.includes(input.status))
+        return fail(response, "Invalid ticket transition", 400);
       Object.assign(t, {
         status: input.status,
         assignedToUserId: input.assignedToUserId,

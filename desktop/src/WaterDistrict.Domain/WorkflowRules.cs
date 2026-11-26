@@ -47,8 +47,9 @@ public static class WorkflowRules
         var permitted = current switch
         {
             "Open" => next is "Open" or "Assigned",
-            "Assigned" => next is "Assigned" or "In progress",
+            "Assigned" => next is "Assigned" or "In progress" or "Resolved",
             "In progress" => next is "In progress" or "Resolved",
+            "Completed" => next is "In progress" or "Resolved",
             _ => false
         };
         if (!permitted) throw new WorkflowException("transition", $"Cannot change {current} to {next}.", 409);
