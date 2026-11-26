@@ -19,6 +19,18 @@ public sealed class SupabaseOfficeService(HttpClient http,TimeProvider? clock=nu
     private const string NoticeFields="id,title,message,published,updated_at";
     private static void Admin(SessionProfile actor)
     { if(actor.Role!="admin")throw new WorkflowException("forbidden","Only active administrators can use this office operation.",403); }
+    public async Task<IReadOnlyList<OfficeRegistration>> RegistrationsAsync(SessionProfile actor,string bearer,CancellationToken token)
+    {
+        Admin(actor);
+        return (await Rows(HttpMethod.Get,"client_registrations?select=user_id,full_name,service_address,email,status,submitted_at,email_confirmed_at&status=eq.Pending&order=submitted_at&limit=1000",bearer,null,token))
+            .Select(row=>Decode(()=>new OfficeRegistration(Guid.Parse(Text(row,"user_id")),Text(row,"full_name"),Text(row,"service_address"),Text(row,"email"),Text(row,"status"),DateTimeOffset.Parse(Text(row,"submitted_at"),CultureInfo.InvariantCulture),row.GetProperty("email_confirmed_at").ValueKind==JsonValueKind.Null?null:DateTimeOffset.Parse(Text(row,"email_confirmed_at"),CultureInfo.InvariantCulture)))).ToArray();
+    }
+    public async Task<RegistrationApproval> ApproveRegistrationAsync(SessionProfile actor,string bearer,Guid id,CancellationToken token)
+    {
+        Admin(actor);if(id==Guid.Empty)throw new WorkflowException("registration","Select a registration.");
+        var rows=await Rows(HttpMethod.Post,"rpc/approve_client_registration",bearer,new {registration_user_id=id},token);
+        return Decode(()=>new RegistrationApproval(Text(One(rows),"account_number")));
+    }
     public async Task<OfficeSummary> SummaryAsync(SessionProfile actor,string bearer,CancellationToken token)
     {
         Admin(actor);
@@ -28,13 +40,6 @@ public sealed class SupabaseOfficeService(HttpClient http,TimeProvider? clock=nu
     }
     public async Task<IReadOnlyList<OfficeAccount>> AccountsAsync(SessionProfile actor,string bearer,CancellationToken token)
     { Admin(actor);return (await Rows(HttpMethod.Get,$"service_accounts?select={AccountFields}&order=account_number&limit=1000",bearer,null,token)).Select(row=>Decode(()=>Account(row))).ToArray(); }
-    public async Task<OfficeAccount> AddAccountAsync(SessionProfile actor,string bearer,AddOfficeAccount input,CancellationToken token)
-    {
-        Admin(actor);
-        var values=new {account_number=WorkflowRules.Required(input.AccountNumber,"Account number",80),holder_name=WorkflowRules.Required(input.HolderName,"Holder name",200),
-            service_address=WorkflowRules.Required(input.ServiceAddress,"Service address",500),active=true,updated_by=actor.UserId};
-        return Account(One(await Rows(HttpMethod.Post,$"service_accounts?select={AccountFields}",bearer,values,token)));
-    }
     public async Task<IReadOnlyList<OfficeBill>> BillsAsync(SessionProfile actor,string bearer,CancellationToken token)
     { Admin(actor);return (await Rows(HttpMethod.Get,$"bills?select={BillFields}&order=due_date.desc&limit=1000",bearer,null,token)).Select(row=>Decode(()=>Bill(row))).ToArray(); }
     public async Task<OfficeBill> AddBillAsync(SessionProfile actor,string bearer,AddOfficeBill input,CancellationToken token)

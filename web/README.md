@@ -17,7 +17,7 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Use an existing application identity with an active `admin`, `staff` or `client` profile. Public staff/admin registration, role editing and account self-linking are deliberately unavailable, matching the supported applications. The original Flutter web launcher files in this folder remain intact; Flutter's mobile/desktop targets are unchanged.
+Open http://localhost:3000. Use an existing application identity with an active `admin`, `staff` or `client` profile. Clients can register using their full name, service address, email and matching passwords. Supabase saves pending signup details; Admin approval creates the numbered account and enables login after email confirmation; see [client registration](../docs/client-registration.md). Staff/Admin provisioning and linking an existing service account remain restricted to authorized district processes. The original Flutter web launcher files in this folder remain intact; Flutter's mobile/desktop targets are unchanged.
 
 ## Configuration
 

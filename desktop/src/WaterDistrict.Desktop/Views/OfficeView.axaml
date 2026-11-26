@@ -6,7 +6,15 @@
    <Button Grid.Column="1" VerticalAlignment="Top" Content="Refresh records" Command="{Binding RefreshCommand}" /></Grid>
   <ProgressBar IsIndeterminate="True" Height="3" IsVisible="{Binding IsBusy}" />
   <Border Classes="feedback" IsVisible="{Binding HasMessage}"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Border>
-  <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsAccounts}" IsEnabled="{Binding !IsBusy}">
+  <Border Classes="card" IsVisible="{Binding IsAccounts}" IsEnabled="{Binding !IsBusy}"><StackPanel Spacing="12">
+   <TextBlock Text="Pending registrations" FontSize="21" FontWeight="SemiBold" />
+   <TextBlock Text="Review the client's name, email and service address. Approval assigns the next account number. Email confirmation is also required to sign in." TextWrapping="Wrap" />
+   <ComboBox ItemsSource="{Binding PendingRegistrations}" SelectedItem="{Binding SelectedRegistration}" HorizontalAlignment="Stretch" PlaceholderText="Select a pending registration">
+    <ComboBox.ItemTemplate><DataTemplate x:DataType="app:OfficeRegistration"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate></ComboBox.ItemTemplate>
+   </ComboBox>
+   <Button Classes="primary" Content="Approve registration" Command="{Binding ApproveRegistrationCommand}" />
+  </StackPanel></Border>
+  <Grid IsVisible="{Binding IsAccounts}" IsEnabled="{Binding !IsBusy}">
    <Border Classes="card"><StackPanel Spacing="12">
     <TextBlock Text="Service accounts" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
     <ItemsControl ItemsSource="{Binding Accounts}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="app:OfficeAccount">
@@ -15,13 +23,6 @@
       <TextBlock Text="Inactive" IsVisible="{Binding !Active}" Classes="muted" />
      </StackPanel></Border>
     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-   </StackPanel></Border>
-   <Border Grid.Column="1" Classes="card" VerticalAlignment="Top"><StackPanel Spacing="12">
-    <TextBlock Text="Add service account" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" />
-    <TextBlock Text="Account number" /><TextBox Text="{Binding AccountNumber}" MaxLength="80" />
-    <TextBlock Text="Account holder" /><TextBox Text="{Binding HolderName}" MaxLength="200" />
-    <TextBlock Text="Service address" /><TextBox Text="{Binding ServiceAddress}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="90" MaxLength="500" />
-    <Button Classes="primary" Content="Save account" Command="{Binding SaveAccountCommand}" />
    </StackPanel></Border>
   </Grid>
   <Grid ColumnDefinitions="*,*" ColumnSpacing="20" IsVisible="{Binding IsBills}" IsEnabled="{Binding !IsBusy}">

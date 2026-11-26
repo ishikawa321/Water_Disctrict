@@ -13,6 +13,56 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${fixture}/__test/reset`);
 });
 
+test("client can register with matching passwords and receive email confirmation guidance", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/login");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await page.getByLabel("Full name", { exact: true }).fill("QA New Client");
+  await page
+    .getByLabel("Service address", { exact: true })
+    .fill("Isolated signup address");
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("new-client@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("test-password");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("not-the-same");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await expect(
+    page.getByText("The passwords do not match.", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("test-password");
+  await page.screenshot({
+    path: test.info().outputPath("client-registration-mobile.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await expect(page.locator(".feedback.success")).toContainText(
+    "Check your email to confirm registration",
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Create account", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Back to sign in", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back", exact: true }),
+  ).toBeVisible();
+});
+
 test("landing page is first and every primary demo button opens the app sign-in", async ({
   page,
 }) => {
@@ -252,24 +302,18 @@ test("revoked profile clears the visible workspace", async ({
     0,
   );
 });
-test("Admin creates accounts, bills, verified payments and notices using working forms", async ({
+test("Admin reads registered accounts and creates bills, verified payments and notices", async ({
   page,
 }) => {
   await login(page, "admin");
   await page
     .getByRole("link", { name: "Service accounts", exact: true })
     .click();
-  await page.getByRole("button", { name: "New account", exact: true }).click();
-  await page.getByLabel("Account number", { exact: true }).fill("QA-NEW-002");
-  await page.getByLabel("Holder name", { exact: true }).fill("Isolated holder");
-  await page
-    .getByLabel("Service address", { exact: true })
-    .fill("Isolated test address");
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
   await expect(
-    page.getByRole("cell", { name: "QA-NEW-002", exact: true }),
+    page.getByRole("button", { name: "New account", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("cell", { name: "QA-001", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Billing", exact: true }).click();
   await page.getByRole("button", { name: "New bill", exact: true }).click();
@@ -875,4 +919,50 @@ test("landing Android downloads open release instructions with the signed APK li
   await page.getByRole("link", { name: "Open web app", exact: false }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator(".feedback.error")).toHaveCount(0);
+});
+
+test("pending client cannot sign in until an admin approves the registration", async ({
+  page,
+  request,
+  browser,
+}) => {
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      registrations: [
+        {
+          userId: "10000000-0000-4000-8000-000000000003",
+          fullName: "Pending Client",
+          email: "client@example.test",
+          serviceAddress: "Pending service address",
+          status: "Pending",
+          submittedAt: "2026-11-27T00:00:00Z",
+          emailConfirmedAt: "2026-11-27T00:00:00Z",
+        },
+      ],
+    },
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("client@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("test-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".feedback.error")).toContainText(
+    "awaiting administrator approval",
+  );
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  await login(admin, "admin");
+  await admin.goto("/office/accounts");
+  await expect(
+    admin.getByText("Pending service address", { exact: true }),
+  ).toBeVisible();
+  await admin
+    .getByRole("button", { name: "Approve registration", exact: true })
+    .click();
+  await expect(admin.getByText("No pending registrations.")).toBeVisible();
+  await expect(
+    admin.getByRole("cell", { name: "MWD-001250", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/portal$/);
+  await adminContext.close();
 });

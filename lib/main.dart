@@ -50,7 +50,7 @@ class WaterDistrictApp extends StatelessWidget {
   }
 }
 
-enum AccountScreen { login, resetPassword, dashboard }
+enum AccountScreen { login, register, resetPassword, dashboard }
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -74,6 +74,8 @@ class _AccountPageState extends State<AccountPage>
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
+  final nameController = TextEditingController();
+  final addressController = TextEditingController();
 
   StreamSubscription<AuthState>? authSubscription;
 
@@ -133,6 +135,8 @@ class _AccountPageState extends State<AccountPage>
     emailController.dispose();
     passwordController.dispose();
     confirmController.dispose();
+    nameController.dispose();
+    addressController.dispose();
     super.dispose();
   }
 
@@ -210,9 +214,16 @@ class _AccountPageState extends State<AccountPage>
       if (!mounted || screen != AccountScreen.login) return;
 
       if (result == null || !['admin', 'client'].contains(result['role'])) {
-        await supabase.auth.signOut();
+        final registration = await supabase
+            .from('client_registrations')
+            .select('status')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        await supabase.auth.signOut(scope: SignOutScope.local);
         showMessage(
-          'No active app profile was found. Contact the administrator.',
+          registration?['status'] == 'Pending'
+              ? 'Your registration is awaiting administrator approval.'
+              : 'No active app profile was found. Contact the administrator.',
           error: true,
         );
         return;
@@ -248,6 +259,97 @@ class _AccountPageState extends State<AccountPage>
           signInSlide.reset();
         }
       }
+      stopWorking();
+    }
+  }
+
+  void switchRegistration(bool registering) {
+    if (busy) return;
+    setState(() {
+      screen = registering ? AccountScreen.register : AccountScreen.login;
+      passwordController.clear();
+      confirmController.clear();
+      fieldErrors.clear();
+      message = null;
+      isError = false;
+    });
+  }
+
+  Future<void> register() async {
+    if (busy) return;
+    fieldErrors.clear();
+    final email = emailController.text.trim();
+    final name = nameController.text.trim();
+    final address = addressController.text.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) ||
+        email.length > 254) {
+      fieldErrors[emailController] = 'Enter a valid email address.';
+    }
+    if (name.isEmpty || name.length > 200) {
+      fieldErrors[nameController] =
+          'Enter your full name (up to 200 characters).';
+    }
+    if (address.isEmpty || address.length > 500) {
+      fieldErrors[addressController] =
+          'Enter your service address (up to 500 characters).';
+    }
+    if (passwordController.text.length < 8 ||
+        passwordController.text.length > 128) {
+      fieldErrors[passwordController] =
+          'Use a password with 8 to 128 characters.';
+    }
+    if (passwordController.text != confirmController.text) {
+      fieldErrors[confirmController] = 'Passwords do not match.';
+    }
+    if (fieldErrors.isNotEmpty) {
+      setState(() {});
+      return;
+    }
+    startWorking();
+    try {
+      final ready = await supabase.rpc(
+        'client_registration_approval_available',
+      );
+      if (ready != true) throw StateError('Registration unavailable');
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: passwordController.text,
+        emailRedirectTo: passwordRecoveryUrl(isWeb: kIsWeb, baseUri: Uri.base),
+        data: {
+          'registration_source': 'client_signup_v1',
+          'display_name': name,
+          'service_address': address,
+        },
+      );
+      if (response.session != null) {
+        await supabase.auth.signOut(scope: SignOutScope.local);
+      }
+      if (!mounted) return;
+      setState(() {
+        screen = AccountScreen.login;
+        passwordController.clear();
+        confirmController.clear();
+        nameController.clear();
+        addressController.clear();
+      });
+      showMessage(
+        response.session == null
+            ? 'Check your email to confirm registration and wait for administrator approval. You can sign in after both are complete. Your account number is assigned when approved.'
+            : 'Registration submitted. Wait for administrator approval before signing in. Your account number is assigned when approved.',
+      );
+    } on AuthException catch (error) {
+      showMessage(error.message, error: true);
+    } on PostgrestException {
+      showMessage(
+        'Client registration is not available yet. Ask the administrator to finish the database setup.',
+        error: true,
+      );
+    } catch (_) {
+      showMessage(
+        'Registration could not be confirmed. Check your connection and email before retrying.',
+        error: true,
+      );
+    } finally {
       stopWorking();
     }
   }
@@ -398,11 +500,21 @@ class _AccountPageState extends State<AccountPage>
         },
         keyboardType: secret
             ? TextInputType.visiblePassword
-            : TextInputType.emailAddress,
+            : controller == emailController
+            ? TextInputType.emailAddress
+            : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           errorText: fieldErrors[controller],
-          prefixIcon: Icon(secret ? CupertinoIcons.lock : CupertinoIcons.mail),
+          prefixIcon: Icon(
+            secret
+                ? CupertinoIcons.lock
+                : controller == emailController
+                ? CupertinoIcons.mail
+                : controller == addressController
+                ? CupertinoIcons.location
+                : CupertinoIcons.person,
+          ),
           suffixIcon: secret
               ? IconButton(
                   tooltip: passwordVisible ? 'Hide password' : 'Show password',
@@ -438,6 +550,7 @@ class _AccountPageState extends State<AccountPage>
       );
     }
     final reset = screen == AccountScreen.resetPassword;
+    final registering = screen == AccountScreen.register;
     return UtilityScaffold(
       body: SafeArea(
         child: Center(
@@ -484,7 +597,11 @@ class _AccountPageState extends State<AccountPage>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          reset ? 'Reset password' : 'Sign in to your account',
+                          reset
+                              ? 'Reset password'
+                              : registering
+                              ? 'Create your account'
+                              : 'Sign in to your account',
                           style: const TextStyle(
                             fontSize: 27,
                             fontWeight: FontWeight.w600,
@@ -496,10 +613,16 @@ class _AccountPageState extends State<AccountPage>
                         Text(
                           reset
                               ? 'Choose a new password for your account.'
+                              : registering
+                              ? 'Submit your details for administrator approval. Your account number is assigned when approved.'
                               : 'Sign in to your verified account',
                           style: const TextStyle(color: muted, fontSize: 15),
                         ),
                         const SizedBox(height: 24),
+                        if (registering) ...[
+                          input(nameController, 'Full name'),
+                          input(addressController, 'Service address'),
+                        ],
                         if (!reset) input(emailController, 'Email address'),
                         if (!reset || !passwordSaved) ...[
                           input(
@@ -507,10 +630,12 @@ class _AccountPageState extends State<AccountPage>
                             reset ? 'New password' : 'Password',
                             secret: true,
                           ),
-                          if (reset)
+                          if (reset || registering)
                             input(
                               confirmController,
-                              'Confirm new password',
+                              registering
+                                  ? 'Confirm password'
+                                  : 'Confirm new password',
                               secret: true,
                             ),
                           FilledButton(
@@ -518,8 +643,10 @@ class _AccountPageState extends State<AccountPage>
                                 ? null
                                 : reset
                                 ? saveNewPassword
+                                : registering
+                                ? register
                                 : signIn,
-                            child: !reset
+                            child: !reset && !registering
                                 ? Semantics(
                                     label: signingIn ? 'Signing in' : 'Sign in',
                                     liveRegion: signingIn,
@@ -582,6 +709,8 @@ class _AccountPageState extends State<AccountPage>
                                         Text(
                                           reset
                                               ? 'Save new password'
+                                              : registering
+                                              ? 'Create account'
                                               : 'Sign in',
                                         ),
                                       if (!busy) ...[
@@ -598,13 +727,26 @@ class _AccountPageState extends State<AccountPage>
                         TextButton(
                           onPressed: busy
                               ? null
+                              : registering
+                              ? () => switchRegistration(false)
                               : reset
                               ? returnToLogin
                               : requestPasswordReset,
                           child: Text(
-                            reset ? 'Return to sign in' : 'Forgot password?',
+                            registering
+                                ? 'Back to sign in'
+                                : reset
+                                ? 'Return to sign in'
+                                : 'Forgot password?',
                           ),
                         ),
+                        if (!reset && !registering)
+                          TextButton(
+                            onPressed: busy
+                                ? null
+                                : () => switchRegistration(true),
+                            child: const Text('Create account'),
+                          ),
                         if (message != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
@@ -687,15 +829,23 @@ class ServiceAccountsPage extends StatefulWidget {
 }
 
 class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
-  List<Map<String, dynamic>> accounts = [];
-  bool loading = true;
-  bool adding = false;
+  List<Map<String, dynamic>> accounts = [], registrations = [];
+  bool loading = true, approving = false;
   String? loadError;
-
+  Timer? accountRefresh;
   @override
   void initState() {
     super.initState();
     loadAccounts();
+    accountRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !loading && !approving) loadAccounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    accountRefresh?.cancel();
+    super.dispose();
   }
 
   Future<void> loadAccounts() async {
@@ -704,287 +854,167 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
       loadError = null;
     });
     try {
-      final result = await supabase
+      final rows = await supabase
           .from('service_accounts')
-          .select('id, account_number, holder_name, service_address, active')
+          .select('id,account_number,holder_name,service_address,active')
           .order('account_number');
-      if (!mounted) return;
-      setState(() => accounts = result);
+      final pending = await supabase
+          .from('client_registrations')
+          .select('user_id,full_name,service_address,email,email_confirmed_at')
+          .eq('status', 'Pending')
+          .order('submitted_at');
+      if (mounted) {
+        setState(() {
+          accounts = rows;
+          registrations = pending;
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        loadError =
-            'Could not load accounts. Check your connection and '
-            'administrator access, then retry.';
-      });
+      if (mounted) {
+        setState(
+          () => loadError = 'Could not load accounts and pending registrations. Check administrator access and retry.',
+        );
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
 
-  Future<void> addAccount() async {
-    if (adding) return;
-    setState(() => adding = true);
+  Future<void> approve(Map<String, dynamic> registration) async {
+    if (approving) return;
+    setState(() => approving = true);
     try {
-      final saved = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const AddServiceAccountPage()),
+      final result = await supabase.rpc(
+        'approve_client_registration',
+        params: {'registration_user_id': registration['user_id']},
       );
-      if (!mounted) return;
-      if (saved == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: SuccessNotice('Water-service account saved.'),
-          ),
-        );
-        await loadAccounts();
+      if (result is! List ||
+          result.length != 1 ||
+          result.first['account_number'] == null) {
+        throw StateError('Approval unconfirmed');
       }
-    } finally {
-      if (mounted) setState(() => adding = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return UtilityScaffold(
-      bottomNavigationBar: const AdminDesignNav(index: 1),
-      appBar: UtilityAppBar(
-        title: const Text('Service accounts'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh accounts',
-            onPressed: loading || adding ? null : loadAccounts,
-            icon: const Icon(CupertinoIcons.arrow_clockwise),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: adding || loading ? null : addAccount,
-        icon: const Icon(CupertinoIcons.add),
-        label: const Text('Add account'),
-      ),
-      body: Column(
-        children: [
-          if (loading && accounts.isNotEmpty)
-            const LinearProgressIndicator(minHeight: 2),
-          if (loadError != null && accounts.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(child: Text(loadError!)),
-                  TextButton(
-                    onPressed: loading ? null : loadAccounts,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: loading && accounts.isEmpty
-                ? const Center(
-                    child: SingleChildScrollView(child: LoadingCards()),
-                  )
-                : loadError != null && accounts.isEmpty
-                ? EmptyState(
-                    title: 'Unable to load service accounts',
-                    message: loadError!,
-                    icon: CupertinoIcons.wifi_exclamationmark,
-                    actionLabel: 'Retry',
-                    onAction: loadAccounts,
-                  )
-                : accounts.isEmpty
-                ? EmptyState(
-                    title: 'No service accounts yet',
-                    message: 'Add a water-service account to begin managing district records.',
-                    icon: CupertinoIcons.person_2,
-                    actionLabel: 'Add account',
-                    onAction: addAccount,
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: accounts.length,
-                    separatorBuilder: (_, index) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final account = accounts[index];
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(CupertinoIcons.drop),
-                          title: Text('${account['account_number']}'),
-                          subtitle: Text(
-                            '${account['holder_name']}\n'
-                            '${account['service_address']}',
-                          ),
-                          isThreeLine: true,
-                          trailing: Text(
-                            account['active'] == true ? 'Active' : 'Inactive',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AddServiceAccountPage extends StatefulWidget {
-  const AddServiceAccountPage({super.key});
-
-  @override
-  State<AddServiceAccountPage> createState() => _AddServiceAccountPageState();
-}
-
-class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
-  final formKey = GlobalKey<FormState>();
-  final numberController = TextEditingController();
-  final holderController = TextEditingController();
-  final addressController = TextEditingController();
-  bool saving = false;
-  String? error;
-
-  @override
-  void dispose() {
-    numberController.dispose();
-    holderController.dispose();
-    addressController.dispose();
-    super.dispose();
-  }
-
-  String? requiredField(String? value) {
-    return value == null || value.trim().isEmpty
-        ? 'This field is required.'
-        : null;
-  }
-
-  Future<void> saveAccount() async {
-    if (saving || !formKey.currentState!.validate()) return;
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      setState(
-        () => error = 'Your session has ended. Return and sign in again.',
-      );
-      return;
-    }
-    setState(() {
-      saving = true;
-      error = null;
-    });
-    try {
-      await supabase.from('service_accounts').insert({
-        'account_number': numberController.text.trim(),
-        'holder_name': holderController.text.trim(),
-        'service_address': addressController.text.trim(),
-        'active': true,
-        'updated_by': user.id,
-      });
-    } on PostgrestException catch (exception) {
       if (!mounted) return;
-      setState(() {
-        saving = false;
-        error = exception.code == '23505'
-            ? 'This account number already exists. Enter a different number.'
-            : exception.code == '42501'
-            ? 'Access denied. Check your active administrator profile '
-                  'and database policies.'
-            : 'The account could not be saved. Check the database setup '
-                  'and try again.';
-      });
-      return;
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        saving = false;
-        error =
-            'The save could not be confirmed. Return to the account list '
-            'and refresh before retrying.';
-      });
-      return;
-    }
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !saving,
-      child: UtilityScaffold(
-        appBar: UtilityAppBar(title: const Text('Add account')),
-        body: Align(
-          alignment: Alignment.topCenter,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Enter the registered service details. Client access is linked separately.',
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: numberController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      decoration: const InputDecoration(
-                        labelText: 'Account number',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: holderController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      decoration: const InputDecoration(
-                        labelText: 'Holder name',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: addressController,
-                      enabled: !saving,
-                      validator: requiredField,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        labelText: 'Service address',
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    if (error != null) ...[
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    FilledButton.icon(
-                      onPressed: saving ? null : saveAccount,
-                      icon: const Icon(CupertinoIcons.floppy_disk),
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Text(saving ? 'Saving...' : 'Save account'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Approved: ${result.first['account_number']}. The client can sign in after email confirmation.',
           ),
         ),
-      ),
-    );
+      );
+      await loadAccounts();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Approval could not be confirmed. Refresh before retrying.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => approving = false);
+    }
   }
+
+  @override
+  Widget build(BuildContext context) => UtilityScaffold(
+    bottomNavigationBar: const AdminDesignNav(index: 1),
+    appBar: UtilityAppBar(
+      title: const Text('Service accounts'),
+      actions: [
+        IconButton(
+          tooltip: 'Refresh accounts',
+          onPressed: loading || approving ? null : loadAccounts,
+          icon: const Icon(CupertinoIcons.arrow_clockwise),
+        ),
+      ],
+    ),
+    body: loading && accounts.isEmpty && registrations.isEmpty
+        ? const Center(child: SingleChildScrollView(child: LoadingCards()))
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            children: [
+              if (loading || approving)
+                const LinearProgressIndicator(minHeight: 2),
+              if (loadError != null) ...[
+                Text(loadError!),
+                TextButton(
+                  onPressed: loading || approving ? null : loadAccounts,
+                  child: const Text('Retry'),
+                ),
+              ],
+              const Text(
+                'Pending registrations',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Review each client before approval. Approval assigns the next account number. Email confirmation is also required to sign in.',
+              ),
+              if (registrations.isEmpty && loadError == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No pending registrations.'),
+                ),
+              ...registrations.map(
+                (r) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${r['full_name']}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text('${r['email']}'),
+                        Text('${r['service_address']}'),
+                        Text(
+                          r['email_confirmed_at'] == null
+                              ? 'Email confirmation pending'
+                              : 'Email confirmed',
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: approving || loading
+                              ? null
+                              : () => approve(r),
+                          child: const Text('Approve registration'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Service accounts',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+              ),
+              if (accounts.isEmpty && loadError == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No approved service accounts yet.'),
+                ),
+              ...accounts.map(
+                (account) => Card(
+                  child: ListTile(
+                    leading: const Icon(CupertinoIcons.drop),
+                    title: Text('${account['account_number']}'),
+                    subtitle: Text(
+                      '${account['holder_name']}\n${account['service_address']}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Text(
+                      account['active'] == true ? 'Active' : 'Inactive',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class ClientAccountPage extends StatefulWidget {

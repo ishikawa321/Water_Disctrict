@@ -66,6 +66,18 @@ public sealed class OfficeUiTests
         Assert.Equal("B-001",Assert.Single(model.VisiblePayments).BillNumber);
         model.FilterPayments=false;Assert.Equal(2,model.VisiblePayments.Count());
     }
+    [AvaloniaFact]
+    public async Task Approval_failure_preserves_selection_until_the_server_confirms_success()
+    {
+        var client=new FakeOffice{Fail=true};var model=new OfficeViewModel(client);
+        await model.OpenAsync("Accounts");Assert.Single(model.PendingRegistrations);
+        model.SelectedRegistration=client.Registration;
+        await model.ApproveRegistrationCommand.ExecuteAsync(null);
+        Assert.NotNull(model.SelectedRegistration);Assert.Single(model.PendingRegistrations);
+        client.Fail=false;await model.ApproveRegistrationCommand.ExecuteAsync(null);
+        Assert.Null(model.SelectedRegistration);Assert.Empty(model.PendingRegistrations);
+        Assert.Contains("MWD-001250",model.Message);
+    }
     private sealed class Sessions(string role):IDesktopSessionClient
     {
         public bool IsAuthenticated=>true;
@@ -76,6 +88,10 @@ public sealed class OfficeUiTests
     }
     private sealed class FakeOffice:IOfficeClient
     {
+        public OfficeRegistration Registration {get;}=new(Guid.NewGuid(),"Pending Client","Pending address","pending@example.test","Pending",DateTimeOffset.UtcNow,null);
+        private bool approved;
+        public Task<IReadOnlyList<OfficeRegistration>> RegistrationsAsync(CancellationToken token=default)=>Task.FromResult<IReadOnlyList<OfficeRegistration>>(approved?[]:[Registration]);
+        public Task<RegistrationApproval> ApproveRegistrationAsync(Guid id,CancellationToken token=default) {Check();approved=true;return Task.FromResult(new RegistrationApproval("MWD-001250"));}
         public OfficeAccount Account {get;}=new(Guid.NewGuid(),"WD-001","Test holder","Test service address",true);
         public OfficeBill Bill {get;}=new(Guid.NewGuid(),"B-001","WD-001",new(2026,10,1),new(2026,10,31),new(2026,11,15),450,100);
         public OfficeAnnouncement Notice {get;}=new(Guid.NewGuid(),"[Service interruption] Maintenance","Recorded notice for consumers.",false,DateTimeOffset.UtcNow);
@@ -83,7 +99,6 @@ public sealed class OfficeUiTests
         private void Check(){if(Fail)throw new SessionClientException("Save not confirmed. Refresh before retrying; your draft was kept.");}
         public Task<OfficeSummary> SummaryAsync(CancellationToken token=default)=>Task.FromResult(new OfficeSummary(7,3));
         public Task<IReadOnlyList<OfficeAccount>> OfficeAccountsAsync(CancellationToken token=default)=>Task.FromResult<IReadOnlyList<OfficeAccount>>([Account]);
-        public Task<OfficeAccount> AddAccountAsync(AddOfficeAccount input,CancellationToken token=default){Check();return Task.FromResult(Account);}
         public Task<IReadOnlyList<OfficeBill>> BillsAsync(CancellationToken token=default)=>Task.FromResult<IReadOnlyList<OfficeBill>>([Bill]);
         public Task<OfficeBill> AddBillAsync(AddOfficeBill input,CancellationToken token=default){Check();return Task.FromResult(Bill);}
         public Task<IReadOnlyList<OfficePayment>> PaymentsAsync(CancellationToken token=default)=>Task.FromResult<IReadOnlyList<OfficePayment>>([new("R-001","B-001","WD-001",new(2026,10,20),100,DateTimeOffset.UtcNow),new("R-002","B-002","WD-002",new(2026,10,21),200,DateTimeOffset.UtcNow)]);

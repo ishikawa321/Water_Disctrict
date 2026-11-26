@@ -42,6 +42,7 @@ let state;
 function reset() {
   state = {
     revoked: [],
+    registrations: [],
     unlinked: false,
     failNextWrite: false,
     locationSupported: true,
@@ -184,6 +185,17 @@ createServer(async (request, response) => {
   }
   if (url.pathname === "/health") return respond(response, { ok: true });
   let role = roleFor(request);
+  if (url.pathname === "/rest/v1/rpc/client_registration_approval_available")
+    return respond(response, true);
+  if (url.pathname === "/auth/v1/signup") {
+    if (
+      body.data?.registration_source !== "client_signup_v1" ||
+      !body.data.display_name ||
+      !body.data.service_address
+    )
+      return fail(response, "Registration details required", 422);
+    return respond(response, { user: user("client"), session: null });
+  }
   if (url.pathname === "/auth/v1/token") {
     role =
       body.email?.split("@")[0] ??
@@ -209,9 +221,22 @@ createServer(async (request, response) => {
       ? respond(response, user(role))
       : fail(response, "Invalid token", 401);
   if (!role) return fail(response, "Authentication required", 401);
-  const active = !state.revoked.includes(role);
+  const active =
+    !state.revoked.includes(role) &&
+    !state.registrations.some(
+      (r) => r.userId === ids[role] && r.status === "Pending",
+    );
   if (url.pathname.startsWith("/rest/v1/")) {
     const table = url.pathname.split("/").pop();
+    if (table === "client_registrations")
+      return rows(
+        request,
+        response,
+        state.registrations
+          .filter((r) => r.userId === ids[role])
+          .map((r) => ({ status: r.status })),
+        url,
+      );
     if (table === "profiles")
       return rows(
         request,
@@ -373,6 +398,30 @@ createServer(async (request, response) => {
       activeRepairs: state.tickets.filter((t) => t.status !== "Resolved")
         .length,
     });
+  if (path === "office/registrations")
+    return role === "admin"
+      ? respond(
+          response,
+          state.registrations.filter((r) => r.status === "Pending"),
+        )
+      : fail(response, "Admin only");
+  const approval = path.match(/^office\/registrations\/([^/]+)\/approve$/);
+  if (approval && request.method === "POST") {
+    if (role !== "admin") return fail(response, "Admin only");
+    const row = state.registrations.find((r) => r.userId === approval[1]);
+    if (!row) return fail(response, "Not found", 404);
+    if (row.status !== "Approved") {
+      row.status = "Approved";
+      state.accounts.push({
+        id: ids.other,
+        accountNumber: "MWD-001250",
+        holderName: row.fullName,
+        serviceAddress: row.serviceAddress,
+        active: true,
+      });
+    }
+    return respond(response, { accountNumber: "MWD-001250" });
+  }
   if (path === "office/accounts") {
     if (request.method === "POST")
       state.accounts.push({ id: crypto.randomUUID(), ...body, active: true });

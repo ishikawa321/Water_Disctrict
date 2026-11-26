@@ -85,3 +85,13 @@ The live PostgreSQL connection and credentials have now been verified with Verif
 Database administration also supports `--status` for read-only counts/applied migration IDs and `--backup-public FILE` for a private public-schema/data archive. Backup/schema exports use the pg_dump executable configured with PG_DUMP_PATH. Keep archives under the ignored artifacts directory and do not commit them. The live deployment backup is stored locally under desktop/artifacts/database-review/deployment-20261125-021820.
 
 On the current development computer, the new release also includes launch-local.ps1. It references the existing ignored source configuration and passes the connection only to the API process; no private settings are copied into the release. Use it to launch the configured local desktop/API together. For another computer, use the normal launch.ps1 with that machine's backend configuration. The live deployment's published API readiness check returned 200.
+
+## Client registration approval
+
+Client signup in Flutter or the browser provisions the same Supabase-backed
+profiles, service accounts and holder links read by this desktop office app.
+Service accounts includes pending registrations with an Approve registration
+action. It refreshes every 30 seconds while
+active, and when the window regains focus. Manual account creation has been
+removed from this desktop and its API. See [client registration](../docs/client-registration.md)
+for the approval and email confirmation flow and shared database migrations.

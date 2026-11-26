@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { save } from "@/lib/client";
 import { useDraft, useResource } from "@/lib/hooks";
 import {
@@ -12,94 +12,87 @@ import {
   todayInManila,
 } from "@/lib/format";
 import { interruptionPrefix, noticeTitle } from "@/lib/policy";
-import type { Account, Bill, Notice, Payment, StaffMember } from "@/lib/types";
+import type {
+  ClientRegistration,
+  Account,
+  Bill,
+  Notice,
+  Payment,
+  StaffMember,
+} from "@/lib/types";
 import { Badge, Card, Empty, Feedback, Field } from "./ui";
 import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
 import { PaymentTable } from "./payment-table";
 
 export function AccountsPage() {
-  const records = useResource<Account[]>("/api/office/office/accounts");
-  const [show, setShow] = useState(false);
-  const [search, setSearch] = useState("");
-  const [draft, setDraft] = useDraft("office:add-account", {
-    accountNumber: "",
-    holderName: "",
-    serviceAddress: "",
-  });
+  const records = useResource<Account[]>("/api/office/office/accounts", 30_000);
+  const pending = useResource<ClientRegistration[]>(
+    "/api/office/office/registrations",
+    30_000,
+  );
   const mutation = useMutation();
+  function approve(id: string) {
+    void mutation.run(async () => {
+      const result = await save<{ accountNumber: string }>(
+        `/api/office/office/registrations/${id}/approve`,
+        {},
+      );
+      if (!result.accountNumber)
+        throw new Error(
+          "Approval could not be confirmed. Refresh before retrying.",
+        );
+      void records.reload();
+      void pending.reload();
+    }, "Registration approved. The account number has been assigned. The client can sign in after email confirmation.");
+  }
+  const [search, setSearch] = useState("");
   const visible =
     records.data?.filter((r) =>
       `${r.accountNumber} ${r.holderName} ${r.serviceAddress}`
         .toLowerCase()
         .includes(search.toLowerCase()),
     ) ?? [];
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    void mutation.run(async () => {
-      await save("/api/office/office/accounts", draft);
-      setDraft({ accountNumber: "", holderName: "", serviceAddress: "" });
-      void records.reload();
-    }, "Service account created.");
-  }
   return (
     <>
       <PageHeader
         title="Service accounts"
-        subtitle="Keep account details ready for every service interaction."
+        subtitle="Review pending registrations. Approval assigns the next service account number."
       >
-        <Refresh onClick={records.reload} busy={records.busy} />
-        <button className="primary" onClick={() => setShow(!show)}>
-          {show ? <X size={16} /> : <Plus size={16} />}
-          {show ? "Close form" : "New account"}
-        </button>
+        <Refresh
+          onClick={() => {
+            void records.reload();
+            void pending.reload();
+          }}
+          busy={records.busy || pending.busy}
+        />
       </PageHeader>
       <Feedback error={mutation.error} success={mutation.success} />
-      {show && (
-        <Card title="Create a service account">
-          <form className="form" onSubmit={submit}>
-            <fieldset disabled={mutation.busy}>
-              <div className="form-row">
-                <Field label="Account number">
-                  <input
-                    value={draft.accountNumber}
-                    onChange={(e) =>
-                      setDraft({ ...draft, accountNumber: e.target.value })
-                    }
-                    maxLength={80}
-                    required
-                  />
-                </Field>
-                <Field label="Holder name">
-                  <input
-                    value={draft.holderName}
-                    onChange={(e) =>
-                      setDraft({ ...draft, holderName: e.target.value })
-                    }
-                    maxLength={200}
-                    required
-                  />
-                </Field>
+      <Card title="Pending registrations">
+        <DataState {...pending} loaded={!!pending.data}>
+          {pending.data?.length === 0 && <p>No pending registrations.</p>}
+          {pending.data?.map((r) => (
+            <div className="toolbar" key={r.userId}>
+              <div>
+                <strong>{r.fullName}</strong>
+                <p>{r.email}</p>
+                <p>{r.serviceAddress}</p>
+                <small>
+                  {r.emailConfirmedAt
+                    ? "Email confirmed"
+                    : "Email confirmation pending"}
+                </small>
               </div>
-              <Field label="Service address">
-                <textarea
-                  value={draft.serviceAddress}
-                  onChange={(e) =>
-                    setDraft({ ...draft, serviceAddress: e.target.value })
-                  }
-                  maxLength={500}
-                  required
-                />
-              </Field>
-              <button className="primary" type="submit">
-                {mutation.busy ? "Saving…" : "Create account"}
+              <button
+                className="primary"
+                disabled={mutation.busy}
+                onClick={() => approve(r.userId)}
+              >
+                Approve registration
               </button>
-            </fieldset>
-            <small>
-              New accounts are active. Closing this form keeps your draft.
-            </small>
-          </form>
-        </Card>
-      )}
+            </div>
+          ))}
+        </DataState>
+      </Card>
       <Card>
         <div className="toolbar">
           <input

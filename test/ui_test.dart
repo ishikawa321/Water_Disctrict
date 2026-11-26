@@ -29,6 +29,9 @@ void main() {
   String? concernFilter, repairFilter;
   var emptyRecords = false, failRecords = false;
   var conceptPreview = false;
+  var registrationReady = true;
+  var pendingClient = false;
+  Map<String, dynamic>? registration;
   Completer<void>? recordsGate;
   final boundaryKey = GlobalKey();
   final user = {
@@ -86,6 +89,16 @@ void main() {
         autoRefreshToken: false,
       ),
       httpClient: MockClient((request) async {
+        if (request.url.path.endsWith('/rpc/client_registration_approval_available')) {
+          return http.Response(registrationReady ? 'true' : '{"message":"Not installed"}',
+            registrationReady ? 200 : 404, request: request,
+            headers: {'content-type': 'application/json'});
+        }
+        if (request.url.path.endsWith('/signup')) {
+          registration = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(jsonEncode({'user': user}), 200, request: request,
+            headers: {'content-type': 'application/json'});
+        }
         if (request.url.path.startsWith('/rest/v1/') &&
             (request.method == 'GET' || request.method == 'HEAD')) {
           if (recordsGate != null) await recordsGate!.future;
@@ -140,8 +153,10 @@ void main() {
               'user': user,
             };
           }
+        } else if (request.url.path.endsWith('/client_registrations')) {
+          body = pendingClient ? [{'status':'Pending'}] : [];
         } else if (request.url.path.endsWith('/profiles')) {
-          body = [
+          body = pendingClient ? [] : [
             {'display_name': 'Test Admin', 'role': 'admin'},
           ];
         } else if (request.url.path.endsWith('/service_concerns')) {
@@ -267,6 +282,9 @@ void main() {
     failRecords = false;
     recordsGate = null;
     conceptPreview = false;
+    registrationReady = true;
+    pendingClient = false;
+    registration = null;
   });
 
   Widget app(Widget child, {double textScale = 1}) => MaterialApp(
@@ -368,6 +386,51 @@ void main() {
     }
   });
 
+  testWidgets('client registration validates confirmation and requires database setup before Auth signup', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(Builder(builder: (context) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(disableAnimations: true), child: const AccountPage()))));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Create account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create account'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'New Client');
+    await tester.enterText(fields.at(1), 'Maramag service address');
+    await tester.enterText(fields.at(2), 'new@example.test');
+    await tester.enterText(fields.at(3), 'password123');
+    await tester.enterText(fields.at(4), 'different123');
+    final create = find.widgetWithText(FilledButton, 'Create account');
+    await tester.ensureVisible(create); await tester.pumpAndSettle();
+    await tester.tap(create); await tester.pumpAndSettle();
+    expect(find.text('Passwords do not match.'), findsOneWidget);
+    expect(registration, isNull);
+    await tester.enterText(fields.at(4), 'password123');
+    registrationReady = false;
+    await tester.ensureVisible(create); await tester.pumpAndSettle();
+    await tester.tap(create); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(registration, isNull);
+    expect(find.textContaining('database setup'), findsOneWidget);
+    registrationReady = true;
+    pendingClient = false;
+    await tester.tap(create); await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(registration?['email'], 'new@example.test');
+    final metadata = registration?['data'] as Map<String, dynamic>;
+    expect(metadata['display_name'], 'New Client');
+    expect(metadata['service_address'], 'Maramag service address');
+    expect(metadata['registration_source'], 'client_signup_v1');
+    expect(metadata.containsKey('role'), isFalse);
+    expect(find.textContaining('Check your email to confirm registration'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   Map<String, Widget Function()> auditPages() {
     const concern = <String, dynamic>{
       'id': 'test-concern', 'account_id': 'test-service-account',
@@ -390,7 +453,6 @@ void main() {
       'client-profile': () => const ClientAccountPage(),
       'client-new-concern': () => const ConcernFormPage(),
       'admin-accounts': () => const ServiceAccountsPage(),
-      'admin-new-account': () => const AddServiceAccountPage(),
       'admin-new-bill': () => const AddBillPage(),
       'admin-record-payment': () => const RecordPaymentPage(),
       'admin-review': () => const ConcernFormPage(concern: concern),
@@ -627,6 +689,23 @@ void main() {
     expect(find.text('More'), findsWidgets);
     expect(find.text('Sign out'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('pending client is returned to login with approval guidance', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390,844));
+    addTearDown(()=>tester.binding.setSurfaceSize(null));
+    failAuth=false;pendingClient=true;
+    await tester.pumpWidget(app(const AccountPage()));
+    await tester.enterText(find.byType(TextField).first,'user@example.com');
+    await tester.enterText(find.byType(TextField).last,'password123');
+    await tester.ensureVisible(find.text('Sign in'));await tester.tap(find.text('Sign in'));
+    await tester.pump();await tester.pump(const Duration(milliseconds:801));
+    await tester.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:150)));
+    await tester.pump();await tester.pump(const Duration(milliseconds:350));
+    expect(find.byType(ModernDashboard),findsNothing);
+    expect(find.text('Your registration is awaiting administrator approval.'),findsOneWidget);
+    expect(Supabase.instance.client.auth.currentSession,isNull);
     await tester.pumpWidget(const SizedBox());
   });
 

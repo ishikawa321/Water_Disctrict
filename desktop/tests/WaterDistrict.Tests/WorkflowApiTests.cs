@@ -36,6 +36,8 @@ public sealed class WorkflowApiTests
         var assigned=await admin.PutAsJsonAsync($"/api/workflow/tickets/{ticket.Ticket.Id}",new UpdateTicket(ticket.Ticket.Version,"Assigned",database.Staff.UserId,"Assigned to repair staff."),Token);
         assigned.EnsureSuccessStatusCode();ticket=(await assigned.Content.ReadFromJsonAsync<TicketDetails>(Token))!;
         using var staff=app.Caller(database.Staff.UserId);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed,
+            (await admin.PostAsJsonAsync("/api/office/accounts",new { accountNumber="MANUAL" },Token)).StatusCode);
         foreach(var status in new[]{"In progress","Resolved"})
         {
             var response=await staff.PutAsJsonAsync($"/api/workflow/tickets/{ticket.Ticket.Id}",new UpdateTicket(ticket.Ticket.Version,status,database.Staff.UserId,"Verified repair update: "+status),Token);

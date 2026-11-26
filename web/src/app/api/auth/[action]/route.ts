@@ -28,6 +28,58 @@ export async function POST(
         );
       return json({ ok: true });
     }
+    if (action === "signup") {
+      const email = textField(body.email, "Email address", 254);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        throw new HttpError(422, "Enter a valid email address.");
+      const fullName = textField(body.fullName, "Full name", 200);
+      const serviceAddress = textField(
+        body.serviceAddress,
+        "Service address",
+        500,
+      );
+      if (
+        typeof body.password !== "string" ||
+        body.password.length < 8 ||
+        body.password.length > 128
+      )
+        throw new HttpError(422, "Use a password with 8 to 128 characters.");
+      if (body.password !== body.confirm)
+        throw new HttpError(422, "The passwords do not match.");
+      const { data: ready, error: setupError } = await supabase.rpc(
+        "client_registration_approval_available",
+      );
+      if (setupError || ready !== true)
+        throw new HttpError(
+          503,
+          "Client registration is not available yet. Ask the administrator to finish the database setup.",
+        );
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: body.password,
+        options: {
+          emailRedirectTo: `${publicOrigin(request)}/auth/callback`,
+          data: {
+            registration_source: "client_signup_v1",
+            display_name: fullName,
+            service_address: serviceAddress,
+          },
+        },
+      });
+      if (error)
+        throw new HttpError(
+          error.status === 429 ? 429 : 422,
+          error.status === 429
+            ? "Too many attempts. Wait before registering again."
+            : "Registration could not be completed. Check your details and email before retrying.",
+        );
+      if (data.session) await supabase.auth.signOut({ scope: "local" });
+      return json({
+        message: data.session
+          ? "Registration submitted. Wait for administrator approval before signing in. Your account number is assigned when approved."
+          : "Check your email to confirm registration and wait for administrator approval. You can sign in after both are complete. Your account number is assigned when approved.",
+      });
+    }
     if (action === "login") {
       const email = textField(body.email, "Email address", 254);
       if (typeof body.password !== "string" || !body.password)

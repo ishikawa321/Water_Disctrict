@@ -131,8 +131,9 @@ public sealed class DesktopSessionClient(HttpClient auth, HttpClient api, TimePr
     public Task<TicketDetails> CreateTicketAsync(CreateTicket input,CancellationToken token=default) => SendApiAsync<TicketDetails>(HttpMethod.Post,"api/workflow/tickets",input,token);
     public Task<TicketDetails> UpdateTicketAsync(Guid id,UpdateTicket input,CancellationToken token=default) => SendApiAsync<TicketDetails>(HttpMethod.Put,$"api/workflow/tickets/{id}",input,token);
     public Task<OfficeSummary> SummaryAsync(CancellationToken token=default)=>ReadApiAsync<OfficeSummary>("api/office/summary",token);
+    public async Task<IReadOnlyList<OfficeRegistration>> RegistrationsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeRegistration[]>("api/office/registrations",token);
+    public async Task<RegistrationApproval> ApproveRegistrationAsync(Guid id,CancellationToken token=default)=>await SendApiAsync<RegistrationApproval>(HttpMethod.Post,$"api/office/registrations/{id:D}/approve",new {},token);
     public async Task<IReadOnlyList<OfficeAccount>> OfficeAccountsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeAccount[]>("api/office/accounts",token);
-    public Task<OfficeAccount> AddAccountAsync(AddOfficeAccount input,CancellationToken token=default)=>SendApiAsync<OfficeAccount>(HttpMethod.Post,"api/office/accounts",input,token);
     public async Task<IReadOnlyList<OfficeBill>> BillsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficeBill[]>("api/office/bills",token);
     public Task<OfficeBill> AddBillAsync(AddOfficeBill input,CancellationToken token=default)=>SendApiAsync<OfficeBill>(HttpMethod.Post,"api/office/bills",input,token);
     public async Task<IReadOnlyList<OfficePayment>> PaymentsAsync(CancellationToken token=default)=>await ReadApiAsync<OfficePayment[]>("api/office/payments",token);

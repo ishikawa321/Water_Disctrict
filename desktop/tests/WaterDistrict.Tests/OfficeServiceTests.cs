@@ -17,19 +17,21 @@ public sealed class OfficeServiceTests
     private static object Account()=>new {id=AccountId,account_number="WD-001",holder_name="Example holder",service_address="Example address",active=true};
     private static object Bill()=>new {id=BillId,bill_number="B-001",billing_period_start="2026-10-01",billing_period_end="2026-10-31",due_date="2026-11-15",amount_due="450.00",service_accounts=new {account_number="WD-001"},offline_payments=new[]{new {amount_paid="120.50"}}};
     [Fact]
-    public async Task Account_creation_uses_mobile_fields_and_verified_actor_and_returns_saved_record()
+    public async Task Approval_preserves_caller_identity_and_denies_non_admins()
     {
-        var service=Service(async request=>
-        {
+        var id=Guid.NewGuid();
+        var service=Service(async request=>{
             Assert.Equal("caller-token",request.Headers.Authorization!.Parameter);
-            Assert.Equal(HttpMethod.Post,request.Method);Assert.Contains("return=representation",request.Headers.GetValues("Prefer"));
+            Assert.EndsWith("/rpc/approve_client_registration",request.RequestUri!.AbsolutePath);
             using var payload=JsonDocument.Parse(await request.Content!.ReadAsStringAsync(Token));
-            Assert.Equal("WD-001",payload.RootElement.GetProperty("account_number").GetString());
-            Assert.Equal(Admin.UserId,payload.RootElement.GetProperty("updated_by").GetGuid());
-            Assert.True(payload.RootElement.GetProperty("active").GetBoolean());return Json(new[]{Account()});
+            Assert.Equal(id,payload.RootElement.GetProperty("registration_user_id").GetGuid());
+            return Json(new[]{new {account_number="MWD-001250"}});
         });
-        var saved=await service.AddAccountAsync(Admin,"caller-token",new(" WD-001 ","Example holder","Example address"),Token);
-        Assert.Equal(AccountId,saved.Id);
+        Assert.Equal("MWD-001250",(await service.ApproveRegistrationAsync(Admin,"caller-token",id,Token)).AccountNumber);
+        foreach(var role in new[]{"staff","client"}) {
+            await Assert.ThrowsAsync<WorkflowException>(()=>service.ApproveRegistrationAsync(Admin with{Role=role},"caller-token",id,Token));
+            await Assert.ThrowsAsync<WorkflowException>(()=>service.RegistrationsAsync(Admin with{Role=role},"caller-token",Token));
+        }
     }
     [Theory]
     [InlineData("account")][InlineData("bill")][InlineData("payment")][InlineData("announcement")]
@@ -124,7 +126,7 @@ public sealed class OfficeServiceTests
     public async Task Failed_database_writes_are_never_reported_as_success(HttpStatusCode status,int expected)
     {
         var service=Service(_=>Task.FromResult(new HttpResponseMessage(status)));
-        var failure=await Assert.ThrowsAsync<WorkflowException>(()=>service.AddAccountAsync(Admin,"token",new("WD-001","Holder","Address"),Token));Assert.Equal(expected,failure.StatusCode);
+        var failure=await Assert.ThrowsAsync<WorkflowException>(()=>service.AccountsAsync(Admin,"token",Token));Assert.Equal(expected,failure.StatusCode);
     }
     [Fact]
     public async Task Zero_row_update_and_malformed_money_are_dependency_failures()

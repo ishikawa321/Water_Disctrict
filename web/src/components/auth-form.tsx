@@ -12,25 +12,29 @@ export function AuthForm({
   reason?: string;
 }) {
   const [recover, setRecover] = useState(false);
+  const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(
-    reason === "access_lost"
-      ? "Your app profile is disabled or unavailable. Contact authorized district personnel."
-      : reason === "session_lost"
-        ? "Your session has ended. Sign in again."
-        : reason === "recovery_expired"
-          ? "This recovery link is expired or was already used. Request a new email."
-          : null,
+    reason === "registration_pending"
+      ? "Your registration is awaiting administrator approval."
+      : reason === "access_lost"
+        ? "Your app profile is disabled or unavailable. Contact authorized district personnel."
+        : reason === "session_lost"
+          ? "Your session has ended. Sign in again."
+          : reason === "recovery_expired"
+            ? "This recovery link is expired or was already used. Request a new email."
+            : null,
   );
   const [success, setSuccess] = useState<string | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (lock.current) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const password = String(form.get("password") ?? "");
-    if (reset && password !== form.get("confirm")) {
+    if ((reset || register) && password !== form.get("confirm")) {
       setError("The passwords do not match.");
       return;
     }
@@ -40,11 +44,20 @@ export function AuthForm({
     setSuccess(null);
     try {
       const result = await save<{ redirect?: string; message?: string }>(
-        `/api/auth/${reset ? "password" : recover ? "recovery" : "login"}`,
-        { email: form.get("email"), password },
+        `/api/auth/${reset ? "password" : register ? "signup" : recover ? "recovery" : "login"}`,
+        {
+          email: form.get("email"),
+          password,
+          confirm: form.get("confirm"),
+          fullName: form.get("fullName"),
+          serviceAddress: form.get("serviceAddress"),
+        },
       );
       if (result.redirect) window.location.replace(result.redirect);
-      else setSuccess(result.message ?? "Saved.");
+      else {
+        setSuccess(result.message ?? "Saved.");
+        if (register) formElement.reset();
+      }
     } catch (error) {
       setError(message(error));
     } finally {
@@ -89,19 +102,45 @@ export function AuthForm({
           <h1>
             {reset
               ? "Set a new password"
-              : recover
-                ? "Forgot your password?"
-                : "Welcome back"}
+              : register
+                ? "Create your account"
+                : recover
+                  ? "Forgot your password?"
+                  : "Welcome back"}
           </h1>
           <p>
             {reset
               ? "Choose a secure password for your existing account."
-              : recover
-                ? "We’ll send a recovery link to your account email."
-                : "Sign in to access your district services."}
+              : register
+                ? "Submit your details for administrator approval. Confirm your email and wait for approval before signing in."
+                : recover
+                  ? "We’ll send a recovery link to your account email."
+                  : "Sign in to access your district services."}
           </p>
           <Feedback error={error} success={success} />
           <form className="form" onSubmit={submit} aria-busy={busy}>
+            {register && (
+              <>
+                <Field label="Full name">
+                  <input
+                    name="fullName"
+                    autoComplete="name"
+                    maxLength={200}
+                    required
+                    disabled={busy}
+                  />
+                </Field>
+                <Field label="Service address">
+                  <textarea
+                    name="serviceAddress"
+                    autoComplete="street-address"
+                    maxLength={500}
+                    required
+                    disabled={busy}
+                  />
+                </Field>
+              </>
+            )}
             {!reset && (
               <Field label="Email address">
                 <input
@@ -122,8 +161,10 @@ export function AuthForm({
                     <input
                       name="password"
                       type={visible ? "text" : "password"}
-                      autoComplete={reset ? "new-password" : "current-password"}
-                      minLength={reset ? 8 : undefined}
+                      autoComplete={
+                        reset || register ? "new-password" : "current-password"
+                      }
+                      minLength={reset || register ? 8 : undefined}
                       maxLength={128}
                       required
                       disabled={busy}
@@ -140,8 +181,12 @@ export function AuthForm({
                     </button>
                   </div>
                 </Field>
-                {reset && (
-                  <Field label="Confirm new password">
+                {(reset || register) && (
+                  <Field
+                    label={
+                      register ? "Confirm password" : "Confirm new password"
+                    }
+                  >
                     <input
                       name="confirm"
                       type="password"
@@ -155,7 +200,7 @@ export function AuthForm({
                 )}
               </>
             )}
-            {!reset && !recover && (
+            {!reset && !recover && !register && (
               <button
                 type="button"
                 className="text-button"
@@ -172,23 +217,41 @@ export function AuthForm({
             <button
               className="primary"
               type="submit"
-              disabled={busy || (reset && !!success)}
+              disabled={busy || ((reset || register) && !!success)}
             >
               {busy
                 ? "Please wait…"
                 : reset
                   ? "Update password"
-                  : recover
-                    ? "Send recovery email"
-                    : "Sign in"}
+                  : register
+                    ? "Create account"
+                    : recover
+                      ? "Send recovery email"
+                      : "Sign in"}
               <ArrowRight size={17} />
             </button>
-            {recover && (
+            {!reset && !recover && !register && (
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => {
+                  setRegister(true);
+                  setError(null);
+                  setSuccess(null);
+                }}
+              >
+                Create account
+              </button>
+            )}
+            {(recover || register) && (
               <button
                 type="button"
                 className="text-button row"
+                disabled={busy}
                 onClick={() => {
                   setRecover(false);
+                  setRegister(false);
                   setError(null);
                   setSuccess(null);
                 }}
@@ -203,10 +266,9 @@ export function AuthForm({
             )}
           </form>
           <p className="auth-note">
-            Use your existing Water District account.
-            <br />
-            For account access or linking, contact authorized district
-            personnel.
+            Administrator approval creates your service account and assigns the
+            next account number. Existing clients, Admin and Staff can sign in
+            with their current accounts.
           </p>
           <a
             className="text-button"

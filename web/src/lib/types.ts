@@ -5,6 +5,15 @@ export type Profile = {
   role: Role;
   email: string;
 };
+export type ClientRegistration = {
+  userId: string;
+  fullName: string;
+  serviceAddress: string;
+  email: string;
+  status: string;
+  submittedAt: string;
+  emailConfirmedAt: string | null;
+};
 export type Account = {
   id: string;
   accountNumber: string;

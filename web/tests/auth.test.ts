@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
     active: true,
   } as Record<string, unknown> | null,
   profileError: null as unknown,
+  pending: false,
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServer: async () => ({
@@ -22,11 +23,16 @@ vi.mock("@/lib/supabase/server", () => ({
         error: state.authError,
       }),
     },
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
           maybeSingle: async () => ({
-            data: state.profile,
+            data:
+              table === "client_registrations"
+                ? state.pending
+                  ? { status: "Pending" }
+                  : null
+                : state.profile,
             error: state.profileError,
           }),
         }),
@@ -38,6 +44,7 @@ import { authenticate } from "@/lib/server/auth";
 describe("validated active identity", () => {
   beforeEach(() => {
     state.authError = null;
+    state.pending = false;
     state.profileError = null;
     state.profile = {
       user_id: "verified-user",
@@ -63,6 +70,21 @@ describe("validated active identity", () => {
       status: 403,
       code: "access_lost",
     });
+  });
+  it("denies pending registrations until the profile is approved", async () => {
+    state.profile = null;
+    state.pending = true;
+    await expect(authenticate()).rejects.toMatchObject({
+      status: 403,
+      code: "registration_pending",
+    });
+    state.profile = {
+      user_id: "verified-user",
+      display_name: "Consumer",
+      role: "client",
+      active: true,
+    };
+    expect((await authenticate()).profile.role).toBe("client");
   });
   it("distinguishes expired sessions from a temporary auth outage", async () => {
     state.authError = { status: 401 };
