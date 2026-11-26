@@ -37,9 +37,9 @@ String staffToday() => DateTime.now()
 List<String> staffRepairChoices(String status, {bool admin = false}) =>
     switch (status) {
       'Open' => admin ? ['Open', 'Assigned'] : [],
-      'Assigned' => ['Assigned', 'In progress'],
-      'In progress' => ['In progress', 'Completed'],
-      'Completed' => admin ? ['Completed', 'In progress', 'Resolved'] : [],
+      'Assigned' => ['Assigned', 'In progress', 'Resolved'],
+      'In progress' => ['In progress', 'Resolved'],
+      'Completed' => ['In progress', 'Resolved'],
       _ => [],
     };
 
@@ -280,7 +280,7 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
     if (choices.isEmpty) {
       notice(
         t['status'] == 'Completed'
-            ? 'Work completed. Awaiting Admin confirmation.'
+            ? 'Work completed. Awaiting final resolution.'
             : 'No updates are available for this state.',
       );
       return;
@@ -296,13 +296,13 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
       if (!mounted) return;
       await openForm(
         t['status'] == 'Completed'
-            ? 'Confirm repair resolution'
+            ? 'Resolve repair'
             : 'Update assigned repair',
         [
           OfficeInput(
             'status',
             'Repair status',
-            value: t['status'],
+            value: choices.contains(t['status']) ? t['status'] : 'Resolved',
             choices: {for (final s in choices) s: s},
           ),
           if (widget.admin)
@@ -337,7 +337,7 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
             },
           );
           return v['status'] == 'Completed'
-              ? 'Work completed. Awaiting Admin confirmation.'
+              ? 'Work completed. Awaiting final resolution.'
               : 'Repair update saved.';
         },
       );
@@ -568,13 +568,13 @@ class _StaffWorkspaceState extends State<StaffWorkspace>
                             ),
                             Text('${r['latest_update']}'),
                             if (r['status'] == 'Completed')
-                              const Text('Awaiting Admin confirmation'),
+                              const Text('Awaiting final resolution'),
                             Wrap(
                               children: [
                                 TextButton(
                                   onPressed: () => updateTicket(r),
                                   child: Text(
-                                    r['status'] == 'Completed' && widget.admin
+                                    r['status'] == 'Completed'
                                         ? 'Confirm resolution'
                                         : 'Update repair',
                                   ),

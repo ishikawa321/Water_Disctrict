@@ -9,6 +9,8 @@ import {
   categories,
   concernStates,
   repairStates,
+  clientRepairStates,
+  clientRepairStatus,
   ticketChoices,
 } from "@/lib/policy";
 import { timeLabel } from "@/lib/format";
@@ -694,7 +696,9 @@ export function RepairsPage({
                 >
                   <div className="row spread">
                     <small>{t.accountNumber}</small>
-                    <Badge>{t.status}</Badge>
+                    <Badge>
+                      {consumer ? clientRepairStatus(t.status) : t.status}
+                    </Badge>
                   </div>
                   <h3>{t.subject}</h3>
                   <p>{t.assignedTo ?? "Awaiting assignment"}</p>
@@ -745,11 +749,14 @@ function RepairBody({
   ticket: Ticket;
   consumer: boolean;
 }) {
+  const displayStatus = consumer
+    ? clientRepairStatus(ticket.status)
+    : ticket.status;
   return (
     <>
       <div className="row spread wrap">
         <h2 style={{ marginBottom: 0 }}>{ticket.subject}</h2>
-        <Badge>{ticket.status}</Badge>
+        <Badge>{displayStatus}</Badge>
       </div>
       <details className="record-details">
         <summary>Supporting details</summary>
@@ -769,17 +776,17 @@ function RepairBody({
         </dl>
       </details>
       <div className="repair-stages" aria-label="Current saved repair state">
-        {repairStates.map((s) => (
-          <span className={ticket.status === s ? "current" : ""} key={s}>
+        {(consumer ? clientRepairStates : repairStates).map((s) => (
+          <span className={displayStatus === s ? "current" : ""} key={s}>
             {s}
-            {ticket.status === s ? " · Current" : ""}
+            {displayStatus === s ? " · Current" : ""}
           </span>
         ))}
       </div>
       <p className="prose">{ticket.latestUpdate}</p>
       {ticket.status === "Completed" && (
         <p className="feedback info">
-          Work completed. Awaiting Admin confirmation before resolution.
+          Work finished. Awaiting final resolution.
         </p>
       )}
       <Link
@@ -863,23 +870,21 @@ function OfficeRepair({
               ) : (
                 <Empty title="No saved history" />
               )}
-              {record.data.ticket.status !== "Resolved" &&
-                (profile.role === "admin" ||
-                  record.data.ticket.status !== "Completed") && (
-                  <>
-                    <hr />
-                    <TicketUpdate
-                      record={record.data}
-                      profile={profile}
-                      assignees={assignees.data ?? []}
-                      assigneeError={assignees.error}
-                      onSave={() => {
-                        void record.reload();
-                        onSave();
-                      }}
-                    />
-                  </>
-                )}
+              {record.data.ticket.status !== "Resolved" && (
+                <>
+                  <hr />
+                  <TicketUpdate
+                    record={record.data}
+                    profile={profile}
+                    assignees={assignees.data ?? []}
+                    assigneeError={assignees.error}
+                    onSave={() => {
+                      void record.reload();
+                      onSave();
+                    }}
+                  />
+                </>
+              )}
             </>
           )}
         </DataState>
@@ -903,7 +908,7 @@ function TicketUpdate({
   const ticket = record.ticket;
   const [draft, setDraft] = useDraft(`ticket:${ticket.id}`, {
     version: ticket.version,
-    status: ticket.status,
+    status: ticket.status === "Completed" ? "Resolved" : ticket.status,
     assignedToUserId: ticket.assignedToUserId ?? "",
     note: "",
   });
@@ -936,9 +941,7 @@ function TicketUpdate({
   return (
     <>
       <h3>
-        {ticket.status === "Completed"
-          ? "Confirm repair resolution"
-          : "Record an update"}
+        {ticket.status === "Completed" ? "Resolve repair" : "Record an update"}
       </h3>
       <Feedback
         error={mutation.error ?? assigneeError}

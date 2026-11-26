@@ -29,16 +29,25 @@ export function isRole(value: unknown): value is Role {
 export function homeFor(role: Role) {
   return role === "client" ? "/portal" : "/office";
 }
-// Display choices only. Shared database guards validate transitions and assignment.
+export const clientRepairStates = [
+  "Open",
+  "Assigned",
+  "In progress",
+  "Resolved",
+] as const;
+export function clientRepairStatus(status: string) {
+  return status === "Completed" ? "In progress" : status;
+}
+// The database independently checks the active caller and saved assignment.
 export function ticketChoices(current: string, role: Role = "admin"): string[] {
+  if (role === "client") return [];
   return (
     (
       {
-        Open: ["Open", "Assigned"],
-        Assigned: ["Assigned", "In progress"],
-        "In progress": ["In progress", "Completed"],
-        Completed:
-          role === "admin" ? ["Completed", "In progress", "Resolved"] : [],
+        Open: role === "admin" ? ["Open", "Assigned"] : [],
+        Assigned: ["Assigned", "In progress", "Resolved"],
+        "In progress": ["In progress", "Resolved"],
+        Completed: ["In progress", "Resolved"],
         Resolved: [],
       } as Record<string, string[]>
     )[current] ?? []
