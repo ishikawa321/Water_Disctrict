@@ -2,6 +2,10 @@
 
 Next.js App Router and TypeScript web client for the existing Maramag Water District system. Uses the same Supabase Auth users, active profiles, account links and PostgreSQL records. Office operations call the existing ASP.NET Core API; workflow rules remain in that API and its database triggers.
 
+The main URL shows the existing landing page first. Its primary demo actions open `/app`, which restores the user's authorized workspace or redirects to `/login`. Sign-in includes a link back to the landing page. The fictional concept tour remains a separate action in the landing preview.
+
+The deployed landing snapshot lives in `public/landing/`. In this workspace, update the adjacent original `index.html`, `app.js`, `styles.css` and assets, then run `npm run sync:landing` from this directory before building/deploying. Standalone checkouts already contain the committed snapshot and do not need the original folder. Public landing assets and `/` load independently of authentication; protected app routes retain their access checks.
+
 ## Run locally
 
 Use Node 22 or newer. From this directory:

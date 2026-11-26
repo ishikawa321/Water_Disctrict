@@ -2,6 +2,10 @@
 
 Executed 26 November 2026 (Asia/Manila), on `feature/web-platform-parity` based on desktop `68bc1590`. This file records current checks separately from the repository's historical deployment notes.
 
+## Landing-first follow-up
+
+The existing adjacent landing page is now included in the same Vercel deployment at `/`, with primary demo actions opening `/app`. This entry restores an authorized workspace or redirects to sign-in; sign-in links back to the landing page. The static snapshot preserves the original design, assets and fictional concept tour. Browser checks passed for all three demo actions, returning to the landing page, asset loading, signed-in workspace restoration and anonymous protected-route denial (3 targeted cases). Landing JavaScript checks, route type generation, TypeScript, zero-warning lint, all 26 unit/contract tests and the production build passed. No backend or database code changed in this follow-up.
+
 ## Executed checks
 
 | Check | Result |

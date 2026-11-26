@@ -13,6 +13,47 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${fixture}/__test/reset`);
 });
 
+test("landing page is first and every primary demo button opens the app sign-in", async ({
+  page,
+}) => {
+  const failedAssets: string[] = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/landing/") && response.status() >= 400)
+      failedAssets.push(response.url());
+  });
+  for (const selector of [
+    "a.nav-cta",
+    ".hero [data-open-demo]",
+    "#explore [data-open-demo]",
+  ]) {
+    await page.goto("/");
+    await expect(page.locator("#hero-title")).toContainText("A better flow.");
+    await page.locator(selector).click();
+    await expect(page).toHaveURL(/\/login\?reason=session_lost/);
+    await expect(
+      page.getByRole("heading", { name: "Welcome back" }),
+    ).toBeVisible();
+  }
+  await page.getByRole("link", { name: "Back to the website" }).click();
+  await expect(page).toHaveURL(/:3100\/$/);
+  await page.locator("[data-open-tour]").click();
+  await expect(page.locator("#demo-dialog")).toBeVisible();
+  expect(failedAssets).toEqual([]);
+});
+
+test("landing demo restores an existing signed-in workspace", async ({
+  page,
+}) => {
+  await login(page, "admin");
+  await page.goto("/");
+  await expect(page.locator("#hero-title")).toBeVisible();
+  await page.locator(".hero [data-open-demo]").click();
+  await expect(page).toHaveURL(/\/office$/);
+  await expect(
+    page.getByRole("heading", { name: /Welcome back, QA/ }),
+  ).toBeVisible();
+});
+
 test("anonymous protected routes and API requests are denied", async ({
   page,
   request,
@@ -34,7 +75,7 @@ test("consumer sees linked billing, published notices and keeps a failed concern
   await expect(
     page.getByRole("heading", { name: "Outstanding balance" }),
   ).toBeVisible();
-  await expect(page.locator('.consumer-balance')).toContainText('₱350.00');
+  await expect(page.locator(".consumer-balance")).toContainText("₱350.00");
   await page.screenshot({
     path: test.info().outputPath("consumer-dashboard.png"),
     fullPage: true,

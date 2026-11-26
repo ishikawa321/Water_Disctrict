@@ -5,7 +5,7 @@ export default function NotFound() {
     <main className="blank-state">
       <Card title="Page not found">
         <p>This page is unavailable.</p>
-        <Link className="button" style={{ marginTop: 20 }} href="/">
+        <Link className="button" style={{ marginTop: 20 }} href="/app">
           Return to your workspace
         </Link>
       </Card>

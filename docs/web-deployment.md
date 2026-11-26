@@ -4,6 +4,8 @@
 
 Published frontend: https://maramag-waterdistrict-web.vercel.app. It uses the existing Supabase project. The office API remains an external hosting dependency; publishing the frontend alone does not connect office operations.
 
+The published root `/` is the existing landing page. Explore Demo opens `/app`, which restores a valid workspace session or redirects to `/login`. Landing HTML/CSS/JS/assets are included under `web/public/landing/` in the same deployment. When editing the adjacent original static folder, run `npm run sync:landing` from `web/` and redeploy the web project.
+
 The Next.js application lives at `web/`. Select the Next.js framework preset and Node 24, with **Root Directory `web`**. Use `npm ci`, `npm run build`, and the framework's default output directory. Do not deploy the Flutter `web/index.html` as the Next.js app.
 
 Set these production environment variables in Vercel:
@@ -65,7 +67,7 @@ Deploy the updated API from this branch: `/api/office/payments?billId=<UUID>` no
 
 ## Final live acceptance
 
-The original local landing page's header demo link, hero button and final Explore button now navigate to the published web URL in `config.js`. Its illustrative tour remains separate. Redeploy that independent static folder if a previously hosted copy also needs the new links.
+The original local landing page's header demo link, hero button and final Explore button navigate to the published app entry in `config.js`. The integrated copy uses `/app` on its own deployment. Its illustrative tour remains separate. A separately hosted static copy, if any, still needs its own redeployment after local edits.
 
 Use authorized demonstration accounts and isolated demonstration records. Do not experiment with customer records.
 

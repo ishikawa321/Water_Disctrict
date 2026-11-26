@@ -5,6 +5,7 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([
+    "public/landing/**",
     ".next/**",
     "next-env.d.ts",
     "test-results/**",

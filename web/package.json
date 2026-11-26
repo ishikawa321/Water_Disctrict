@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync:landing": "node scripts/sync-landing.mjs",
+    "check:landing": "node --check public/landing/app.js && node --check public/landing/config.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -11,7 +13,7 @@
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "test:browser": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "check": "npm run check:landing && npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

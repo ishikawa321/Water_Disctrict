@@ -208,14 +208,12 @@ export function AuthForm({
             For account access or linking, contact authorized district
             personnel.
           </p>
-          {process.env.NEXT_PUBLIC_LANDING_URL && (
-            <a
-              className="text-button"
-              href={process.env.NEXT_PUBLIC_LANDING_URL}
-            >
-              ← Back to the website
-            </a>
-          )}
+          <a
+            className="text-button"
+            href={process.env.NEXT_PUBLIC_LANDING_URL || "/"}
+          >
+            ← Back to the website
+          </a>
         </div>
       </main>
     </div>

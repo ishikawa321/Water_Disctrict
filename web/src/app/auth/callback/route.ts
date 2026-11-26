@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         new URL(
           url.searchParams.get("next") === "/reset-password"
             ? "/reset-password"
-            : "/",
+            : "/app",
           publicOrigin(request),
         ),
       );
