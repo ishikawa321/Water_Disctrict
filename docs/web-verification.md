@@ -10,6 +10,8 @@ The original adjacent landing and integrated snapshot add two Android download l
 
 `render.yaml` and the verified connection script are prepared for the shared API. No Render account or private database connection is currently connected, and the supplied Supabase data URL does not supply that separate service. The live Admin connection is not claimed fixed. See [office API hosting](office-api-hosting.md) and [APK release](android-release.md).
 
+Publication verified: GitHub release `android-v1.0.1` is public, targets source commit `d984d95`, and contains only the signed APK and checksum. A fresh public APK download matched the recorded byte size and SHA-256. Vercel deployment `dpl_3kFPPJvvADynFfiKR1K6GKiwU52f` is Ready in Singapore and aliased to the existing site. A production Chrome check verified both landing download links, `/download`, the correct immutable APK asset URL, 320-pixel layout, return navigation, preserved clean demo sign-in and anonymous office denial, with zero page errors. Evidence is under ignored `web/test-results/production-apk/`.
+
 ## Latest app synchronization
 
 Compared and merged main `dbdc382` first, then detected and merged freshly pushed `3336607` at `b375354` before publication. Detailed scope and prerequisites are in [web-update-comparison.md](web-update-comparison.md).

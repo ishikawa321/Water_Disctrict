@@ -4,6 +4,8 @@ The downloadable app is the existing Flutter application, not a wrapper around t
 
 Public version: **1.0.1**, build **2**. Application ID: `ph.maramag.waterdistrictconnect`. Android 7.0 / API 24 or later. The universal APK includes ARM32, ARM64 and x86-64. App name and launcher use Water District Connect and the existing district logo.
 
+Published: [download and installation page](https://maramag-waterdistrict-web.vercel.app/download), [GitHub release](https://github.com/ishikawa321/Water_Disctrict/releases/tag/android-v1.0.1). GitHub verified both uploaded asset digests before publication. A fresh public, unauthenticated download of the full 57,785,128-byte APK matched SHA-256 `637244eb7ee2871d78722025179c6c47193e81f4cbd2072bdba4d9110ab46303`; the public checksum sidecar matched too.
+
 ## Build and signing
 
 ```powershell
