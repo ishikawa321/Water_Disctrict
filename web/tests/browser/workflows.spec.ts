@@ -29,7 +29,8 @@ test("landing page is first and every primary demo button opens the app sign-in"
     await page.goto("/");
     await expect(page.locator("#hero-title")).toContainText("A better flow.");
     await page.locator(selector).click();
-    await expect(page).toHaveURL(/\/login\?reason=session_lost/);
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator(".feedback.error")).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Welcome back" }),
     ).toBeVisible();
