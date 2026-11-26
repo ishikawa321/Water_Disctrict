@@ -21,12 +21,14 @@ Staff now read bills and confirm payments, review all concerns and update only a
 
 For automatic bill/payment numbers, per-account monthly billing, the 28th issuance schedule and daily simple interest, follow [billing setup](../docs/billing-automation.md). It requires the two billing SQL files in the existing project; frontend deployment does not install them. Billing reports the schedule's actual configured state.
 
+Admin and Staff can download individual bill PDFs or export the currently displayed billing list from **Billing**. PDFs reload saved charges, interest, verified payments and remaining balances before generation. This web-only feature needs no additional SQL; see [billing PDF downloads](../docs/billing-pdf.md).
+
 An authorized operator must run [database/web-office-workflows.sql](../database/web-office-workflows.sql) once in the existing project's SQL Editor. See [Supabase office setup](../docs/web-supabase-office.md). Admin lists and existing repair details use existing RLS immediately. Staff access and atomic repair saves require the added policies/functions. Until installed, saves report the required setup and retain drafts. No migration runs during deployment.
 
 ## Data boundaries
 
 - Supabase SSR cookies refresh through Next.js Proxy. Protected pages/handlers independently validate `auth.getUser()` and the active profile. Roles never come from editable metadata. Protected responses are private and uncached.
-- Every data operation uses the signed-in caller's Supabase client and RLS. Admin-only billing, payments, directory and dispatch stay restricted. Staff see their own repair assignments. Consumers remain scoped to their current active linked account; only published notices are visible.
+- Every data operation uses the signed-in caller's Supabase client and RLS. Billing issuance/settings, Staff management and dispatch stay Admin-only. Staff read/export bills, confirm payments and see their own repair assignments. Consumers remain scoped to their current active linked account; only published notices are visible.
 - Mutations require matching Origin/Host and JSON. Actor identities are stamped on the server and guarded in PostgreSQL. Atomic workflow functions lock records and compare `xmin`; existing triggers enforce transitions, assignment, append-only history and concern resolution.
 - Access is rechecked on focus, visibility and every minute. Access loss clears sensitive data and memory drafts. Drafts survive form closing/navigation; reload/sign-out clears them. Concern retries reuse a UUID.
 - Office lists retain the established 1,000 / 500 / 200 limits and labels; dashboard counts are exact. Consumer lists paginate and balances include all scoped verified payments with decimal-safe calculations.

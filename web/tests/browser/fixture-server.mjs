@@ -744,7 +744,15 @@ createServer(async (request, response) => {
         base_amount_due: b.baseAmount ?? b.amountDue,
         interest_amount: b.interestAmount ?? "0.00",
         interest_days: b.interestDays ?? 0,
-        service_accounts: { account_number: b.accountNumber },
+        service_accounts: {
+          account_number: b.accountNumber,
+          holder_name: state.accounts.find(
+            (a) => a.accountNumber === b.accountNumber,
+          )?.holderName,
+          service_address: state.accounts.find(
+            (a) => a.accountNumber === b.accountNumber,
+          )?.serviceAddress,
+        },
       })),
       url,
     );

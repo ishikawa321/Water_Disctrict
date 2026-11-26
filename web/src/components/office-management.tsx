@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, FileDown } from "lucide-react";
 import { save } from "@/lib/client";
 import { useDraft, useResource } from "@/lib/hooks";
 import {
@@ -24,6 +24,7 @@ import { DataState, PageHeader, Refresh, useMutation } from "./data-ui";
 import { PaymentTable } from "./payment-table";
 import { MonthlyBilling } from "./monthly-billing";
 import { nextBillingDueDate } from "@/lib/billing-dates";
+import { downloadBillingPdf } from "@/lib/billing-download";
 
 export function AccountsPage() {
   const records = useResource<Account[]>("/api/office/office/accounts", 30_000);
@@ -153,6 +154,7 @@ export function AccountsPage() {
 }
 
 export function BillsPage({ staff = false }: { staff?: boolean }) {
+  const pdf = useMutation();
   const records = useResource<Bill[]>("/api/office/office/bills");
   const accounts = useResource<Account[]>(
     staff ? null : "/api/office/office/accounts",
@@ -188,6 +190,19 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
         title="Billing records"
         subtitle="District-computed charges and verified remaining balances."
       >
+        <button
+          className="secondary"
+          disabled={pdf.busy || !visible.length}
+          onClick={() =>
+            void pdf.run(
+              () => downloadBillingPdf(visible.map((b) => b.id)),
+              "Billing list PDF downloaded.",
+            )
+          }
+        >
+          <FileDown size={16} />
+          {pdf.busy ? "Preparing PDF…" : "Download list PDF"}
+        </button>
         <Refresh
           onClick={() => {
             void records.reload();
@@ -203,6 +218,7 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
         )}
       </PageHeader>
       <Feedback error={mutation.error} success={mutation.success} />
+      <Feedback error={pdf.error} success={pdf.success} />
       {!staff && show && (
         <Card title="Create a billing record">
           <Feedback error={accounts.error} />
@@ -292,6 +308,7 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
                   <th>Verified paid</th>
                   <th>Remaining</th>
                   <th>History</th>
+                  <th>Download</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,6 +334,22 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
                         Payments
                       </Link>
                     </td>
+                    <td>
+                      <button
+                        className="secondary"
+                        aria-label={`Download PDF for bill ${b.billNumber}`}
+                        disabled={pdf.busy}
+                        onClick={() =>
+                          void pdf.run(
+                            () => downloadBillingPdf([b.id], true),
+                            "Bill PDF downloaded.",
+                          )
+                        }
+                      >
+                        <FileDown size={16} />
+                        PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -325,7 +358,8 @@ export function BillsPage({ staff = false }: { staff?: boolean }) {
         </DataState>
         <p className="list-meta">
           Up to 1,000 bills, most recent due dates first. Search filters loaded
-          records.
+          records. Download list PDF includes only the currently displayed
+          matching records, using fresh saved balances.
         </p>
       </Card>
     </>

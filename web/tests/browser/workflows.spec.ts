@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { PDFDocument } from "pdf-lib";
 const fixture = "http://127.0.0.1:54339";
 async function login(page: Page, role: string) {
   await page.goto("/login");
@@ -15,6 +17,131 @@ test.beforeEach(async ({ request }) => {
 test.afterEach(async ({ request }) => {
   const response = await request.get(`${fixture}/__test/state`);
   expect((await response.json()).legacyApiRequests).toBe(0);
+});
+
+test("Admin and Staff download individual and filtered billing PDFs, while consumers and anonymous visitors are denied", async ({
+  page,
+  request,
+}) => {
+  const state = await (await request.get(`${fixture}/__test/state`)).json();
+  const bill = {
+    ...state.bills[0],
+    baseAmount: "500.00",
+    interestAmount: "15.00",
+    interestDays: 3,
+    amountDue: "515.00",
+    dueDate: "2026-11-24",
+  };
+  await request.post(`${fixture}/__test/scenario`, {
+    data: {
+      accounts: [{ ...state.accounts[0], holderName: "José Muñoz" }],
+      bills: [
+        bill,
+        {
+          ...bill,
+          id: "30000000-0000-4000-8000-000000000002",
+          billNumber: "EXCLUDED-BILL",
+        },
+      ],
+    },
+  });
+  expect(
+    (
+      await page.request.get(`/api/office/billing-pdf?billId=${bill.id}`)
+    ).status(),
+  ).toBe(401);
+  for (const role of ["admin", "staff"]) {
+    await login(page, role);
+    await page.goto("/office/bills");
+    await expect(
+      page.getByRole("button", { name: "Download list PDF", exact: true }),
+    ).toBeEnabled();
+    const individualEvent = page.waitForEvent("download");
+    await page
+      .getByRole("button", {
+        name: `Download PDF for bill ${bill.billNumber}`,
+        exact: true,
+      })
+      .click();
+    const individual = await individualEvent;
+    expect(individual.suggestedFilename()).toBe(
+      `waterdistrict-bill-${bill.billNumber}.pdf`,
+    );
+    await individual.saveAs(test.info().outputPath(`${role}-bill.pdf`));
+    const singlePdf = await PDFDocument.load(
+      await readFile(test.info().outputPath(`${role}-bill.pdf`)),
+    );
+    expect(singlePdf.getTitle()).toBe(`Billing record ${bill.billNumber}`);
+    expect(singlePdf.getPageCount()).toBe(1);
+    await page
+      .getByPlaceholder("Search bill or account number")
+      .fill(bill.billNumber);
+    await expect(
+      page.getByRole("button", {
+        name: "Download PDF for bill EXCLUDED-BILL",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    // The failed download must stay an error and allow a real retry.
+    await page.route(
+      "**/api/office/billing-pdf",
+      async (route) => {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            detail: "The current billing balance could not be confirmed.",
+          }),
+        });
+      },
+      { times: 1 },
+    );
+    await page
+      .getByRole("button", { name: "Download list PDF", exact: true })
+      .click();
+    await expect(page.locator(".feedback.error")).toContainText(
+      "current billing balance could not be confirmed",
+    );
+    const listEvent = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Download list PDF", exact: true })
+      .click();
+    const report = await listEvent;
+    await report.saveAs(test.info().outputPath(`${role}-filtered-report.pdf`));
+    const pdf = await PDFDocument.load(
+      await readFile(test.info().outputPath(`${role}-filtered-report.pdf`)),
+    );
+    expect(pdf.getTitle()).toBe("Billing records");
+    expect(pdf.getPages()[0].getWidth()).toBeGreaterThan(
+      pdf.getPages()[0].getHeight(),
+    );
+    await expect(page.locator(".feedback.error")).toHaveCount(0);
+    await page
+      .getByPlaceholder("Search bill or account number")
+      .fill("NO-MATCH");
+    await expect(
+      page.getByRole("button", { name: "Download list PDF", exact: true }),
+    ).toBeDisabled();
+    await page.getByPlaceholder("Search bill or account number").fill("");
+    await page.screenshot({
+      path: test.info().outputPath(`${role}-billing-pdfs.png`),
+      fullPage: true,
+    });
+  }
+  await login(page, "client");
+  expect(
+    (
+      await page.request.get(`/api/office/billing-pdf?billId=${bill.id}`)
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await page.request.post("/api/office/billing-pdf", {
+        data: { billIds: [bill.id] },
+        headers: { Origin: "http://127.0.0.1:3100" },
+      })
+    ).status(),
+  ).toBe(403);
 });
 
 test("Admin invites Staff and disables access while Staff cannot invite or change billing", async ({
