@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
 abstract final class UtilityStyle {
-  static const blue = Color(0xFF2563EB);
+  static const blue = Color(0xFF00479D);
   static const background = Color(0xFFF6F9FC);
   static const border = Color(0xFFE1E6EB);
   static const title = TextStyle(
@@ -122,7 +122,7 @@ class UtilityScaffold extends StatelessWidget {
   final bool extendBody;
 
   static ThemeData themeFor(BuildContext context) {
-    const blue = Color(0xFF2563EB);
+    const blue = Color(0xFF00479D);
     const text = Color(0xFF172536);
     const border = Color(0xFFE1E6EB);
     final base = Theme.of(context);
@@ -384,7 +384,7 @@ class StatusBadge extends StatelessWidget {
         : alert
         ? const Color(0xFFA02C24)
         : active
-        ? const Color(0xFF2563EB)
+        ? const Color(0xFF00479D)
         : const Color(0xFF78520A);
     return AnimatedSwitcher(
       duration: motionDuration(context, 180),

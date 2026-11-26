@@ -391,7 +391,7 @@ void main() {
     });
   }
 
-  testWidgets('client home retains only the top announcement summary and royal blue balance', (tester) async {
+  testWidgets('client home retains only the top announcement summary and navy balance', (tester) async {
     failAuth=false;
     await tester.runAsync(()=>Supabase.instance.client.auth.signInWithPassword(email:'user@example.com',password:'password123'));
     await tester.binding.setSurfaceSize(const Size(540,855));
@@ -401,9 +401,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Announcements'),findsOneWidget);
     expect(find.text('Outstanding balance'),findsOneWidget);
-    expect(royalBlue,const Color(0xFF2563EB));
-    expect(UtilityStyle.blue,const Color(0xFF2563EB));
-    await screenshot(tester,'client-home-blue-summary');
+    expect(royalBlue,const Color(0xFF00479D));
+    expect(UtilityStyle.blue,const Color(0xFF00479D));
+    await screenshot(tester,'client-home-navy-summary');
     await tester.pumpWidget(const SizedBox());
   });
 

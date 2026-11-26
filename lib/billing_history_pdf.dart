@@ -56,7 +56,7 @@ Future<Uint8List> buildBillingHistoryPdf(
   for (final bill in bills) {
     accounts.putIfAbsent(bill.accountNumber, () => []).add(bill);
   }
-  const blue = PdfColor.fromInt(0xFF1852D8);
+  const blue = PdfColor.fromInt(0xFF00479D);
   const muted = PdfColor.fromInt(0xFF596579);
   for (final entry in accounts.entries) {
     final lines = entry.value;

@@ -4072,8 +4072,8 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   }
 }
 
-const royalBlue = Color(0xFF2563EB);
-const utilityBlue = Color(0xFF2563EB);
+const royalBlue = Color(0xFF00479D);
+const utilityBlue = Color(0xFF00479D);
 const ink = Color(0xFF111827);
 const muted = Color(0xFF6B7280);
 const accentTint = Color(0xFFEFF4FF);
@@ -6531,7 +6531,7 @@ class PillNavBar extends StatelessWidget {
 
   Widget navTab(BuildContext context, int i) {
     final active = i == selected;
-    final color = active ? royalBlue : muted;
+    final color = active ? Colors.white : muted;
     return Tooltip(
       message: items[i].label,
       child: Semantics(
@@ -6551,7 +6551,7 @@ class PillNavBar extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 56),
             padding: const EdgeInsets.fromLTRB(4, 8, 4, 7),
             decoration: BoxDecoration(
-              color: active ? accentTint : Colors.transparent,
+              color: active ? royalBlue : Colors.transparent,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Column(
