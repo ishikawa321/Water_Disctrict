@@ -1,6 +1,18 @@
 # Android APK release
 
-## Current release: 1.0.2 build 3
+## Current release: 1.0.3 build 4
+
+Built from the merged main/web and `UI-Redesign` sources on 2026-11-27. This release adds the updated #00479D application design, guided navigation, announcement indicators and Client/Admin billing-history PDF sharing. Existing invited Staff sign-in, payment confirmation, assigned repairs and Admin-only final repair confirmation are retained. Admin repair shortcuts use the reviewed Staff workspace rather than the older repair editor.
+
+The signed universal artifact is `WaterDistrictConnect-1.0.3.apk`, 63,356,052 bytes, SHA-256 `cc1d9a4f48a1e8a0b46007c4b0b3bac6873ad0b770ac21f19d0a8aa9d11c0deb`. Package ID remains `ph.maramag.waterdistrictconnect`, Android 7/API 24 minimum, with ARM32/ARM64/x86-64 Flutter libraries. Android Build Tools verified the v2 signature, version 1.0.3/code 4, non-debuggable manifest and unchanged certificate SHA-256 `db12f986c9cccb39734b5d2f15f1f43e5aa9d80bae008e0c9e86a5cd2aea0650`. Both icon fonts are bundled. It can update earlier public releases without uninstalling the app. Release symbols are archived locally under `artifacts/android/symbols/1.0.3` and are not public assets.
+
+Flutter analysis passed without issues and all 46 tests passed, including Staff permissions, Admin confirmation, Client/Admin PDF export, large amounts, multi-account PDF sections and narrow/large-text layouts. The PDF samples were extracted and visually reviewed. The visual audit was repeated after correcting the incoming low-contrast billing filters and loading icon fonts from the actual test asset bundle. Tests use isolated HTTP fixtures; no operational records were created. A physical-device install is not claimed.
+
+The website keeps its existing Admin/Staff individual and filtered-list PDF exports, and `/download` now identifies this APK using its verified size and checksum. No new Supabase migration is needed for these UI/PDF changes; the existing Staff/billing setup remains required.
+
+Web verification passed: landing JavaScript checks, route type generation, TypeScript, ESLint with zero warnings, all 80 unit checks, all 22 Chrome workflows and the optimized production build. The download test reads the current release metadata and verifies the link, checksum, installation page and browser download filename.
+
+## Previous release: 1.0.2 build 3
 
 The new universal APK adds Staff sign-in and the concerns/assigned-repairs/bills/payment workspace, plus mobile Admin review of Completed repairs. It keeps application ID `ph.maramag.waterdistrictconnect`, minimum Android 7/API 24 and the same private release signing certificate as 1.0.1, so it installs as an update. Follow [Staff role setup](staff-role.md) once in the shared Supabase project before inviting personnel or using Staff financial permissions.
 

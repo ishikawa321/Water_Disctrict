@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
+import androidRelease from "../../src/lib/android-release.json" with { type: "json" };
 const fixture = "http://127.0.0.1:54339";
 async function login(page: Page, role: string) {
   await page.goto("/login");
@@ -1195,19 +1196,16 @@ test("landing Android downloads open release instructions with the signed APK li
   await expect(
     page.getByRole("heading", { name: /Your water services/ }),
   ).toBeVisible();
-  await expect(page.getByText("Version 1.0.2", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText(`Version ${androidRelease.version}`, { exact: false }),
+  ).toBeVisible();
   const link = page.getByRole("link", { name: "Download APK", exact: true });
-  await expect(link).toHaveAttribute(
-    "href",
-    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.2/WaterDistrictConnect-1.0.2.apk",
-  );
+  await expect(link).toHaveAttribute("href", androidRelease.apkUrl);
   await page.getByText("Release details and checksum", { exact: true }).click();
   await expect(
     page.getByText("ph.maramag.waterdistrictconnect", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".apk-checksum")).toHaveText(
-    "f6e63e492c24a1385a206d247447e93ef6e26667abc5613d3aaa5c7d56d733a5",
-  );
+  await expect(page.locator(".apk-checksum")).toHaveText(androidRelease.sha256);
   await page.setViewportSize({ width: 320, height: 720 });
   expect(
     await page.evaluate(
@@ -1218,23 +1216,18 @@ test("landing Android downloads open release instructions with the signed APK li
     path: test.info().outputPath("android-download-mobile.png"),
     fullPage: true,
   });
-  await page.route(
-    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.2/WaterDistrictConnect-1.0.2.apk",
-    (route) =>
-      route.fulfill({
-        contentType: "application/vnd.android.package-archive",
-        headers: {
-          "content-disposition":
-            "attachment; filename=WaterDistrictConnect-1.0.2.apk",
-        },
-        body: "isolated browser download fixture",
-      }),
+  await page.route(androidRelease.apkUrl, (route) =>
+    route.fulfill({
+      contentType: "application/vnd.android.package-archive",
+      headers: {
+        "content-disposition": `attachment; filename=${androidRelease.fileName}`,
+      },
+      body: "isolated browser download fixture",
+    }),
   );
   const downloaded = page.waitForEvent("download");
   await link.click();
-  expect((await downloaded).suggestedFilename()).toBe(
-    "WaterDistrictConnect-1.0.2.apk",
-  );
+  expect((await downloaded).suggestedFilename()).toBe(androidRelease.fileName);
   await page
     .getByRole("link", { name: "Back to the website", exact: true })
     .click();

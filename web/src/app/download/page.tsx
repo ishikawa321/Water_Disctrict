@@ -84,6 +84,10 @@ export default function AndroidDownload() {
             can confirm payments and complete assigned repairs for Admin review.
           </p>
           <p>
+            This version includes the updated app design, announcement
+            indicators and billing-history PDF sharing for Consumers and Admins.
+          </p>
+          <p>
             Installing the app does not create an account or change your role.
             Contact authorized district personnel for account linking.
           </p>
