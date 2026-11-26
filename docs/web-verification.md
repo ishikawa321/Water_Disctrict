@@ -36,6 +36,8 @@ Screenshots use clearly isolated `QA` fixtures and are generated into ignored `w
 
 ## Live environment limitations
 
+The published frontend at https://maramag-waterdistrict-web.vercel.app returned HTTP 200 for sign-in. Anonymous session, consumer and office API requests returned 401 with no-store headers. A production Chrome check confirmed a direct protected `/portal/bills` URL reaches sign-in (Next.js may stream this redirect in an HTTP 200 page). All three local landing demo actions were browser-checked against the deployed URL; the separate fictional tour still opens.
+
 - The user confirmed the ASP.NET API is not hosted. Office functionality requires that separately hosted HTTPS API and the API host's private existing-database configuration. The Dockerfile and setup instructions are provided; the container image itself was not built because Docker is unavailable here.
 - Vercel credentials were available. The new project's `web` root, Next.js framework, Node 24 and public Supabase production/preview variables were configured. Automatic GitHub repository linking was rejected by the Vercel integration; CLI publication remains available.
 - Supabase management and API hosting integrations were discovered but were not connected at verification time. The app does not change Auth site/redirect allowlists, SMTP, profiles, roles or account links automatically.

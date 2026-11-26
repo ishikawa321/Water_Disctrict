@@ -2,6 +2,8 @@
 
 ## Vercel project
 
+Published frontend: https://maramag-waterdistrict-web.vercel.app. It uses the existing Supabase project. The office API remains an external hosting dependency; publishing the frontend alone does not connect office operations.
+
 The Next.js application lives at `web/`. Select the Next.js framework preset and Node 24, with **Root Directory `web`**. Use `npm ci`, `npm run build`, and the framework's default output directory. Do not deploy the Flutter `web/index.html` as the Next.js app.
 
 Set these production environment variables in Vercel:
@@ -15,15 +17,15 @@ NEXT_PUBLIC_LANDING_URL=https://<your-landing-site>   # optional
 
 No database connection or service-role key belongs in Vercel. Rebuild after changing public variables; redeploy after changing server runtime variables. A missing API URL produces a truthful service configuration error in office modules, rather than fake data.
 
-For CLI deployment, link the Vercel project from the **repository root**, retain its `web` Root Directory setting, then run `npx vercel deploy --prod`. The root `.vercelignore` excludes mobile, desktop, local settings and isolated tests. For Git deployment, connect the repository in Vercel and select `feature/web-platform-parity` as the Production Branch after connecting. Do not change your existing mobile/desktop integration branch just to deploy the website.
+For CLI deployment, link the Vercel project from the **repository root**, retain its `web` Root Directory setting, then run `npx vercel deploy --prod --local-config web/vercel.json`. The explicit local config applies the web install/build commands and Singapore function region to root-level CLI deployments. The root `.vercelignore` excludes mobile, desktop, local settings and isolated tests. For Git deployment, connect the repository in Vercel and select `feature/web-platform-parity` as the Production Branch after connecting. Do not change your existing mobile/desktop integration branch just to deploy the website.
 
 ## Supabase authentication
 
 Keep all existing mobile and desktop Auth configuration. In Authentication → URL Configuration, add these exact web redirect destinations alongside existing entries:
 
 ```text
-https://<web-production-domain>/auth/callback
-https://<web-production-domain>/auth/callback?next=/reset-password
+https://maramag-waterdistrict-web.vercel.app/auth/callback
+https://maramag-waterdistrict-web.vercel.app/auth/callback?next=/reset-password
 http://localhost:3000/auth/callback
 http://localhost:3000/auth/callback?next=/reset-password
 ```
@@ -62,6 +64,8 @@ The website calls this API through its authenticated Next.js server handlers, so
 Deploy the updated API from this branch: `/api/office/payments?billId=<UUID>` now filters bill history **before** the established 1,000-row limit. Existing desktop calls without that optional parameter retain their contract. All dispatch, assignment, status transitions, append-only history, actor stamping and concurrency rules remain in the original server.
 
 ## Final live acceptance
+
+The original local landing page's header demo link, hero button and final Explore button now navigate to the published web URL in `config.js`. Its illustrative tour remains separate. Redeploy that independent static folder if a previously hosted copy also needs the new links.
 
 Use authorized demonstration accounts and isolated demonstration records. Do not experiment with customer records.
 
