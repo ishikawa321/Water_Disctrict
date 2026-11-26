@@ -13,6 +13,10 @@ The office handler now reads and writes the existing Supabase Data API with the 
 
 The sections below describe prior releases and their historical API dependency.
 
+Publication: source `deca5f4` is pushed to `feature/web-platform-parity`. Vercel deployment `dpl_FcwkjWanjgnN7tRHVa8pdSEUhxjG` is Ready in Singapore (`sin1`), confirmed through the canonical https://maramag-waterdistrict-web.vercel.app alias. A production Chrome check verified all three landing demo buttons reach clean login, the existing signed APK link remains correct, four protected data endpoints return uncached 401 responses, the 320-pixel login fits, and no page errors occur. Evidence is under ignored `web/test-results/production-supabase-office/`. No real-user login or operational writes were performed.
+
+A read-only production function probe returned `404/PGRST202` for `wd_web_is_staff`, confirming setup was still absent at publication. The public raw SQL download matched the tested committed file. An authorized operator must run it in the existing project before Staff access and atomic repair saves can be accepted live; frontend publication alone does not install it.
+
 Executed 26 November 2026 (Asia/Manila), on `feature/web-platform-parity` based on desktop `68bc1590`. This file records current checks separately from the repository's historical deployment notes.
 
 ## Android download follow-up
