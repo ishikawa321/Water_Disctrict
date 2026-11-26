@@ -438,7 +438,7 @@ class _AccountPageState extends State<AccountPage>
       );
     }
     final reset = screen == AccountScreen.resetPassword;
-    return Scaffold(
+    return UtilityScaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -634,7 +634,10 @@ class _AccountPageState extends State<AccountPage>
                                 CircleAvatar(
                                   backgroundColor: Colors.white,
                                   foregroundColor: royalBlue,
-                                  child: Icon(CupertinoIcons.person_2, size: 20),
+                                  child: Icon(
+                                    CupertinoIcons.person_2,
+                                    size: 20,
+                                  ),
                                 ),
                                 SizedBox(width: 16),
                                 Expanded(
@@ -743,6 +746,7 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
+      bottomNavigationBar: const AdminDesignNav(index: 1),
       appBar: UtilityAppBar(
         title: const Text('Service accounts'),
         actions: [
@@ -781,21 +785,12 @@ class _ServiceAccountsPageState extends State<ServiceAccountsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : loadError != null && accounts.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(loadError!, textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
-                          FilledButton(
-                            onPressed: loadAccounts,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load service accounts',
+                    message: loadError!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadAccounts,
                   )
                 : accounts.isEmpty
                 ? EmptyState(
@@ -917,7 +912,8 @@ class _AddServiceAccountPageState extends State<AddServiceAccountPage> {
       canPop: !saving,
       child: UtilityScaffold(
         appBar: UtilityAppBar(title: const Text('Add account')),
-        body: Align(alignment: Alignment.topCenter,
+        body: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -1050,92 +1046,185 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
 
   void showHelp() => showDialog<void>(
     context: context,
-    builder: (context) => UtilitySurface(child: AlertDialog(
-      title: const Text('Account help'),
-      content: const Text(
-        'Contact authorized district personnel to correct your account details '
-        'or request assistance. Representatives need district verification.',
+    builder: (context) => UtilitySurface(
+      child: AlertDialog(
+        title: const Text('Account help'),
+        content: const Text(
+          'Contact authorized district personnel to correct your account details '
+          'or request assistance. Representatives need district verification.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
-    )),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
     final record = account;
     final holder = record?['holder_name'] as String? ?? '';
-    final initials = holder.split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
-        .take(2).map((s) => s[0]).join().toUpperCase();
+    final initials = holder
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .take(2)
+        .map((s) => s[0])
+        .join()
+        .toUpperCase();
     return UtilityScaffold(
       appBar: UtilityAppBar(
         title: const Text('My profile'),
-        actions: [IconButton(tooltip: 'Refresh', onPressed: loading ? null : loadAccount,
-          icon: const Icon(CupertinoIcons.arrow_clockwise))],
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: loading ? null : loadAccount,
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
+          ),
+        ],
       ),
       bottomNavigationBar: const ClientDesignNav(index: 3),
-      body: loading ? const SingleChildScrollView(child: LoadingCards(count: 1)) : Align(
-        alignment: Alignment.topCenter,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              if (error != null) ...[
-                Text(error!),
-                TextButton(onPressed: loadAccount, child: const Text('Retry')),
-              ] else if (record == null)
-                const Card(child: Padding(padding: EdgeInsets.all(24), child: Text(
-                  'No linked account. Contact district personnel to finish setup.')))
-              else Card(child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Align(alignment: Alignment.centerLeft, child: Container(
-                    width: 48, height: 48, alignment: Alignment.center,
-                    decoration: BoxDecoration(color: const Color(0xFFF2F5F9),
-                      borderRadius: BorderRadius.circular(8)),
-                    child: Text(initials, style: const TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w700)))),
-                  const SizedBox(height: 16),
-                  Text(holder, textAlign: TextAlign.left,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
-                  const Divider(height: 36),
-                  DesignValue('Account number', '${record['account_number']}', strong: true),
-                  const SizedBox(height: 24),
-                  const Text('Service address', style: TextStyle(color: muted, fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Text('${record['service_address']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 16),
-                  Row(children: [
-                    const Expanded(child: Text('Account status', style: TextStyle(color: muted))),
-                    StatusBadge(record['active'] == true ? 'Active' : 'Inactive'),
-                  ]),
-                ]),
-              )),
-              const SizedBox(height: 12),
-              TextButton.icon(onPressed: showHelp, icon: const Icon(CupertinoIcons.question_circle), label: const Text('Get help')),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                icon: const Icon(CupertinoIcons.square_arrow_right), label: const Text('Sign out'),
-                onPressed: () async {
-                  try {
-                    await supabase.auth.signOut();
-                    if (context.mounted) {
-                      Navigator.of(context).popUntil((r) => r.isFirst);
-                    }
-                  } catch (_) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not sign out. Please retry.')));
-                    }
-                  }
-                },
+      body: loading
+          ? const SingleChildScrollView(child: LoadingCards(count: 1))
+          : Align(
+              alignment: Alignment.topCenter,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (error != null) ...[
+                        Text(error!),
+                        TextButton(
+                          onPressed: loadAccount,
+                          child: const Text('Retry'),
+                        ),
+                      ] else if (record == null)
+                        const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'No linked account. Contact district personnel to finish setup.',
+                            ),
+                          ),
+                        )
+                      else
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    width: 48,
+                                    height: 48,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: accentTint,
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(
+                                        color: ink,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  holder,
+                                  textAlign: TextAlign.left,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -.5,
+                                    color: ink,
+                                  ),
+                                ),
+                                const Divider(height: 36),
+                                DesignValue(
+                                  'Account number',
+                                  '${record['account_number']}',
+                                  strong: true,
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'Service address',
+                                  style: TextStyle(color: muted, fontSize: 14),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${record['service_address']}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Account status',
+                                        style: TextStyle(color: muted),
+                                      ),
+                                    ),
+                                    StatusBadge(
+                                      record['active'] == true
+                                          ? 'Active'
+                                          : 'Inactive',
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: showHelp,
+                        icon: const Icon(CupertinoIcons.question_circle),
+                        label: const Text('Get help'),
+                      ),
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        icon: const Icon(CupertinoIcons.square_arrow_right),
+                        label: const Text('Sign out'),
+                        onPressed: () async {
+                          try {
+                            await supabase.auth.signOut();
+                            if (context.mounted) {
+                              Navigator.of(context).popUntil((r) => r.isFirst);
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not sign out. Please retry.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ]),
-          ),
-        ),
-      ),
+            ),
     );
   }
-
 }
 
 // Use centavos to avoid floating-point rounding in payment totals.
@@ -1241,7 +1330,7 @@ class _BillsPageState extends State<BillsPage> {
         ],
       ),
       bottomNavigationBar: widget.isAdmin
-          ? null
+          ? const AdminDesignNav(index: 1)
           : const ClientDesignNav(index: 1),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
@@ -1291,20 +1380,12 @@ class _BillsPageState extends State<BillsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && bills.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(error!, textAlign: TextAlign.center),
-                          TextButton(
-                            onPressed: loadBills,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load bills',
+                    message: error!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadBills,
                   )
                 : visibleBills.isEmpty
                 ? EmptyState(
@@ -1345,39 +1426,91 @@ class _BillsPageState extends State<BillsPage> {
                           : 'Unpaid';
 
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 8, children: [
-                            Text('Bill ${bill['bill_number']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                            StatusBadge(status),
-                          ]),
-                          const SizedBox(height: 8),
-                          AmountText('₱${formatCentavos(remaining)}', color: ink),
-                          const SizedBox(height: 4),
-                          Text('Due ${recordDate(bill['due_date'])}', style: const TextStyle(color: muted)),
-                          if (excess > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text(
-                            'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.')),
-                        ]),
-                        action: !widget.isAdmin && remaining > 0 ? OutlinedButton.icon(
-                          onPressed: () => showPaymentGuidance(context,
-                            accountNumber: '${account?['account_number'] ?? 'Unavailable'}',
-                            billNumber: '${bill['bill_number']}'),
-                          icon: const Icon(CupertinoIcons.info_circle, size: 18),
-                          label: const Text('View payment instructions')) : null,
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              children: [
+                                Text(
+                                  'Bill ${bill['bill_number']}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                StatusBadge(status),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            AmountText(
+                              '₱${formatCentavos(remaining)}',
+                              color: ink,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Due ${recordDate(bill['due_date'])}',
+                              style: const TextStyle(color: muted),
+                            ),
+                            if (excess > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                  'Payments exceed this bill by ₱${formatCentavos(excess)}. Contact district personnel for review.',
+                                ),
+                              ),
+                          ],
+                        ),
+                        action: !widget.isAdmin && remaining > 0
+                            ? OutlinedButton.icon(
+                                onPressed: () => showPaymentGuidance(
+                                  context,
+                                  accountNumber:
+                                      '${account?['account_number'] ?? 'Unavailable'}',
+                                  billNumber: '${bill['bill_number']}',
+                                ),
+                                icon: const Icon(
+                                  CupertinoIcons.info_circle,
+                                  size: 18,
+                                ),
+                                label: const Text('View payment instructions'),
+                              )
+                            : null,
                         detailsLabel: 'Billing details',
                         details: [
-                          DesignValue('Original bill', '₱${formatCentavos(billed)}'),
+                          DesignValue(
+                            'Original bill',
+                            '₱${formatCentavos(billed)}',
+                          ),
                           const SizedBox(height: 12),
-                          DesignValue('Verified payments', '₱${formatCentavos(paid)}'),
+                          DesignValue(
+                            'Verified payments',
+                            '₱${formatCentavos(paid)}',
+                          ),
                           const SizedBox(height: 12),
-                          Text('Period: ${recordDate(bill['billing_period_start'])} – ${recordDate(bill['billing_period_end'])}',
-                            style: const TextStyle(color: muted)),
+                          Text(
+                            'Period: ${recordDate(bill['billing_period_start'])} – ${recordDate(bill['billing_period_end'])}',
+                            style: const TextStyle(color: muted),
+                          ),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
-                          if (paid > 0) TextButton.icon(
-                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => PaymentsPage(isAdmin: widget.isAdmin, billNumber: '${bill['bill_number']}'))),
-                            icon: const Icon(CupertinoIcons.doc_text), label: const Text('View payment record')),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
+                          if (paid > 0)
+                            TextButton.icon(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PaymentsPage(
+                                    isAdmin: widget.isAdmin,
+                                    billNumber: '${bill['bill_number']}',
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(CupertinoIcons.doc_text),
+                              label: const Text('View payment record'),
+                            ),
                         ],
                       );
                     },
@@ -1527,7 +1660,8 @@ class _AddBillPageState extends State<AddBillPage> {
         appBar: UtilityAppBar(title: const Text('Add bill')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -1725,10 +1859,11 @@ class _PaymentsPageState extends State<PaymentsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
+      bottomNavigationBar: widget.isAdmin
+          ? const AdminDesignNav(index: 1)
+          : const ClientDesignNav(index: 1),
       appBar: UtilityAppBar(
-        title: Text(
-          widget.isAdmin ? 'Verified payments' : 'My payments',
-        ),
+        title: Text(widget.isAdmin ? 'Verified payments' : 'My payments'),
         actions: [
           IconButton(
             tooltip: 'Refresh payments',
@@ -1767,20 +1902,12 @@ class _PaymentsPageState extends State<PaymentsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && payments.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(error!, textAlign: TextAlign.center),
-                          TextButton(
-                            onPressed: loadPayments,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load payments',
+                    message: error!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadPayments,
                   )
                 : payments.isEmpty
                 ? EmptyState(
@@ -1805,25 +1932,41 @@ class _PaymentsPageState extends State<PaymentsPage> {
                         '${payment['verified_at']}',
                       )?.toLocal();
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const StatusBadge('Verified'),
-                          AmountText('₱$amount', color: ink),
-                          const SizedBox(height: 8),
-                          Text(recordDate(payment['payment_date']), style: const TextStyle(color: muted)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const StatusBadge('Verified'),
+                            AmountText('₱$amount', color: ink),
+                            const SizedBox(height: 8),
+                            Text(
+                              recordDate(payment['payment_date']),
+                              style: const TextStyle(color: muted),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Payment details',
                         details: [
-                          Text('Receipt/reference: ${payment['receipt_reference']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(
+                            'Receipt/reference: ${payment['receipt_reference']}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                           const SizedBox(height: 10),
-                          Text('Bill: ${bill?['bill_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Bill: ${bill?['bill_number'] ?? 'Unavailable'}',
+                          ),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
                           if (verified != null) ...[
-                            const SizedBox(height: 8), Text('Recorded: ${recordDate(verified)}'),
+                            const SizedBox(height: 8),
+                            Text('Recorded: ${recordDate(verified)}'),
                           ],
                           const SizedBox(height: 16),
-                          const Text('Verified offline payment record. This is not a newly issued receipt.',
-                            style: TextStyle(color: muted, fontSize: 13)),
+                          const Text(
+                            'Verified offline payment record. This is not a newly issued receipt.',
+                            style: TextStyle(color: muted, fontSize: 13),
+                          ),
                         ],
                       );
                     },
@@ -1953,7 +2096,8 @@ class _RecordPaymentPageState extends State<RecordPaymentPage> {
         appBar: UtilityAppBar(title: const Text('Record payment')),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -2152,6 +2296,9 @@ class _ConcernsPageState extends State<ConcernsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
+      bottomNavigationBar: widget.isAdmin
+          ? const AdminDesignNav(index: 2)
+          : const ClientDesignNav(index: 2),
       appBar: UtilityAppBar(
         title: Text(widget.isAdmin ? 'Manage concerns' : 'My concerns'),
         actions: [
@@ -2192,20 +2339,12 @@ class _ConcernsPageState extends State<ConcernsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && concerns.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(error!, textAlign: TextAlign.center),
-                          TextButton(
-                            onPressed: loadConcerns,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load concerns',
+                    message: error!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadConcerns,
                   )
                 : concerns.isEmpty
                 ? EmptyState(
@@ -2233,7 +2372,10 @@ class _ConcernsPageState extends State<ConcernsPage> {
                             children: [
                               Text(
                                 '${c['subject']}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               StatusBadge('${c['status']}'),
                               Text(
@@ -2244,9 +2386,7 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 tilePadding: EdgeInsets.zero,
                                 expandedCrossAxisAlignment:
                                     CrossAxisAlignment.start,
-                                title: const Text(
-                                  'Details & response',
-                                ),
+                                title: const Text('Details & response'),
                                 children: [
                                   Text('Category: ${c['category']}'),
                                   Text(
@@ -2255,11 +2395,23 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                   const SizedBox(height: 12),
                                   Text('${c['description']}'),
                                   ConcernLocationDetails(concern: c),
-                                  if (!widget.isAdmin) TextButton.icon(
-                                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) => RepairTicketsPage(isAdmin: false, concernId: '${c['id']}'))),
-                                    icon: const Icon(CupertinoIcons.wrench, size: 18),
-                                    label: const Text('Track repair')),
+                                  if (!widget.isAdmin)
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => RepairTicketsPage(
+                                                isAdmin: false,
+                                                concernId: '${c['id']}',
+                                              ),
+                                            ),
+                                          ),
+                                      icon: const Icon(
+                                        CupertinoIcons.wrench,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Track repair'),
+                                    ),
                                   const Divider(height: 24),
                                   Text(
                                     'District response',
@@ -2302,7 +2454,11 @@ class _ConcernsPageState extends State<ConcernsPage> {
 }
 
 class ConcernFormPage extends StatefulWidget {
-  const ConcernFormPage({super.key, this.concern, this.locationPicker = pickConcernLocation});
+  const ConcernFormPage({
+    super.key,
+    this.concern,
+    this.locationPicker = pickConcernLocation,
+  });
   final Map<String, dynamic>? concern;
   final ConcernLocationPicker locationPicker;
   @override
@@ -2323,32 +2479,45 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
 
   Future<void> chooseLocation() async {
     final location = await widget.locationPicker(context, selectedLocation);
-    if (mounted && location != null) setState(() => selectedLocation = location);
+    if (mounted && location != null) {
+      setState(() => selectedLocation = location);
+    }
   }
 
   Widget locationField() => Card(
     child: Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Issue location (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        if (selectedLocation == null)
-          const Text('Choose the exact spot that needs attention.')
-        else ...[
-          if (selectedLocation!.note.isNotEmpty) Text(selectedLocation!.note),
-          Text(selectedLocation!.coordinates),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Issue location (optional)',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (selectedLocation == null)
+            const Text('Choose the exact spot that needs attention.')
+          else ...[
+            if (selectedLocation!.note.isNotEmpty) Text(selectedLocation!.note),
+            Text(selectedLocation!.coordinates),
+          ],
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: saving ? null : chooseLocation,
+            icon: const Icon(CupertinoIcons.map),
+            label: Text(
+              selectedLocation == null ? 'Choose location' : 'Change location',
+            ),
+          ),
+          if (selectedLocation != null)
+            TextButton(
+              onPressed: saving
+                  ? null
+                  : () => setState(() => selectedLocation = null),
+              child: const Text('Remove location'),
+            ),
         ],
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: saving ? null : chooseLocation,
-          icon: const Icon(CupertinoIcons.map),
-          label: Text(selectedLocation == null ? 'Choose location' : 'Change location'),
-        ),
-        if (selectedLocation != null) TextButton(
-          onPressed: saving ? null : () => setState(() => selectedLocation = null),
-          child: const Text('Remove location'),
-        ),
-      ]),
+      ),
     ),
   );
 
@@ -2447,7 +2616,8 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
           'latitude': selectedLocation?.latitude,
           'longitude': selectedLocation?.longitude,
           'location_note': selectedLocation?.note.trim().isNotEmpty == true
-              ? selectedLocation!.note.trim() : null,
+              ? selectedLocation!.note.trim()
+              : null,
         });
       }
     } on PostgrestException catch (e) {
@@ -2477,7 +2647,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
       child: UtilityScaffold(
         appBar: UtilityAppBar(
           title: Text(reviewing ? 'Review concern' : 'Submit concern'),
-                  ),
+        ),
         bottomNavigationBar: reviewing ? null : const ClientDesignNav(index: 2),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
@@ -2503,7 +2673,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             const SizedBox(height: 24),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               initialValue: status,
                               decoration: const InputDecoration(
@@ -2551,7 +2721,7 @@ class _ConcernFormPageState extends State<ConcernFormPage> {
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               initialValue: category,
                               decoration: const InputDecoration(
@@ -2681,7 +2851,9 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
             'id, concern_id, assigned_to, status, latest_update, updated_at, '
             'service_concerns(subject, service_accounts(account_number))',
           );
-      if (widget.concernId != null) query = query.eq('concern_id', widget.concernId!);
+      if (widget.concernId != null) {
+        query = query.eq('concern_id', widget.concernId!);
+      }
       final rows = await query.order('updated_at', ascending: false);
       if (mounted) setState(() => tickets = rows);
     } catch (_) {
@@ -2709,9 +2881,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
   Widget build(BuildContext context) {
     return UtilityScaffold(
       appBar: UtilityAppBar(
-        title: Text(
-          widget.isAdmin ? 'Repair tickets' : 'Repair updates',
-        ),
+        title: Text(widget.isAdmin ? 'Repair tickets' : 'Repair updates'),
         actions: [
           IconButton(
             tooltip: 'Refresh tickets',
@@ -2721,7 +2891,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
         ],
       ),
       bottomNavigationBar: widget.isAdmin
-          ? null
+          ? const AdminDesignNav(index: 2)
           : const ClientDesignNav(index: 2),
       floatingActionButton: widget.isAdmin
           ? FloatingActionButton.extended(
@@ -2753,20 +2923,12 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && tickets.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(error!, textAlign: TextAlign.center),
-                          TextButton(
-                            onPressed: loadTickets,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load repair tickets',
+                    message: error!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadTickets,
                   )
                 : tickets.isEmpty
                 ? EmptyState(
@@ -2787,31 +2949,64 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                       final account =
                           concern?['service_accounts'] as Map<String, dynamic>?;
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('${concern?['subject'] ?? 'Repair ticket'}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                          StatusBadge('${t['status']}'),
-                          Text('${t['latest_update']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, height: 1.4)),
-                          const SizedBox(height: 8),
-                          Text('Updated ${recordDate(t['updated_at'])}', style: const TextStyle(color: muted, fontSize: 12)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${concern?['subject'] ?? 'Repair ticket'}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            StatusBadge('${t['status']}'),
+                            Text(
+                              '${t['latest_update']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: muted, height: 1.4),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Updated ${recordDate(t['updated_at'])}',
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Repair details',
                         details: [
                           DesignRepairStages(status: '${t['status']}'),
                           SelectableText('Ticket ID: ${t['id']}'),
                           const SizedBox(height: 8),
-                          Text('Account: ${account?['account_number'] ?? 'Unavailable'}'),
+                          Text(
+                            'Account: ${account?['account_number'] ?? 'Unavailable'}',
+                          ),
                           const SizedBox(height: 8),
-                          Text('Assigned to: ${t['assigned_to'] ?? 'Not assigned'}'),
+                          Text(
+                            'Assigned to: ${t['assigned_to'] ?? 'Not assigned'}',
+                          ),
                           const Divider(height: 24),
-                          const Text('Latest recorded update', style: TextStyle(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8), Text('${t['latest_update']}'),
+                          const Text(
+                            'Latest recorded update',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('${t['latest_update']}'),
                           const SizedBox(height: 16),
-                          const Text('District-recorded updates, not live repair tracking.', style: TextStyle(color: muted, fontSize: 13)),
+                          const Text(
+                            'District-recorded updates, not live repair tracking.',
+                            style: TextStyle(color: muted, fontSize: 13),
+                          ),
                         ],
-                        action: widget.isAdmin ? FilledButton.tonal(
-                          onPressed: () => editTicket(t), child: const Text('Update on desktop')) : null,
+                        action: widget.isAdmin
+                            ? FilledButton.tonal(
+                                onPressed: () => editTicket(t),
+                                child: const Text('Update on desktop'),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -2954,13 +3149,12 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
       canPop: !saving,
       child: UtilityScaffold(
         appBar: UtilityAppBar(
-          title: Text(
-            editing ? 'Update repair' : 'Create repair',
-          ),
+          title: Text(editing ? 'Update repair' : 'Create repair'),
         ),
         body: loading
             ? const Center(child: SingleChildScrollView(child: LoadingCards()))
-            : Align(alignment: Alignment.topCenter,
+            : Align(
+                alignment: Alignment.topCenter,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
@@ -2973,7 +3167,7 @@ class _RepairTicketFormPageState extends State<RepairTicketFormPage> {
                           if (!editing) ...[
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                            isDense: false,
+                              isDense: false,
                               itemHeight: null,
                               decoration: const InputDecoration(
                                 labelText: 'Concern',
@@ -3150,6 +3344,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   @override
   Widget build(BuildContext context) {
     return UtilityScaffold(
+      bottomNavigationBar: widget.isAdmin
+          ? const AdminDesignNav(index: 3)
+          : const ClientDesignNav(index: 3),
       appBar: UtilityAppBar(
         title: Text(widget.isAdmin ? 'District notices' : 'Notices'),
         actions: [
@@ -3190,20 +3387,12 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     child: SingleChildScrollView(child: LoadingCards()),
                   )
                 : error != null && announcements.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(error!, textAlign: TextAlign.center),
-                          TextButton(
-                            onPressed: loadAnnouncements,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                ? EmptyState(
+                    title: 'Unable to load notices',
+                    message: error!,
+                    icon: CupertinoIcons.wifi_exclamationmark,
+                    actionLabel: 'Retry',
+                    onAction: loadAnnouncements,
                   )
                 : announcements.isEmpty
                 ? EmptyState(
@@ -3220,20 +3409,52 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     itemBuilder: (context, index) {
                       final a = announcements[index];
                       return RecordCard(
-                        summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(noticeTitle(a['title']), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                          if (isInterruption(a['title'])) const StatusBadge('Service interruption'),
-                          if (widget.isAdmin) StatusBadge(a['published'] == true ? 'Published' : 'Draft'),
-                          const SizedBox(height: 8),
-                          Text(recordDate(a['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
-                          const SizedBox(height: 12),
-                          Text('${a['message']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, height: 1.5)),
-                        ]),
+                        summary: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              noticeTitle(a['title']),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (isInterruption(a['title']))
+                              const StatusBadge('Service interruption'),
+                            if (widget.isAdmin)
+                              StatusBadge(
+                                a['published'] == true ? 'Published' : 'Draft',
+                              ),
+                            const SizedBox(height: 8),
+                            Text(
+                              recordDate(a['updated_at']),
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${a['message']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: muted, height: 1.5),
+                            ),
+                          ],
+                        ),
                         detailsLabel: 'Read notice',
-                        details: [Text('${a['message']}', style: const TextStyle(fontSize: 15, height: 1.6))],
-                        action: widget.isAdmin ? FilledButton.tonal(
-                          onPressed: () => editAnnouncement(a), child: const Text('Edit notice')) : null,
+                        details: [
+                          Text(
+                            '${a['message']}',
+                            style: const TextStyle(fontSize: 15, height: 1.6),
+                          ),
+                        ],
+                        action: widget.isAdmin
+                            ? FilledButton.tonal(
+                                onPressed: () => editAnnouncement(a),
+                                child: const Text('Edit notice'),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -3338,12 +3559,11 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
       child: UtilityScaffold(
         appBar: UtilityAppBar(
           title: Text(
-            widget.announcement == null
-                ? 'Create notice'
-                : 'Edit notice',
+            widget.announcement == null ? 'Create notice' : 'Edit notice',
           ),
         ),
-        body: Align(alignment: Alignment.topCenter,
+        body: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -3381,9 +3601,7 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
                       minLines: 5,
                       maxLines: 15,
                       maxLength: 5000,
-                      decoration: const InputDecoration(
-                        labelText: 'Message',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Message'),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Enter an announcement message.'
                           : null,
@@ -3447,43 +3665,70 @@ class _AnnouncementFormPageState extends State<AnnouncementFormPage> {
   }
 }
 
-const royalBlue = Color(0xFF2563EB);
-const utilityBlue = Color(0xFF1A4FD6);
-const ink = Color(0xFF111827);
-const muted = Color(0xFF6B7280);
-const accentTint = Color(0xFFEFF4FF);
+const royalBlue = UtilityStyle.blue;
+const utilityBlue = UtilityStyle.blue;
+const ink = Color(0xFF0C142B);
+const muted = Color(0xFF626C82);
+const accentTint = UtilityStyle.aqua;
 const hairline = UtilityStyle.border;
 
 /// Solid blue circle with a white line icon and a soft blue shadow.
-Widget circleIcon(IconData icon, {double diameter = 52, double iconSize = 24}) =>
-    Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: royalBlue,
-        boxShadow: [
-          BoxShadow(
-            color: royalBlue.withValues(alpha: .28),
-            blurRadius: diameter * .32,
-            offset: Offset(0, diameter * .14),
-          ),
-        ],
+Widget circleIcon(
+  IconData icon, {
+  double diameter = 52,
+  double iconSize = 24,
+}) => Container(
+  width: diameter,
+  height: diameter,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: royalBlue,
+    boxShadow: [
+      BoxShadow(
+        color: royalBlue.withValues(alpha: .28),
+        blurRadius: diameter * .32,
+        offset: Offset(0, diameter * .14),
       ),
-      child: Icon(icon, color: Colors.white, size: iconSize),
-    );
+    ],
+  ),
+  child: Icon(icon, color: Colors.white, size: iconSize),
+);
 
 /// Lighter weights and slightly tighter tracking on large text, so headings
 /// read smooth rather than heavy.
 TextTheme softTextTheme(TextTheme base) => base.copyWith(
-  displayLarge: base.displayLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1.2),
-  displayMedium: base.displayMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -1),
-  displaySmall: base.displaySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.8),
-  headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.6),
-  headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.5),
-  headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.4),
-  titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -.3),
-  titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -.1),
+  displayLarge: base.displayLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -1.2,
+  ),
+  displayMedium: base.displayMedium?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -1,
+  ),
+  displaySmall: base.displaySmall?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.8,
+  ),
+  headlineLarge: base.headlineLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.6,
+  ),
+  headlineMedium: base.headlineMedium?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.5,
+  ),
+  headlineSmall: base.headlineSmall?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.4,
+  ),
+  titleLarge: base.titleLarge?.copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: -.3,
+  ),
+  titleMedium: base.titleMedium?.copyWith(
+    fontWeight: FontWeight.w500,
+    letterSpacing: -.1,
+  ),
   titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w500),
   bodyLarge: base.bodyLarge?.copyWith(height: 1.45),
   bodyMedium: base.bodyMedium?.copyWith(height: 1.45, color: ink),
@@ -3498,9 +3743,9 @@ ThemeData waterTheme() {
     onSurface: ink,
     onSurfaceVariant: muted,
     secondary: royalBlue,
-    primaryContainer: const Color(0xFFEFF4FF),
+    primaryContainer: UtilityStyle.aqua,
     onPrimaryContainer: royalBlue,
-    secondaryContainer: const Color(0xFFEFF4FF),
+    secondaryContainer: UtilityStyle.aqua,
     onSecondaryContainer: royalBlue,
     outline: const Color(0xFFE5E7EB),
     outlineVariant: const Color(0xFFE5E7EB),
@@ -3525,7 +3770,7 @@ ThemeData waterTheme() {
       collapsedShape: Border(),
     ),
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF8F9FB),
+    scaffoldBackgroundColor: UtilityStyle.background,
     textTheme: softTextTheme(
       ThemeData.light().textTheme.apply(
         fontFamily: 'DM Sans',
@@ -3536,7 +3781,7 @@ ThemeData waterTheme() {
     ),
     iconTheme: const IconThemeData(color: ink, size: 22),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF8F9FB),
+      backgroundColor: UtilityStyle.background,
       foregroundColor: ink,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -3674,7 +3919,10 @@ class _WaterArtworkState extends State<WaterArtwork>
               constraints.maxHeight - diameter,
             );
             // Drop ends at 1s, pause for 1s, then descend for 1.6s.
-            final logoProgress = ((controller.value - .50) / .40).clamp(0.0, 1.0);
+            final logoProgress = ((controller.value - .50) / .40).clamp(
+              0.0,
+              1.0,
+            );
             final descent = Curves.easeOutSine.transform(logoProgress);
             return Stack(
               children: [
@@ -3742,8 +3990,8 @@ class WaterPainter extends CustomPainter {
         path,
         Paint()
           ..color = Color.lerp(
-            const Color(0xFFEDF2FF),
-            const Color(0xFFD7E1FA),
+            const Color(0xFFE3F6F8),
+            const Color(0xFFC4EEF0),
             i / 4,
           )!.withValues(alpha: .65),
       );
@@ -3758,7 +4006,7 @@ class WaterPainter extends CustomPainter {
       pool,
       Paint()
         ..shader = const RadialGradient(
-          colors: [Color(0xFFD7E1FA), Color(0xFFEDF2FF)],
+          colors: [Color(0xFFC4EEF0), Color(0xFFE3F6F8)],
         ).createShader(pool),
     );
     for (var i = 1; i <= 4; i++) {
@@ -3829,7 +4077,11 @@ class WaterPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [const Color(0xFFE6EDFF), royalBlue, const Color(0xFF324C82)],
+            colors: [
+              const Color(0xFFE6EDFF),
+              royalBlue,
+              const Color(0xFF324C82),
+            ],
           ).createShader(bounds),
       );
       if (merge < .8) {
@@ -3894,7 +4146,11 @@ class WaterPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00F8F9FB), Color(0x99F8F9FB), Color(0xFFF8F9FB)],
+          colors: [
+            Color(0x00F8FAFD),
+            Color(0x99F8FAFD),
+            UtilityStyle.background,
+          ],
           stops: [0, .58, 1],
         ).createShader(fadeArea),
     );
@@ -3928,7 +4184,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
   bool get initialLoading => loading && !hasLoaded;
   int remaining = 0, billCount = 0;
   int? pendingConcerns, activeRepairs;
-  List<Map<String, dynamic>> recent = [], notices = [];
+  List<Map<String, dynamic>> recent = [], notices = [], recentPayments = [];
   @override
   void initState() {
     super.initState();
@@ -3937,7 +4193,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
   }
 
   void selectClientTab() {
-    if (mounted && !admin) setState(() => tab = clientDesignTab.value);
+    if (mounted) setState(() => tab = clientDesignTab.value);
   }
 
   @override
@@ -3977,10 +4233,15 @@ class _ModernDashboardState extends State<ModernDashboard> {
       int balance = 0, count = 0;
       String? upcoming;
       int? pending, repairs;
+      List<Map<String, dynamic>> paymentRows = [];
       if (admin) {
-        pending = await supabase.from('service_concerns').count(CountOption.exact)
+        pending = await supabase
+            .from('service_concerns')
+            .count(CountOption.exact)
             .inFilter('status', ['Submitted', 'Under review']);
-        repairs = await supabase.from('repair_tickets').count(CountOption.exact)
+        repairs = await supabase
+            .from('repair_tickets')
+            .count(CountOption.exact)
             .inFilter('status', ['Open', 'Assigned', 'In progress']);
       }
       if (!admin) {
@@ -4012,12 +4273,22 @@ class _ModernDashboardState extends State<ModernDashboard> {
           }
         }
       }
+      if (!admin) {
+        paymentRows = await supabase
+            .from('offline_payments')
+            .select(
+              'receipt_reference, payment_date, amount_paid, bills(bill_number)',
+            )
+            .order('payment_date', ascending: false)
+            .limit(1);
+      }
       if (!mounted) return;
       setState(() {
         pendingConcerns = pending;
         activeRepairs = repairs;
         recent = concernRows;
         notices = noticeRows;
+        recentPayments = paymentRows;
         accountNumber = number;
         remaining = balance;
         billCount = count;
@@ -4047,81 +4318,252 @@ class _ModernDashboardState extends State<ModernDashboard> {
     await refresh();
   }
 
-  Widget iconBubble(IconData icon) =>
-      Icon(icon, size: 22, color: muted);
+  Widget iconBubble(IconData icon) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: accentTint,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Icon(icon, size: 22, color: utilityBlue),
+  );
 
   Widget actionGrid(List<Widget> actions, {int columns = 3}) => LayoutBuilder(
     builder: (context, constraints) {
       final count = MediaQuery.textScalerOf(context).scale(14) > 20
-          ? 1 : constraints.maxWidth < 280 ? 2 : columns;
-      return Container(
-        decoration: const BoxDecoration(color: Colors.white,
-          border: Border(top: BorderSide(color: hairline), bottom: BorderSide(color: hairline))),
-        child: Wrap(spacing: 12, runSpacing: 12, children: [
-        for (final action in actions)
-          SizedBox(width: (constraints.maxWidth - 12 * (count - 1)) / count, child: action),
-      ]));
+          ? 1
+          : constraints.maxWidth < 280
+          ? 2
+          : columns;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final action in actions)
+            SizedBox(
+              width: (constraints.maxWidth - 12 * (count - 1)) / count,
+              child: action,
+            ),
+        ],
+      );
     },
   );
 
-  Widget quickAction(String label, IconData icon, VoidCallback action) => PressFeedback(
-    child: Material(color: Colors.white, child: InkWell(
-      onTap: action,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(constraints: const BoxConstraints(minHeight: 88),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 24, color: ink),
-          const SizedBox(height: 12),
-          Text(label, textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        ])),
-    )),
-  );
+  Widget quickAction(String label, IconData icon, VoidCallback action) =>
+      PressFeedback(
+        child: Material(
+          color: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: hairline),
+          ),
+          child: InkWell(
+            onTap: action,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: accentTint,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, size: 25, color: utilityBlue),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: ink,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 
-  Widget rowTile(String title, String subtitle, IconData icon, VoidCallback action,
-      {bool showSubtitle = false, Widget? footer}) => Padding(
-    padding: EdgeInsets.zero,
-    child: PressFeedback(child: Material(color: Colors.white,
-      shape: const Border(bottom: BorderSide(color: hairline)), child: InkWell(
-      onTap: action,
-      child: Padding(padding: const EdgeInsets.all(16), child: LayoutBuilder(
-        builder: (context, constraints) {
-          final content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            if (showSubtitle) ...[
-              const SizedBox(height: 8),
-              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
-            ],
-            if (footer != null) ...[const SizedBox(height: 8), footer],
-          ]);
-          if (MediaQuery.textScalerOf(context).scale(16) > 23) {
-            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(children: [iconBubble(icon), const Spacer(),
-                const Icon(CupertinoIcons.chevron_right, color: muted, size: 20)]),
-              const SizedBox(height: 16), content,
-            ]);
-          }
-          return Row(children: [
-            iconBubble(icon), const SizedBox(width: 16), Expanded(child: content),
-            const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, color: muted, size: 20),
-          ]);
-        },
-      )),
-    ))),
+  Widget rowTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback action, {
+    bool showSubtitle = false,
+    Widget? footer,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: PressFeedback(
+      child: Material(
+        color: Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: hairline),
+        ),
+        child: InkWell(
+          onTap: action,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (showSubtitle) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: muted,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    if (footer != null) ...[const SizedBox(height: 8), footer],
+                  ],
+                );
+                if (MediaQuery.textScalerOf(context).scale(16) > 23) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          iconBubble(icon),
+                          const Spacer(),
+                          const Icon(
+                            CupertinoIcons.chevron_right,
+                            color: muted,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      content,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    iconBubble(icon),
+                    const SizedBox(width: 16),
+                    Expanded(child: content),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      CupertinoIcons.chevron_right,
+                      color: muted,
+                      size: 20,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 
   Widget sectionTitle(String title, VoidCallback action) {
-    final heading = Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600));
+    final heading = Text(
+      title,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+    );
     final button = TextButton(onPressed: action, child: const Text('View all'));
     if (MediaQuery.textScalerOf(context).scale(18) > 26) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        heading, Align(alignment: Alignment.centerRight, child: button),
-      ]);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          heading,
+          Align(alignment: Alignment.centerRight, child: button),
+        ],
+      );
     }
-    return Row(children: [Expanded(child: heading), button]);
+    return Row(
+      children: [
+        Expanded(child: heading),
+        button,
+      ],
+    );
   }
+
+  Widget activity() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      sectionTitle(
+        'Recent activity',
+        () => open(const PaymentsPage(isAdmin: false)),
+      ),
+      if (initialLoading)
+        const LoadingCards(count: 1)
+      else if (!hasLoaded)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text(
+              'Activity unavailable. Pull down to retry.',
+              style: TextStyle(color: muted),
+            ),
+          ),
+        )
+      else if (recentPayments.isEmpty)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                iconBubble(CupertinoIcons.doc_text),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'No recent transactions',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Updates will appear here.',
+                        style: TextStyle(color: muted, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+      else
+        for (final payment in recentPayments)
+          rowTile(
+            'Payment verified',
+            '${recordDate(payment['payment_date'])} \u00b7 \u20b1${formatCentavos(moneyCentavos(payment['amount_paid']))}',
+            CupertinoIcons.doc_text,
+            () => open(const PaymentsPage(isAdmin: false)),
+            showSubtitle: true,
+          ),
+    ],
+  );
 
   Widget requests() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4133,59 +4575,112 @@ class _ModernDashboardState extends State<ModernDashboard> {
       if (initialLoading)
         const LoadingCards(count: 1)
       else if (hasLoaded && recent.isEmpty)
-        const Card(child: Padding(padding: EdgeInsets.all(16),
-          child: Text('No open requests', style: TextStyle(color: muted))))
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('No open requests', style: TextStyle(color: muted)),
+          ),
+        )
       else if (hasLoaded)
         for (final c in (admin ? recent : recent.take(1)))
           rowTile(
             '${c['subject']}',
             'Account ${(c['service_accounts'] as Map<String, dynamic>?)?['account_number'] ?? 'Unavailable'}',
             CupertinoIcons.chat_bubble,
-            () => open(ConcernsPage(isAdmin: admin, concernId: c['id'] as String?)),
+            () => open(
+              ConcernsPage(isAdmin: admin, concernId: c['id'] as String?),
+            ),
             showSubtitle: admin,
-            footer: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              StatusBadge('${c['status']}'),
-              Text('${c['reviewed_at'] != null ? 'Reviewed' : 'Submitted'} ${recordDate(c['reviewed_at'] ?? c['created_at'])}',
-                style: const TextStyle(color: muted, fontSize: 12)),
-              if ('${c['admin_response'] ?? ''}'.trim().isNotEmpty) ...[
+            footer: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StatusBadge('${c['status']}'),
+                Text(
+                  '${c['reviewed_at'] != null ? 'Reviewed' : 'Submitted'} ${recordDate(c['reviewed_at'] ?? c['created_at'])}',
+                  style: const TextStyle(color: muted, fontSize: 12),
+                ),
+                if ('${c['admin_response'] ?? ''}'.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${c['admin_response']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: muted,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
-                Text('${c['admin_response']}', maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: muted, fontSize: 14, height: 1.4)),
+                Text(
+                  admin
+                      ? 'Review concern'
+                      : '${c['admin_response'] ?? ''}'.trim().isNotEmpty
+                      ? 'Read response'
+                      : 'Track request',
+                  style: const TextStyle(
+                    color: utilityBlue,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
               ],
-              const SizedBox(height: 8),
-              Text(admin ? 'Review concern' : '${c['admin_response'] ?? ''}'.trim().isNotEmpty
-                ? 'Read response' : 'Track request',
-                style: const TextStyle(color: utilityBlue, fontWeight: FontWeight.w600, fontSize: 12)),
-            ]),
+            ),
           ),
     ],
   );
 
-  Future<void> showNotice(Map<String, dynamic> notice) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: Colors.white,
-    builder: (context) => UtilitySurface(child: SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(noticeTitle(notice['title']),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -.5, color: ink)),
-            if (isInterruption(notice['title'])) const StatusBadge('Service interruption'),
-            const SizedBox(height: 8),
-            Text(recordDate(notice['updated_at']), style: const TextStyle(color: muted, fontSize: 12)),
-            const SizedBox(height: 20),
-            Text('${notice['message']}', style: const TextStyle(fontSize: 16, height: 1.6)),
-            const SizedBox(height: 24),
-            OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          ]),
+  Future<void> showNotice(Map<String, dynamic> notice) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        backgroundColor: Colors.white,
+        builder: (context) => UtilitySurface(
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .8,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      noticeTitle(notice['title']),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.5,
+                        color: ink,
+                      ),
+                    ),
+                    if (isInterruption(notice['title']))
+                      const StatusBadge('Service interruption'),
+                    const SizedBox(height: 8),
+                    Text(
+                      recordDate(notice['updated_at']),
+                      style: const TextStyle(color: muted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${notice['message']}',
+                      style: const TextStyle(fontSize: 16, height: 1.6),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
-    )),
-  );
+      );
 
   Widget announcements() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4216,142 +4711,415 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ],
   );
 
-  Widget adminOverview() => Container(
-    margin: const EdgeInsets.only(bottom: 24),
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(10),
-      color: Colors.white,
-      border: Border.all(color: hairline),
-    ),
-    child: Stack(children: [
-      Padding(padding: const EdgeInsets.all(16), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Row(children: [Icon(CupertinoIcons.doc_plaintext, color: utilityBlue, size: 21),
-          SizedBox(width: 10), Expanded(child: Text('District overview',
-            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -.2)))]),
-        const SizedBox(height: 16),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: overviewMetric(pendingConcerns, 'Pending concerns',
-            () => open(const ConcernsPage(isAdmin: true)))),
-          Container(height: 58, width: 1, color: hairline),
-          Expanded(child: overviewMetric(activeRepairs, 'Active repairs',
-            () => open(const RepairTicketsPage(isAdmin: true)))),
-        ]),
-        if (error != null) const Padding(padding: EdgeInsets.only(top: 10),
-          child: Text('Overview could not refresh. Pull down to retry.',
-            style: TextStyle(color: muted, fontSize: 12))),
-      ])),
-    ]),
-  );
-
-  Widget overviewMetric(int? value, String label, VoidCallback action) => InkWell(
-    onTap: action,
-    borderRadius: BorderRadius.circular(12),
-    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Column(children: [
-      Text(value?.toString() ?? '—', style: const TextStyle(
-        color: ink, fontSize: 38, fontWeight: FontWeight.w600, letterSpacing: -1)),
-      const SizedBox(height: 3),
-      Text(label, textAlign: TextAlign.center,
-        style: const TextStyle(color: muted, fontSize: 14)),
-    ])),
-  );
-
-  Widget balanceCard() => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: hairline),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Outstanding balance', style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 12),
-      AnimatedSwitcher(duration: motionDuration(context, 200), child: Align(
-        key: ValueKey('$initialLoading/$hasLoaded/$remaining'), alignment: Alignment.centerLeft,
-        child: AmountText(initialLoading ? 'Loading…' : !hasLoaded && error != null ? 'Unavailable'
-          : '₱${formatCentavos(remaining)}',
-          fontSize: 42, color: ink, letterSpacing: -1.4),
-      )),
-      const SizedBox(height: 8),
-      Text(initialLoading ? 'Updating records' : !hasLoaded && error != null ? 'Please refresh'
-        : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}' : billCount == 0 ? 'No bills yet' : 'All paid',
-        style: const TextStyle(color: muted, fontSize: 14)),
-      const SizedBox(height: 24),
-      FilledButton.icon(
-        onPressed: () => open(const BillsPage(isAdmin: false)),
-        icon: const Icon(CupertinoIcons.doc_text, size: 20), label: const Text('View bill'),
+  Widget adminOverview() => Padding(
+    padding: const EdgeInsets.only(bottom: 24),
+    child: WaterSurface(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'DISTRICT OPERATIONS',
+              style: TextStyle(
+                color: Color(0xFFBFDEFF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'District overview',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: overviewMetric(
+                    pendingConcerns,
+                    'Pending concerns',
+                    () => open(const ConcernsPage(isAdmin: true)),
+                  ),
+                ),
+                Container(height: 70, width: 1, color: Colors.white24),
+                Expanded(
+                  child: overviewMetric(
+                    activeRepairs,
+                    'Active repairs',
+                    () => open(const RepairTicketsPage(isAdmin: true)),
+                  ),
+                ),
+              ],
+            ),
+            if (error != null)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Overview could not refresh. Pull down to retry.',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
       ),
-    ]),
+    ),
+  );
+
+  Widget overviewMetric(int? value, String label, VoidCallback action) =>
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: action,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              children: [
+                Text(
+                  value?.toString() ?? '—',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFD8EAFF),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget balanceCard() => WaterSurface(
+    radius: 20,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'OUTSTANDING BALANCE',
+                style: TextStyle(
+                  color: Color(0xFFD2DCF1),
+                  fontSize: 11,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: motionDuration(context, 200),
+                child: Align(
+                  key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
+                  alignment: Alignment.centerLeft,
+                  child: AmountText(
+                    initialLoading
+                        ? 'Loading\u2026'
+                        : !hasLoaded && error != null
+                        ? 'Unavailable'
+                        : '\u20b1${formatCentavos(remaining)}',
+                    fontSize: 44,
+                    color: Colors.white,
+                    letterSpacing: -1.8,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: const Color(0xFFD2DCF1)),
+                  ),
+                  child: Text(
+                    initialLoading
+                        ? 'Updating records'
+                        : !hasLoaded && error != null
+                        ? 'Please refresh'
+                        : nextDueDate != null
+                        ? 'Due ${recordDate(nextDueDate)}'
+                        : billCount == 0
+                        ? 'No bills yet'
+                        : 'All paid',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(height: 1, color: Colors.white.withValues(alpha: .20)),
+            ],
+          ),
+        ),
+        Material(
+          color: utilityBlue,
+          child: InkWell(
+            onTap: () => open(const BillsPage(isAdmin: false)),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.doc_text, color: Colors.white, size: 23),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'View bill',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.arrow_right,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget serviceAdvisory() {
     final interruptions = notices.where((n) => isInterruption(n['title']));
     final notice = interruptions.isEmpty ? null : interruptions.first;
-    final message = !hasLoaded ? (loading ? 'Checking published notices' : 'Service updates unavailable')
-      : notice != null ? 'Published ${recordDate(notice['updated_at'])}. View affected areas and schedule.'
-      : 'No interruption notice in the latest district updates. Live service status is not available.';
-    return Material(color: notice != null ? const Color(0xFFFFFAF0) : Colors.white,
-      shape: const Border(left: BorderSide(color: Color(0xFFE1E6EB), width: 3)),
-      child: InkWell(onTap: !hasLoaded ? null : notice != null ? () => showNotice(notice)
-        : () => open(AnnouncementsPage(isAdmin: admin)),
-        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Icon(notice != null ? CupertinoIcons.exclamationmark_triangle : CupertinoIcons.info_circle,
-              size: 20, color: notice != null ? const Color(0xFF78520A) : muted),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(notice != null ? 'Read service advisory' : 'Service updates',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-              const SizedBox(height: 8), Text(message, style: UtilityStyle.metadata),
-            ])),
-            if (hasLoaded) ...[const SizedBox(width: 8), const Icon(CupertinoIcons.chevron_right, size: 16, color: muted)],
-          ])),
-      ));
+    final message = !hasLoaded
+        ? (loading
+              ? 'Checking published notices'
+              : 'Service updates unavailable')
+        : notice != null
+        ? 'View affected areas and schedule'
+        : 'No interruption notice in the latest district updates. Live service status is not available.';
+    return Material(
+      color: notice != null ? const Color(0xFFFFF5E6) : Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: notice != null ? const Color(0xFFFFE6B1) : hairline,
+        ),
+      ),
+      child: InkWell(
+        onTap: !hasLoaded
+            ? null
+            : notice != null
+            ? () => showNotice(notice)
+            : () => open(AnnouncementsPage(isAdmin: admin)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                notice != null
+                    ? CupertinoIcons.exclamationmark_triangle
+                    : CupertinoIcons.info_circle,
+                size: 20,
+                color: notice != null ? const Color(0xFFDA8D0B) : muted,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notice != null ? 'Service advisory' : 'Service updates',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(message, style: UtilityStyle.metadata),
+                  ],
+                ),
+              ),
+              if (hasLoaded) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 16,
+                  color: muted,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget dashboardColumns(List<Widget> primary, List<Widget> secondary) => LayoutBuilder(
-    builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 840 && MediaQuery.textScalerOf(context).scale(16) <= 24;
-      if (!wide) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...primary, const SizedBox(height: 24), ...secondary]);
-      }
-      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: primary)),
-        const SizedBox(width: 28),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: secondary)),
-      ]);
-    },
-  );
+  Widget dashboardColumns(List<Widget> primary, List<Widget> secondary) =>
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final wide =
+              constraints.maxWidth >= 840 &&
+              MediaQuery.textScalerOf(context).scale(16) <= 24;
+          if (!wide) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [...primary, const SizedBox(height: 16), ...secondary],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: primary,
+                ),
+              ),
+              const SizedBox(width: 28),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: secondary,
+                ),
+              ),
+            ],
+          );
+        },
+      );
 
   List<Widget> homeContent() => [
-    serviceAdvisory(),
-    const SizedBox(height: 24),
-    if (admin) dashboardColumns([
-      adminOverview(), requests(),
-    ], [
-      const Text('Manage district', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 16),
-      actionGrid([
-        quickAction('Accounts', CupertinoIcons.person_2, () => open(const ServiceAccountsPage())),
-        quickAction('Add bill', CupertinoIcons.plus_rectangle, () => open(const AddBillPage())),
-        quickAction('Record payment', CupertinoIcons.creditcard, () => open(const RecordPaymentPage())),
-        quickAction('Concerns', CupertinoIcons.chat_bubble, () => open(const ConcernsPage(isAdmin: true))),
-        quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: true))),
-        quickAction('Announcements', CupertinoIcons.speaker_2, () => open(const AnnouncementsPage(isAdmin: true))),
-      ], columns: 2),
-      const SizedBox(height: 24), announcements(),
-    ]) else dashboardColumns([
-      balanceCard(),
-      const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text(
-        'Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 12))),
-      actionGrid([
-        quickAction('Bills', CupertinoIcons.doc_text, () => open(const BillsPage(isAdmin: false))),
-        quickAction('Report issue', CupertinoIcons.plus_bubble, () => open(const ConcernFormPage())),
-        quickAction('Repairs', CupertinoIcons.wrench, () => open(const RepairTicketsPage(isAdmin: false))),
-      ]),
-    ], [requests(), const SizedBox(height: 16), announcements()]),
+    if (admin) ...[serviceAdvisory(), const SizedBox(height: 20)],
+    if (admin)
+      dashboardColumns(
+        [adminOverview(), requests()],
+        [
+          const Text(
+            'Manage district',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          actionGrid([
+            quickAction(
+              'Accounts',
+              CupertinoIcons.person_2,
+              () => open(const ServiceAccountsPage()),
+            ),
+            quickAction(
+              'Add bill',
+              CupertinoIcons.plus_rectangle,
+              () => open(const AddBillPage()),
+            ),
+            quickAction(
+              'Record payment',
+              CupertinoIcons.creditcard,
+              () => open(const RecordPaymentPage()),
+            ),
+            quickAction(
+              'Concerns',
+              CupertinoIcons.chat_bubble,
+              () => open(const ConcernsPage(isAdmin: true)),
+            ),
+            quickAction(
+              'Repairs',
+              Icons.handyman_outlined,
+              () => open(const RepairTicketsPage(isAdmin: true)),
+            ),
+            quickAction(
+              'Announcements',
+              CupertinoIcons.speaker_2,
+              () => open(const AnnouncementsPage(isAdmin: true)),
+            ),
+          ], columns: 2),
+          const SizedBox(height: 24),
+          announcements(),
+        ],
+      )
+    else
+      dashboardColumns(
+        [
+          balanceCard(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  CupertinoIcons.checkmark_seal_fill,
+                  color: Color(0xFF92DDE5),
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Payments appear after district verification.',
+                    style: TextStyle(color: muted, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          serviceAdvisory(),
+          const SizedBox(height: 20),
+          const Text('Quick actions', style: UtilityStyle.section),
+          const SizedBox(height: 12),
+          actionGrid([
+            quickAction(
+              'Bills',
+              CupertinoIcons.doc_text,
+              () => open(const BillsPage(isAdmin: false)),
+            ),
+            quickAction(
+              'Report issue',
+              CupertinoIcons.exclamationmark_triangle,
+              () => open(const ConcernFormPage()),
+            ),
+            quickAction(
+              'Repairs',
+              Icons.handyman_outlined,
+              () => open(const RepairTicketsPage(isAdmin: false)),
+            ),
+          ]),
+        ],
+        [
+          activity(),
+          const SizedBox(height: 16),
+          requests(),
+          const SizedBox(height: 16),
+          announcements(),
+        ],
+      ),
   ];
 
   List<Widget> tabContent() {
@@ -4472,132 +5240,199 @@ class _ModernDashboardState extends State<ModernDashboard> {
         selected: tab,
         onSelect: (value) => setState(() => tab = value),
         items: [
-          const PillNavItem(CupertinoIcons.house, 'Home',
-              selectedIcon: CupertinoIcons.house_fill),
+          const PillNavItem(
+            CupertinoIcons.house,
+            'Home',
+            selectedIcon: CupertinoIcons.house_fill,
+          ),
           PillNavItem(
             admin ? CupertinoIcons.person_2 : CupertinoIcons.doc_text,
             admin ? 'Accounts' : 'Bills',
           ),
-          const PillNavItem(CupertinoIcons.wrench, 'Services'),
+          const PillNavItem(CupertinoIcons.gear, 'Services'),
           PillNavItem(
             admin ? CupertinoIcons.ellipsis : CupertinoIcons.person,
             admin ? 'More' : 'Account',
           ),
         ],
       ),
-      body: Stack(children: [
-        SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: refresh,
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      20, 12, 20, 24 + MediaQuery.paddingOf(context).bottom),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: refresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1120),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          12,
+                          20,
+                          24 + MediaQuery.paddingOf(context).bottom,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Image.asset('assets/images/maramag-water-district-logo.png',
-                              width: 40, height: 40, semanticLabel: 'Maramag Water District logo'),
-                            const SizedBox(width: 10),
-                            const Expanded(child: Text('Maramag Water District',
-                              textAlign: TextAlign.left,
-                              style: TextStyle(fontWeight: FontWeight.w600,
-                                  fontSize: 15, color: ink))),
-                            Tooltip(
-                              message: admin ? 'Account menu' : 'My profile',
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(8),
-                                onTap: () {
-                                  if (admin) {
-                                    setState(() => tab = 3);
-                                  } else {
-                                    open(const ClientAccountPage());
-                                  }
-                                },
-                                child: HeaderBubble(
+                            Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/maramag-water-district-logo.png',
+                                  width: 48,
+                                  height: 48,
+                                  semanticLabel: 'Maramag Water District logo',
+                                ),
+                                Container(
+                                  height: 32,
+                                  width: 1,
+                                  color: const Color(0xFFA8B3C7),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                ),
+                                const Expanded(
                                   child: Text(
-                                    initials,
+                                    'Maramag Water District',
+                                    style: TextStyle(
+                                      color: ink,
+                                      fontSize: 16,
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -.3,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Tooltip(
+                                  message: admin
+                                      ? 'Account menu'
+                                      : 'My profile',
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () {
+                                      if (admin) {
+                                        setState(() => tab = 3);
+                                      } else {
+                                        open(const ClientAccountPage());
+                                      }
+                                    },
+                                    child: HeaderBubble(
+                                      child: Text(
+                                        initials,
+                                        style: const TextStyle(
+                                          color: UtilityStyle.navy,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              admin
+                                  ? 'DISTRICT WORKSPACE'
+                                  : 'YOUR WATER ACCOUNT',
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 11,
+                                height: 1.2,
+                                letterSpacing: 1.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              heading,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                height: 1.1,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -.9,
+                              ),
+                            ),
+                            if (!admin && accountNumber != null) ...[
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE2EBFA),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: Text(
+                                    '$accountNumber',
                                     style: const TextStyle(
-                                      color: utilityBlue,
-                                      fontSize: 14,
+                                      color: UtilityStyle.navy,
                                       fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      height: 1.2,
                                     ),
                                   ),
                                 ),
                               ),
+                            ],
+                            const SizedBox(height: 18),
+                            if (error != null)
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      Text(error!),
+                                      TextButton(
+                                        onPressed: refresh,
+                                        child: const Text('Retry'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (loading && hasLoaded)
+                              const LinearProgressIndicator(minHeight: 2),
+                            AnimatedSwitcher(
+                              duration: motionDuration(context, 220),
+                              child: Column(
+                                key: ValueKey(tab),
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: tabContent(),
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        Text(heading, style: const TextStyle(
-                          fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -.9)),
-                        if (!admin && accountNumber != null) ...[
-                          const SizedBox(height: 8),
-                          Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),
-                        ],
-                        const SizedBox(height: 24),
-                        if (error != null)
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  Text(error!),
-                                  TextButton(
-                                    onPressed: refresh,
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        if (loading && hasLoaded)
-                          const LinearProgressIndicator(minHeight: 2),
-                        AnimatedSwitcher(
-                          duration: motionDuration(context, 220),
-                          child: Column(
-                            key: ValueKey(tab),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: tabContent(),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
-      ]),
     );
   }
 }
 
-/// Compact, neutral profile control in the signed-in header.
+/// Profile control shared by the branded dashboard headers.
 class HeaderBubble extends StatelessWidget {
   const HeaderBubble({super.key, required this.child});
   final Widget child;
   @override
   Widget build(BuildContext context) => Container(
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: const Color(0xFFEEF0F3)),
-
-    ),
+    decoration: BoxDecoration(color: UtilityStyle.aqua, shape: BoxShape.circle),
     child: child,
   );
 }
@@ -4693,100 +5528,137 @@ class _WaterStartupState extends State<WaterStartup>
               )
             : Scaffold(
                 key: const ValueKey('loading'),
-                backgroundColor: royalBlue,
-                body: SafeArea(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedBuilder(
-                              animation: pulse,
-                              builder: (_, child) => Transform.scale(
-                                scale: 1 + pulse.value * .06,
-                                child: Container(
-                                  width: 122,
-                                  height: 122,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withValues(alpha: .12),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: .22,
-                                      ),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    CupertinoIcons.drop_fill,
-                                    color: Colors.white,
-                                    size: 64,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            const Text(
-                              'Water District\nConnect',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 32,
-                                height: 1.15,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -.8,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Maramag, Philippines',
-                              style: TextStyle(
-                                color: Color(0xFFDCE6FD),
-                                fontSize: 15,
-                              ),
-                            ),
-                            const SizedBox(height: 38),
-                            if (error == null) ...[
-                              const SizedBox(
-                                width: 25,
-                                height: 25,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                  semanticsLabel: 'Loading',
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Preparing your water-service app…',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ] else
-                              Semantics(
-                                liveRegion: true,
-                                child: Text(
-                                  error!,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                backgroundColor: UtilityStyle.navy,
+                body: WaterLoadingScreen(pulse: pulse, error: error),
               ),
       ),
     );
   }
+}
+
+/// Branded loading and startup errors share the dashboard's exact palette.
+class WaterLoadingScreen extends StatelessWidget {
+  const WaterLoadingScreen({super.key, required this.pulse, this.error});
+  final Animation<double> pulse;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: const WaterSurfacePainter(),
+    child: SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedBuilder(
+                        animation: pulse,
+                        builder: (_, child) => Transform.scale(
+                          scale: 1 + pulse.value * .035,
+                          child: child,
+                        ),
+                        child: Container(
+                          width: 116,
+                          height: 116,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: UtilityStyle.aqua,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: UtilityStyle.aqua.withValues(alpha: .12),
+                                blurRadius: 36,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Image.asset(
+                            'assets/images/maramag-water-district-logo.png',
+                            semanticLabel: 'Maramag Water District logo',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      const Text(
+                        'Water District\nConnect',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'DM Sans',
+                          fontSize: 32,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.8,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Maramag, Philippines',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'DM Sans',
+                          color: Color(0xFFBDCCDF),
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      if (error == null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: utilityBlue,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: UtilityStyle.aqua,
+                              semanticsLabel: 'Loading',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Preparing your water-service app\u2026',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'DM Sans',
+                            color: Color(0xFFBDCCDF),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ] else
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'DM Sans',
+                              color: UtilityStyle.aqua,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 final clientDesignTab = DesignTabController();
@@ -4810,9 +5682,13 @@ class ClientDesignNav extends StatelessWidget {
       Navigator.of(context).popUntil((r) => r.isFirst);
     },
     items: const [
-      PillNavItem(CupertinoIcons.house, 'Home', selectedIcon: CupertinoIcons.house_fill),
+      PillNavItem(
+        CupertinoIcons.house,
+        'Home',
+        selectedIcon: CupertinoIcons.house_fill,
+      ),
       PillNavItem(CupertinoIcons.doc_text, 'Bills'),
-      PillNavItem(CupertinoIcons.wrench, 'Services'),
+      PillNavItem(CupertinoIcons.gear, 'Services'),
       PillNavItem(CupertinoIcons.person, 'Account'),
     ],
   );
@@ -4825,53 +5701,146 @@ class PillNavItem {
   final String label;
 }
 
-/// Persistent navigation with visible labels and a restrained active marker.
+class AdminDesignNav extends StatelessWidget {
+  const AdminDesignNav({super.key, required this.index});
+  final int index;
+  @override
+  Widget build(BuildContext context) => PillNavBar(
+    selected: index,
+    onSelect: (i) {
+      clientDesignTab.select(i);
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    },
+    items: const [
+      PillNavItem(
+        CupertinoIcons.house,
+        'Home',
+        selectedIcon: CupertinoIcons.house_fill,
+      ),
+      PillNavItem(CupertinoIcons.person_2, 'Accounts'),
+      PillNavItem(CupertinoIcons.gear, 'Services'),
+      PillNavItem(CupertinoIcons.ellipsis, 'More'),
+    ],
+  );
+}
+
+/// Floating midnight dock with the concept's pale-aqua active capsule.
 class PillNavBar extends StatelessWidget {
-  const PillNavBar({super.key, required this.items, required this.selected,
-    required this.onSelect});
+  const PillNavBar({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onSelect,
+  });
   final List<PillNavItem> items;
   final int selected;
   final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(color: Colors.white,
-      border: Border(top: BorderSide(color: hairline))),
-    child: SafeArea(top: false, child: Center(heightFactor: 1,
-      child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640),
-        child: LayoutBuilder(builder: (context, constraints) {
-        final largeText = MediaQuery.textScalerOf(context).scale(11) > 16;
-        final columns = largeText ? 2 : items.length;
-        return Wrap(children: [
-          for (var i = 0; i < items.length; i++)
-            SizedBox(width: constraints.maxWidth / columns, child: Tooltip(message: items[i].label,
-              child: Semantics(button: true, selected: i == selected,
-                label: items[i].label, excludeSemantics: true,
-                child: InkWell(onTap: i == selected ? null : () => onSelect(i),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 72),
-                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 10),
-                    decoration: BoxDecoration(border: Border(top: BorderSide(
-                      width: 2, color: i == selected
-                        ? const Color(0xFF1A4FD6) : Colors.transparent))),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(i == selected ? items[i].selectedIcon ?? items[i].icon
-                        : items[i].icon, size: 22,
-                        color: i == selected ? const Color(0xFF1A4FD6) : muted),
-                      const SizedBox(height: 6),
-                      Text(items[i].label, textAlign: TextAlign.center,
-                        style: TextStyle(fontFamily: 'DM Sans', fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: i == selected ? const Color(0xFF1A4FD6) : muted)),
-                    ]),
-                  ),
-                ),
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    minimum: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+    child: Center(
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: UtilityStyle.navy,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: UtilityStyle.navy.withValues(alpha: .12),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
-            )),
-        ]);
-        }),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = MediaQuery.textScalerOf(context).scale(12) > 18
+                    ? 2
+                    : items.length;
+                return Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        SizedBox(
+                          width:
+                              (constraints.maxWidth - 16 - 4 * (columns - 1)) /
+                              columns,
+                          child: Tooltip(
+                            message: items[i].label,
+                            child: Semantics(
+                              button: true,
+                              selected: i == selected,
+                              label: items[i].label,
+                              excludeSemantics: true,
+                              child: InkWell(
+                                onTap: i == selected ? null : () => onSelect(i),
+                                borderRadius: BorderRadius.circular(22),
+                                child: AnimatedContainer(
+                                  duration: motionDuration(context, 180),
+                                  constraints: const BoxConstraints(
+                                    minHeight: 56,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: i == selected
+                                        ? UtilityStyle.aqua
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(22),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        items[i].icon,
+                                        size: 23,
+                                        color: i == selected
+                                            ? UtilityStyle.navy
+                                            : const Color(0xFFEEF5FF),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        items[i].label,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'DM Sans',
+                                          fontSize: 12,
+                                          fontWeight: i == selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          color: i == selected
+                                              ? UtilityStyle.navy
+                                              : const Color(0xFFEEF5FF),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
       ),
-    )),
+    ),
   );
 }
 
@@ -4880,20 +5849,43 @@ class DesignValue extends StatelessWidget {
   final String label, value;
   final bool strong;
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
-    final stacked = MediaQuery.textScalerOf(context).scale(16) > 23 || constraints.maxWidth < 220;
-    final labelText = Text(label, style: TextStyle(color: strong ? ink : muted,
-      fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w400));
-    final valueText = Text(value, textAlign: stacked ? TextAlign.left : TextAlign.right,
-      style: TextStyle(fontSize: 16, fontWeight: strong ? FontWeight.w600 : FontWeight.w600));
-    if (stacked) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [labelText, const SizedBox(height: 6), valueText]);
-    }
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: labelText), const SizedBox(width: 12), Flexible(child: valueText),
-    ]);
-  });
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          MediaQuery.textScalerOf(context).scale(16) > 23 ||
+          constraints.maxWidth < 220;
+      final labelText = Text(
+        label,
+        style: TextStyle(
+          color: strong ? ink : muted,
+          fontSize: 16,
+          fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
+        ),
+      );
+      final valueText = Text(
+        value,
+        textAlign: stacked ? TextAlign.left : TextAlign.right,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
+        ),
+      );
+      if (stacked) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [labelText, const SizedBox(height: 6), valueText],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: labelText),
+          const SizedBox(width: 12),
+          Flexible(child: valueText),
+        ],
+      );
+    },
+  );
 }
 
 class DesignHelp extends StatelessWidget {
