@@ -25,4 +25,4 @@
   <ItemGroup>
     <ProjectReference Include="../WaterDistrict.Application/WaterDistrict.Application.csproj" />
   </ItemGroup>
-<ItemGroup><None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /><None Update="appsettings.Local.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup></Project>
+<ItemGroup><None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /><None Update="appsettings.Local.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" /></ItemGroup></Project>

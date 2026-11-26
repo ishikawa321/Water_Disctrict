@@ -14,4 +14,4 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
   </ItemGroup>
-</Project>
+<ItemGroup><EmbeddedResource Include="Sql/*.sql" /></ItemGroup></Project>

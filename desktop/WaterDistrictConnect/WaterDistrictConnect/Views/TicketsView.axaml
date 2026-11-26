@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:v="using:WaterDistrictConnect.Views" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="WaterDistrictConnect.Views.TicketsView" Classes="page-enter">
+  <StackPanel Spacing="24">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding Title}" Classes="title" />
+        <TextBlock Text="Office-recorded assignments and progress; this is not live tracking of physical repairs." Classes="muted" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Top" />
+    </Grid>
+    <v:Feedback />
+    <Border Classes="card">
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="2*,*,Auto" ColumnSpacing="12">
+          <TextBox AutomationProperties.Name="Search records" Text="{Binding Search}" PlaceholderText="Search ticket, concern reference, or subject" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding States}" SelectedItem="{Binding State}" />
+          <Button Grid.Column="2" Content="Apply filters" Command="{Binding RefreshCommand}" />
+        </Grid>
+        <TextBlock Text="No matching repair tickets. Tickets are created by authorized office personnel from technical concerns." IsVisible="{Binding Empty}" Classes="muted" />
+        <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1" Padding="0,16" Classes="record-row">
+                <Grid ColumnDefinitions="*,150,Auto" ColumnSpacing="16">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Reference}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Subject}" />
+                    <TextBlock Text="{Binding ConcernReference}" Classes="muted" />
+                    <TextBlock Text="{Binding DateLabel}" Classes="muted" />
+                  </StackPanel>
+                  <Border Classes="status-pill" Grid.Column="1">
+                    <TextBlock Text="{Binding StateLabel}" />
+                  </Border>
+                  <Button Grid.Column="2" Content="View" Command="{Binding $parent[UserControl].DataContext.OpenCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+      <Button Content="Previous" Command="{Binding PreviousCommand}" />
+      <TextBlock Grid.Column="1" Text="{Binding PageLabel}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Center" />
+      <Button Grid.Column="2" Content="Next" Command="{Binding NextCommand}" />
+    </Grid>
+  </StackPanel>
+</UserControl>

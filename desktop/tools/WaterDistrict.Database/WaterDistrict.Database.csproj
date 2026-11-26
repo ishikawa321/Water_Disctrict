@@ -8,4 +8,4 @@
   <ItemGroup>
     <ProjectReference Include="../../src/WaterDistrict.Infrastructure/WaterDistrict.Infrastructure.csproj" />
   </ItemGroup>
-<ItemGroup><None Include="../../database/inspect.sql" Link="inspect.sql" CopyToOutputDirectory="PreserveNewest" /></ItemGroup></Project>
+<ItemGroup><None Include="../../database/inspect.sql" Link="inspect.sql" CopyToOutputDirectory="PreserveNewest" /></ItemGroup><ItemGroup><None Include="../../database/development-baseline.sql" Link="development-baseline.sql" CopyToOutputDirectory="PreserveNewest" /></ItemGroup></Project>

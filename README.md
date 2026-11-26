@@ -1,5 +1,16 @@
 # Water District Connect
 
+## Latest WaterDistrictConnect desktop source
+
+The current standalone Avalonia/.NET desktop workspace is available in
+[`desktop/WaterDistrictConnect/`](desktop/WaterDistrictConnect/README.md).
+Open `desktop/WaterDistrictConnect/WaterDistrictConnect.slnx` in Visual Studio,
+or run `dotnet build desktop/WaterDistrictConnect/WaterDistrictConnect.slnx -c Release`.
+Its README covers PostgreSQL configuration, migrations, demo setup and verification.
+Local database credentials and generated build output are excluded.
+The existing `desktop/WaterDistrict.sln` implementation is also retained.
+
+
 ## Configure authentication
 
 The app uses the existing Supabase project `kaeespcylucvsazfdaks`.
@@ -139,3 +150,5 @@ the district's application ID and release signing before distributing to a store
 ## Admin and Staff desktop
 
 The Avalonia/.NET solution is in [`desktop/WaterDistrict.sln`](desktop/WaterDistrict.sln). See the [desktop setup guide](desktop/README.md), [implementation sessions](docs/implementation-plan.md), and [shared database contract](docs/database-contract.md).
+
+Office concern review and repair assignments/updates are performed in the desktop app. The mobile app keeps consumer submissions and recorded status viewing, and directs its legacy office-edit buttons to desktop. See [release preparation](docs/release-and-demonstration.md) and [workflow acceptance evidence](docs/acceptance-verification.md). The mobile project supports the installed Dart 3.13.1 patch level; run the verification commands above after dependency restoration.

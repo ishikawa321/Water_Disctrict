@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:v="using:WaterDistrictConnect.Views" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="WaterDistrictConnect.Views.OverviewView" Classes="page-enter">
+  <StackPanel Spacing="24">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Overview" Classes="title" />
+        <TextBlock Text="{Binding Greeting}" Classes="muted" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Top" />
+    </Grid>
+    <v:Feedback />
+    <UniformGrid Columns="3">
+      <Border Classes="card stat-card stat-featured" Margin="0,0,16,0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Concerns" Classes="muted" />
+          <TextBlock Text="{Binding Summary.Concerns}" Classes="stat-value" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card stat-card" Margin="0,0,16,0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Repair tickets" Classes="muted" />
+          <TextBlock Text="{Binding Summary.Tickets}" Classes="stat-value" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card stat-card" Margin="0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Active repairs" Classes="muted" />
+          <TextBlock Text="{Binding Summary.Active}" Classes="stat-value" />
+        </StackPanel>
+      </Border>
+    </UniformGrid>
+    <Button Content="Submit Concern" Classes="primary" Command="{Binding SubmitCommand}" IsVisible="{Binding IsClient}" />
+    <WrapPanel IsVisible="{Binding !IsClient}">
+      <Button Content="{Binding Summary.AwaitingReview, StringFormat='Awaiting review · {0}'}" Command="{Binding AwaitingCommand}" Margin="0,0,12,8" />
+      <Button Content="{Binding Summary.Unassigned, StringFormat='Unassigned tickets · {0}'}" Command="{Binding UnassignedCommand}" Margin="0,0,12,8" />
+      <Button Content="In-progress tickets" Command="{Binding ActiveCommand}" />
+    </WrapPanel>
+    <Border Classes="card">
+      <StackPanel Spacing="16">
+        <TextBlock Text="Recent concerns" Classes="section" />
+        <TextBlock Text="The latest saved concerns, ready to review and follow up." Classes="muted" />
+        <ItemsControl ItemsSource="{Binding Summary.RecentConcerns}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1" Padding="0,16" Classes="record-row">
+                <Grid ColumnDefinitions="*,170,Auto" ColumnSpacing="16">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Reference}" Classes="muted" />
+                    <TextBlock Text="{Binding Category}" Classes="muted" />
+                    <TextBlock Text="{Binding DateLabel}" Classes="muted" />
+                  </StackPanel>
+                  <Border Classes="status-pill" Grid.Column="1">
+                    <TextBlock Text="{Binding StateLabel}" />
+                  </Border>
+                  <Button Grid.Column="2" Content="View" Command="{Binding $parent[UserControl].DataContext.OpenCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel Spacing="16">
+        <TextBlock Text="Recent activity" Classes="section" />
+        <ItemsControl ItemsSource="{Binding Summary.RecentActivity}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1" Padding="0,12" Classes="record-row">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Header}" Classes="muted" />
+                  <TextBlock Text="{Binding Visibility}" FontSize="12" Foreground="{StaticResource Warning}" IsVisible="{Binding Internal}" />
+                  <TextBlock Text="{Binding Text}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+    <TextBlock Text="Updates are recorded by office personnel. Routine human processing follows weekday office availability; urgent requests should use verified district emergency contacts. Times are Philippine Time (UTC+08:00)." Classes="muted" />
+  </StackPanel>
+</UserControl>

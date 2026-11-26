@@ -179,6 +179,7 @@ void main() {
         } else if (request.url.path.endsWith('/service_accounts')) {
           body = [
             {
+              'id': 'test-service-account',
               'account_number': 'MWD-001245',
               'id': 'test-service-account',
               'holder_name': 'Test Client',
@@ -235,7 +236,10 @@ void main() {
           jsonEncode(body),
           code,
           request: request,
-          headers: {'content-type': 'application/json'},
+          headers: {
+            'content-type': 'application/json',
+            if (request.method == 'HEAD') 'content-range': '0-0/1',
+          },
         );
       }),
     );
@@ -673,12 +677,13 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('bill details expand and small keyboard layout stays usable', (
+  testWidgets('bill totals and small keyboard layout stay usable', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(app(const BillsPage(isAdmin: false)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('₱450.00'), findsOneWidget);
@@ -757,7 +762,7 @@ void main() {
         await tester.pumpAndSettle();
         if (i != 2) expect(find.text(detailTexts[i]), findsNothing);
         if (i == 2) expect(find.text('Edit notice'), admin ? findsOneWidget : findsNothing);
-        if (i == 1) expect(find.text('Update ticket'), admin ? findsOneWidget : findsNothing);
+        if (i == 1) expect(find.text('Update on desktop'), admin ? findsOneWidget : findsNothing);
         await tester.ensureVisible(find.text(labels[i]));
         await tester.tap(find.text(labels[i]));
         await tester.pumpAndSettle();

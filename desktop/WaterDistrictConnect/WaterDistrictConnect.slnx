@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="WaterDistrictConnect.Core/WaterDistrictConnect.Core.csproj" />
+  <Project Path="WaterDistrictConnect.IntegrationTests/WaterDistrictConnect.IntegrationTests.csproj" />
+  <Project Path="WaterDistrictConnect.UnitTests/WaterDistrictConnect.UnitTests.csproj" />
+  <Project Path="WaterDistrictConnect/WaterDistrictConnect.csproj" />
+</Solution>

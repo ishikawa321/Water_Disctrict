@@ -36,3 +36,7 @@ Each session is approximately 2–3 hours; database access and release preparati
 - Existing Flutter source at repository baseline `d8a48e419e636310c23de8a9c864de434e61d9f0`.
 
 The original assessment PDFs and presentation remain local. This repository records the derived implementation documentation.
+
+## Implementation status on 2026-11-25
+
+Sessions 5?8 are implemented: concern intake/review, no-repair closure, transactional ticket creation, Staff assignment, progress/resolution, history and conflicts. Session 9 preserves consumer query fields and sends legacy mobile office edits to desktop; local SQL ownership/submission tests pass, while live Supabase integration remains pending access. Session 10 has 55 passing .NET tests and 14 passing Flutter tests with actual results in acceptance-verification.md. Session 11 has published and smoke-checked self-contained Windows x64 executables. Session 12 has the ERD, README, acceptance record, release checklist and demonstration script prepared; instructor approval, confirmed IDs and the actual demonstration remain human/environment deliverables.

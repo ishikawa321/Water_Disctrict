@@ -10,4 +10,4 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
   </ItemGroup>
-</Project>
+<ItemGroup><Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" /></ItemGroup></Project>
