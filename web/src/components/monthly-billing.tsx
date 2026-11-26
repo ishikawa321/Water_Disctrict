@@ -26,10 +26,15 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
         monthlyAmount: positiveMoney(draft.monthlyAmount),
       });
       await plans.reload();
-    }, "Monthly billing settings saved.");
+    }, "Monthly billing settings saved. Bills will be issued on the scheduled 28th; saving a plan does not create a bill now.");
   }
   return (
     <Card title="Automatic monthly billing">
+      <p>
+        These are monthly plans for future bills. Consumers see each bill as
+        soon as it is issued, even before its due date. Saving a plan does not
+        create a bill immediately.
+      </p>
       <Feedback error={status.error} />
       {status.data && (
         <p
@@ -118,7 +123,7 @@ export function MonthlyBilling({ accounts }: { accounts: Account[] }) {
               <tr>
                 <th>Account</th>
                 <th>Monthly amount</th>
-                <th>Next issue</th>
+                <th>Next bill issue</th>
                 <th>State</th>
               </tr>
             </thead>

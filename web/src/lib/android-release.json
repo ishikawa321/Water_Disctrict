@@ -1,13 +1,13 @@
 {
-  "version": "1.0.3",
-  "buildNumber": 4,
+  "version": "1.0.4",
+  "buildNumber": 5,
   "applicationId": "ph.maramag.waterdistrictconnect",
   "minimumSdk": 24,
   "minimumAndroid": "7.0",
-  "fileName": "WaterDistrictConnect-1.0.3.apk",
-  "sizeBytes": 63356052,
-  "sha256": "cc1d9a4f48a1e8a0b46007c4b0b3bac6873ad0b770ac21f19d0a8aa9d11c0deb",
+  "fileName": "WaterDistrictConnect-1.0.4.apk",
+  "sizeBytes": 63192212,
+  "sha256": "01e731284c5464d2e48bd63ab920700bedf90fb9b099f7f945af0f4c23b19422",
   "certificateSha256": "db12f986c9cccb39734b5d2f15f1f43e5aa9d80bae008e0c9e86a5cd2aea0650",
-  "apkUrl": "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.3/WaterDistrictConnect-1.0.3.apk",
-  "checksumUrl": "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.3/WaterDistrictConnect-1.0.3.apk.sha256"
+  "apkUrl": "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.4/WaterDistrictConnect-1.0.4.apk",
+  "checksumUrl": "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.4/WaterDistrictConnect-1.0.4.apk.sha256"
 }

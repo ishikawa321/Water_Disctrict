@@ -1,6 +1,18 @@
 # Android APK release
 
-## Current release: 1.0.3 build 4
+## Current release: 1.0.4 build 5
+
+Fixes the Android release-only startup error reported as `Bda` on a first installation. The 1.0.3 APK was reproduced on an isolated Android 15 emulator, and logcat identified a missing `SharedPreferencesApiRegistrar.getAll` JNI method during Supabase initialization. The Android preferences dependency is now constrained to 2.5.5 or newer, with compatible JNI versions locked. Startup errors offer Retry instead of an obfuscated class name.
+
+The actual signed 1.0.4 APK reaches the sign-in form after updating over the failing 1.0.3 installation and after clearing the isolated emulator's app data for a fresh-start test. Android UIAutomator confirmed the ready sign-in state and corrected-release logcat contains no native preferences exception. No physical-device test or real-user login is claimed. See [startup and billing refresh details](android-startup-and-bill-sync.md).
+
+Artifact: `WaterDistrictConnect-1.0.4.apk`, 63,192,212 bytes, SHA-256 `01e731284c5464d2e48bd63ab920700bedf90fb9b099f7f945af0f4c23b19422`. Android Build Tools verified version/code 1.0.4/5, the v2 signature, non-debuggable manifest, API 24 minimum and ARM32/ARM64/x86-64 Flutter libraries. The application ID and release certificate remain unchanged, allowing installation as an update. Private signing files and versioned split symbols remain local.
+
+The main-branch Flutter app and website refresh issued Consumer bills and balances automatically, including bills with future due dates. All bills is the default Flutter list. Monthly plans still issue on the 28th; saving a plan never creates an early charge. No new SQL migration is required.
+
+Verification: Flutter analysis passed; all 49 Flutter tests, all 23 web Chrome workflows, 80 web unit checks, TypeScript, ESLint and the optimized production build passed. The final 1.0.4 website download metadata also passed its browser workflow.
+
+## Superseded release: 1.0.3 build 4
 
 Built from the merged main/web and `UI-Redesign` sources on 2026-11-27. This release adds the updated #00479D application design, guided navigation, announcement indicators and Client/Admin billing-history PDF sharing. Existing invited Staff sign-in, payment confirmation, assigned repairs and Admin-only final repair confirmation are retained. Admin repair shortcuts use the reviewed Staff workspace rather than the older repair editor.
 

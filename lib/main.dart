@@ -14,8 +14,13 @@ import 'package:printing/printing.dart';
 import 'ui_components.dart';
 import 'concern_location.dart';
 import 'staff_workspace.dart';
+import 'billing_records.dart';
+import 'billing_refresh.dart';
 
-const projectUrl = 'https://kaeespcylucvsazfdaks.supabase.co';
+const projectUrl = String.fromEnvironment(
+  'SUPABASE_URL',
+  defaultValue: 'https://kaeespcylucvsazfdaks.supabase.co',
+);
 // Public client key; database access is still controlled by Supabase policies.
 const publishableKey = String.fromEnvironment(
   'SUPABASE_PUBLISHABLE_KEY',
@@ -1467,34 +1472,39 @@ class BillsPage extends StatefulWidget {
   State<BillsPage> createState() => _BillsPageState();
 }
 
-class _BillsPageState extends State<BillsPage> {
+class _BillsPageState extends State<BillsPage> with BillingRefresh<BillsPage> {
   List<Map<String, dynamic>> bills = [];
   bool loading = true;
-  bool outstandingOnly = true;
+  bool outstandingOnly = false;
+  bool _billingReadPending = false;
   String? error;
 
   @override
   void initState() {
     super.initState();
     loadBills();
+    startBillingRefresh();
+  }
+
+  @override
+  Future<void> refreshRemoteBilling() => loadBills();
+
+  @override
+  void dispose() {
+    stopBillingRefresh();
+    super.dispose();
   }
 
   Future<void> loadBills() async {
+    if (_billingReadPending) return;
+    _billingReadPending = true;
     setState(() {
       loading = true;
       error = null;
-      bills = [];
     });
     try {
       // Both bills and their embedded payments remain protected by RLS.
-      final rows = await supabase
-          .from('bills')
-          .select(
-            'bill_number, billing_period_start, billing_period_end, due_date, '
-            'amount_due, service_accounts(account_number, holder_name, service_address), '
-            'offline_payments(amount_paid)',
-          )
-          .order('due_date', ascending: false);
+      final rows = await loadIssuedBills(supabase, admin: widget.isAdmin);
       // Validate totals before rendering; malformed data must not appear as paid.
       for (final bill in rows) {
         moneyCentavos(bill['amount_due']);
@@ -1508,6 +1518,7 @@ class _BillsPageState extends State<BillsPage> {
         );
       }
     } finally {
+      _billingReadPending = false;
       if (mounted) setState(() => loading = false);
     }
   }
@@ -1519,39 +1530,25 @@ class _BillsPageState extends State<BillsPage> {
     setState(() => exporting = true);
     try {
       final history = <BillingHistoryLine>[];
-      const pageSize = 500;
-      for (var offset = 0; ; offset += pageSize) {
-        // Export all pages with the signed-in caller's RLS, including paid bills.
-        final query = supabase
-            .from('bills')
-            .select(
-              'id,bill_number,billing_period_start,billing_period_end,due_date,amount_due,'
-              'service_accounts(account_number,holder_name,service_address),offline_payments(amount_paid)',
-            );
-        final page = await query
-            .order('due_date', ascending: false)
-            .order('id')
-            .range(offset, offset + pageSize - 1);
-        for (final bill in page) {
-          final account = bill['service_accounts'] as Map<String, dynamic>?;
-          if (account == null || account['account_number'] == null) {
-            throw StateError('Account details unavailable');
-          }
-          history.add(
-            BillingHistoryLine(
-              accountNumber: '${account['account_number']}',
-              holderName: '${account['holder_name'] ?? 'Unavailable'}',
-              serviceAddress: '${account['service_address'] ?? 'Unavailable'}',
-              billNumber: '${bill['bill_number']}',
-              periodStart: recordDate(bill['billing_period_start']),
-              periodEnd: recordDate(bill['billing_period_end']),
-              dueDate: recordDate(bill['due_date']),
-              billed: moneyCentavos(bill['amount_due']),
-              paid: billPayments(bill),
-            ),
-          );
+      final records = await loadIssuedBills(supabase, admin: widget.isAdmin);
+      for (final bill in records) {
+        final account = bill['service_accounts'] as Map<String, dynamic>?;
+        if (account == null || account['account_number'] == null) {
+          throw StateError('Account details unavailable');
         }
-        if (page.length < pageSize) break;
+        history.add(
+          BillingHistoryLine(
+            accountNumber: '${account['account_number']}',
+            holderName: '${account['holder_name'] ?? 'Unavailable'}',
+            serviceAddress: '${account['service_address'] ?? 'Unavailable'}',
+            billNumber: '${bill['bill_number']}',
+            periodStart: recordDate(bill['billing_period_start']),
+            periodEnd: recordDate(bill['billing_period_end']),
+            dueDate: recordDate(bill['due_date']),
+            billed: moneyCentavos(bill['amount_due']),
+            paid: billPayments(bill),
+          ),
+        );
       }
       if (history.isEmpty) {
         if (mounted) {
@@ -4682,7 +4679,9 @@ class ModernDashboard extends StatefulWidget {
   State<ModernDashboard> createState() => _ModernDashboardState();
 }
 
-class _ModernDashboardState extends State<ModernDashboard> {
+class _ModernDashboardState extends State<ModernDashboard>
+    with BillingRefresh<ModernDashboard> {
+  bool _overviewReadPending = false;
   bool get admin => widget.profile['role'] == 'admin';
   int tab = 0;
   bool loading = true;
@@ -4701,7 +4700,11 @@ class _ModernDashboardState extends State<ModernDashboard> {
     super.initState();
     clientDesignTab.addListener(selectClientTab);
     refresh();
+    startBillingRefresh();
   }
+
+  @override
+  Future<void> refreshRemoteBilling() => refresh();
 
   void selectClientTab() {
     if (mounted && !admin) setState(() => tab = clientDesignTab.value);
@@ -4709,12 +4712,14 @@ class _ModernDashboardState extends State<ModernDashboard> {
 
   @override
   void dispose() {
+    stopBillingRefresh();
     clientDesignTab.removeListener(selectClientTab);
     super.dispose();
   }
 
   Future<void> refresh() async {
-    if (loading && hasLoaded) return;
+    if (_overviewReadPending) return;
+    _overviewReadPending = true;
     setState(() {
       loading = true;
       error = null;
@@ -4772,9 +4777,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
             (link?['service_accounts']
                     as Map<String, dynamic>?)?['account_number']
                 as String?;
-        final rows = await supabase
-            .from('bills')
-            .select('amount_due, due_date, offline_payments(amount_paid)');
+        final rows = await loadIssuedBills(supabase, admin: false);
         count = rows.length;
         for (final bill in rows) {
           final due = moneyCentavos(bill['amount_due']) - billPayments(bill);
@@ -4813,6 +4816,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
         );
       }
     } finally {
+      _overviewReadPending = false;
       if (mounted) setState(() => loading = false);
     }
   }
@@ -6175,6 +6179,7 @@ class _WaterStartupState extends State<WaterStartup>
     duration: const Duration(milliseconds: 1800),
   );
   bool ready = false;
+  bool starting = false;
   String? error;
   @override
   void initState() {
@@ -6193,16 +6198,35 @@ class _WaterStartupState extends State<WaterStartup>
   }
 
   Future<void> initialize() async {
+    if (starting) return;
+    starting = true;
+    if (error != null) {
+      setState(() => error = null);
+      if (!MediaQuery.disableAnimationsOf(context) && !pulse.isAnimating) {
+        pulse.repeat(reverse: true);
+      }
+    }
     final splashDelay = Future<void>.delayed(const Duration(seconds: 3));
     try {
       if (widget.initialize != null) {
         await widget.initialize!();
       } else {
         if (publishableKey.isEmpty) throw StateError('Missing configuration');
-        await Supabase.initialize(
-          url: projectUrl,
-          publishableKey: publishableKey,
-        );
+        try {
+          await Supabase.initialize(
+            url: projectUrl,
+            publishableKey: publishableKey,
+          );
+        } catch (_) {
+          // A failed native-storage initialization can leave a partial client.
+          // Dispose it so Retry performs a real initialization again.
+          try {
+            await Supabase.instance.dispose();
+          } catch (_) {
+            /* Preserve the original failure. */
+          }
+          rethrow;
+        }
       }
       if (!mounted) return;
       // Keep the spinner visible for at least three seconds while initializing.
@@ -6216,8 +6240,10 @@ class _WaterStartupState extends State<WaterStartup>
       setState(
         () => error = e is StateError && e.message == 'Missing configuration'
             ? 'Database access is not configured. Contact the app administrator to finish setup.'
-            : 'Unable to start the app (${e.runtimeType}). Check your connection and launch configuration, then restart.',
+            : 'Could not prepare sign-in on this device. Tap Retry to try again.',
       );
+    } finally {
+      starting = false;
     }
   }
 
@@ -6321,7 +6347,7 @@ class _WaterStartupState extends State<WaterStartup>
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: Colors.white),
                               ),
-                            ] else
+                            ] else ...[
                               Semantics(
                                 liveRegion: true,
                                 child: Text(
@@ -6333,6 +6359,16 @@ class _WaterStartupState extends State<WaterStartup>
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              OutlinedButton(
+                                onPressed: initialize,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Colors.white),
+                                ),
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ],
                         ),
                       ),

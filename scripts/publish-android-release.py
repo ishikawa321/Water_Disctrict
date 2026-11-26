@@ -82,6 +82,7 @@ def main():
             '- Uses existing Supabase identities and account permissions; internet required.\n'
             '- Consumer, Admin and invited Staff mobile views. Staff can confirm payments and complete assigned repairs for Admin resolution.\n'
             '- Updated blue application design, guided navigation and announcement indicators.\n'
+            '- Fixes Android startup initialization and refreshes issued consumer bills, including future due dates.\n'
             '- Client and Admin billing-history PDF sharing with separate account sections.\n'
             '- Uses the existing public application ID and signing certificate; installs as an update to earlier public versions.\n\n'
             f'APK SHA-256: `{digest}`\n\n'

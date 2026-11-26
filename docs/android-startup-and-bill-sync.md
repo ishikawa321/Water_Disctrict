@@ -1,0 +1,13 @@
+# Android startup and issued-bill refresh
+
+The 1.0.3 release was reproduced on a new, isolated Android 15 emulator. Its startup screen reported the same obfuscated `Bda` error as the phone screenshot. Android logcat identified `java.lang.NoSuchMethodError` for `SharedPreferencesApiRegistrar.getAll`, called while Supabase initializes persistent sign-in storage. This happens before login and does not require an older installation or a database change.
+
+The app now requires `shared_preferences_android` 2.5.5 or newer, with compatible JNI dependencies locked in `pubspec.lock`. The upstream [Android preferences changelog](https://pub.dev/packages/shared_preferences_android/changelog) records the release-shrinking fix introduced in 2.5.2 and the corrected JNI generation in 2.5.5. Startup failures now offer Retry with a stable explanation; a partially initialized Supabase client is disposed before another initialization attempt. Session persistence and deep links remain enabled.
+
+The main-branch Flutter client reads issued bills through `lib/billing_records.dart`. Consumer reads require an active account link and explicitly filter that account, in addition to Supabase RLS. Reads refresh saved interest and paginate both bills and verified payments. The dashboard, bill list and billing-history PDF use the same reader. The bill list starts on All bills, including paid bills and future due dates. A due date is a payment deadline, never a condition for displaying an issued bill.
+
+Flutter bill/dashboard views refresh every 15 seconds while visible and on app resume, cancel their timers on disposal and prevent overlapping reads. The website's Consumer bills and summary also refresh every 15 seconds and on browser focus/visibility. Manual Refresh is available. This works without enabling Supabase Realtime or adding database permissions.
+
+Monthly billing plans are separate from issued bills. The two plans in the supplied screenshot had their next issue date set to November 28, 2026. Per the user's confirmed rule, saving a plan does not issue it early. The Admin form now explains this explicitly. Issued manual bills are visible immediately on the next refresh even if their due dates are in the future; scheduled plans create bills on the 28th and remain due three days later. The existing daily simple-interest rule is unchanged.
+
+Verification uses isolated HTTP/browser fixtures and an emulator created only for this task. Regression checks cover a bill added after the Consumer screen was already open, future due dates, active account scoping, payment totals beyond 500 receipts and retry after a startup failure. No production bill, payment, account link or profile is changed during these checks.

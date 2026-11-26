@@ -84,8 +84,10 @@ export default function AndroidDownload() {
             can confirm payments and complete assigned repairs for Admin review.
           </p>
           <p>
-            This version includes the updated app design, announcement
-            indicators and billing-history PDF sharing for Consumers and Admins.
+            This update fixes Android startup and refreshes issued bills
+            automatically, including bills with future due dates. It also
+            includes the updated design and billing-history PDF sharing for
+            Consumers and Admins.
           </p>
           <p>
             Installing the app does not create an account or change your role.

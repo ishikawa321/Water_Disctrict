@@ -59,9 +59,11 @@ export function useResource<T>(url: string | null, refreshMilliseconds = 0) {
     };
     const timer = setInterval(refresh, refreshMilliseconds);
     window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [reload, refreshMilliseconds]);
   const setData = useCallback(

@@ -31,6 +31,7 @@ void main() {
   var interruptionPublished = true;
   String? concernFilter, repairFilter;
   var emptyRecords = false, failRecords = false;
+  var externalBillAdded = false;
   Completer<void>? recordsGate;
   final boundaryKey = GlobalKey();
   final user = {
@@ -202,6 +203,15 @@ void main() {
               'due_date': '2026-11-01',
               'offline_payments': [],
             },
+            if (externalBillAdded) {
+              'id': 'web-added-bill',
+              'bill_number': 'WEB-FUTURE-002',
+              'service_accounts': {'account_number': 'WD-001'},
+              'billing_period_start': '2026-11-01',
+              'billing_period_end': '2026-11-30',
+              'amount_due': '625.00',
+              'due_date': '2099-12-31',
+            },
           ];
         } else if (request.url.path.endsWith('/offline_payments')) {
           body = [{
@@ -249,6 +259,7 @@ void main() {
   });
   tearDownAll(() => Supabase.instance.dispose());
   setUp(() {
+    externalBillAdded = false;
     authGate = null;
     refreshGate = null;
     authStarted = false;
@@ -354,6 +365,9 @@ void main() {
 
   for (final admin in [false,true]) {
     testWidgets('billing history PDF downloads for ${admin ? 'admin' : 'client'}', (tester) async {
+      failAuth = false;
+      await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+        email: 'user@example.com', password: 'password123'));
       await tester.binding.setSurfaceSize(const Size(390,844));
       addTearDown(()=>tester.binding.setSurfaceSize(null));
       Map<Object?,Object?>? downloaded;
@@ -379,6 +393,27 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   }
+
+  testWidgets('a newly issued future bill appears automatically without restarting the consumer', (tester) async {
+    failAuth = false;
+    await tester.runAsync(() => Supabase.instance.client.auth.signInWithPassword(
+      email: 'user@example.com', password: 'password123'));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(const BillsPage(isAdmin: false)));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(find.text('Bill B-001'), findsOneWidget);
+    expect(find.text('Bill WEB-FUTURE-002'), findsNothing);
+    externalBillAdded = true;
+    await tester.pump(const Duration(seconds: 16));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pumpAndSettle();
+    expect(find.text('Bill WEB-FUTURE-002'), findsOneWidget);
+    expect(find.text('All bills'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('client home retains only the top announcement summary and navy balance', (tester) async {
     failAuth=false;

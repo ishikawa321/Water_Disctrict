@@ -20,6 +20,42 @@ test.afterEach(async ({ request }) => {
   expect((await response.json()).legacyApiRequests).toBe(0);
 });
 
+test("new Admin-issued bills with future due dates automatically appear for the consumer", async ({
+  page,
+  browser,
+}) => {
+  await login(page, "client");
+  await page.goto("/portal/bills");
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  await login(admin, "admin");
+  const created: string[] = [];
+  for (const [index, amountDue] of ["400.00", "600.00"].entries()) {
+    const response = await admin.request.post("/api/office/office/bills", {
+      data: {
+        requestId: `70000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+        accountId: "20000000-0000-4000-8000-000000000001",
+        amountDue,
+        dueDate: "2099-12-31",
+      },
+      headers: { Origin: "http://127.0.0.1:3100" },
+    });
+    expect(response.ok()).toBe(true);
+    created.push((await response.json()).billNumber);
+  }
+  for (const number of created) {
+    await expect(
+      page.getByRole("heading", { name: `Bill ${number}`, exact: true }),
+    ).toBeVisible({
+      timeout: 25000,
+    });
+  }
+  await expect(
+    page.getByText("Dec 31, 2099", { exact: false }).first(),
+  ).toBeVisible();
+  await adminContext.close();
+});
+
 test("Admin and Staff download individual and filtered billing PDFs, while consumers and anonymous visitors are denied", async ({
   page,
   request,

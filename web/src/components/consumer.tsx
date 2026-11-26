@@ -178,6 +178,7 @@ export function ConsumerBills() {
   const [page, setPage] = useState(0);
   const records = useResource<PageResult<Bill>>(
     `/api/consumer/bills?page=${page}`,
+    15_000,
   );
   return (
     <>
@@ -492,9 +493,11 @@ export function ConsumerDashboard({ profile }: { profile: Profile }) {
   const account = useResource<LinkedAccount>("/api/consumer/account");
   const bills = useResource<PageResult<Bill>>(
     account.data?.account ? "/api/consumer/bills?page=0" : null,
+    15_000,
   );
   const summary = useResource<ConsumerSummary>(
     account.data?.account ? "/api/consumer/summary" : null,
+    15_000,
   );
   const concerns = useResource<PageResult<Concern>>(
     account.data?.account ? "/api/consumer/concerns?page=0" : null,
