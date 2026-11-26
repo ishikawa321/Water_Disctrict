@@ -80,8 +80,8 @@ export default function AndroidDownload() {
           <h2>One account. Shared records.</h2>
           <p>
             The mobile app uses the existing Supabase identity and district
-            records. It includes Consumer and supported Admin views; Staff use
-            the office web or desktop workspace.
+            records. It includes Consumer, Admin and invited Staff access. Staff
+            can confirm payments and complete assigned repairs for Admin review.
           </p>
           <p>
             Installing the app does not create an account or change your role.

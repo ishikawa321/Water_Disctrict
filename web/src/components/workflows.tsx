@@ -777,6 +777,11 @@ function RepairBody({
         ))}
       </div>
       <p className="prose">{ticket.latestUpdate}</p>
+      {ticket.status === "Completed" && (
+        <p className="feedback info">
+          Work completed. Awaiting Admin confirmation before resolution.
+        </p>
+      )}
       <Link
         className="text-button"
         style={{ display: "inline-block" }}
@@ -858,21 +863,23 @@ function OfficeRepair({
               ) : (
                 <Empty title="No saved history" />
               )}
-              {record.data.ticket.status !== "Resolved" && (
-                <>
-                  <hr />
-                  <TicketUpdate
-                    record={record.data}
-                    profile={profile}
-                    assignees={assignees.data ?? []}
-                    assigneeError={assignees.error}
-                    onSave={() => {
-                      void record.reload();
-                      onSave();
-                    }}
-                  />
-                </>
-              )}
+              {record.data.ticket.status !== "Resolved" &&
+                (profile.role === "admin" ||
+                  record.data.ticket.status !== "Completed") && (
+                  <>
+                    <hr />
+                    <TicketUpdate
+                      record={record.data}
+                      profile={profile}
+                      assignees={assignees.data ?? []}
+                      assigneeError={assignees.error}
+                      onSave={() => {
+                        void record.reload();
+                        onSave();
+                      }}
+                    />
+                  </>
+                )}
             </>
           )}
         </DataState>
@@ -925,10 +932,14 @@ function TicketUpdate({
       onSave();
     }, "Repair update saved with its history event.");
   }
-  const allowed = ticketChoices(ticket.status);
+  const allowed = ticketChoices(ticket.status, profile.role);
   return (
     <>
-      <h3>Record an update</h3>
+      <h3>
+        {ticket.status === "Completed"
+          ? "Confirm repair resolution"
+          : "Record an update"}
+      </h3>
       <Feedback
         error={mutation.error ?? assigneeError}
         success={mutation.success}
@@ -1012,9 +1023,10 @@ function TicketUpdate({
                   setDraft({
                     ...draft,
                     version: fresh.ticket.version,
-                    status: ticketChoices(fresh.ticket.status).includes(
-                      draft.status,
-                    )
+                    status: ticketChoices(
+                      fresh.ticket.status,
+                      profile.role,
+                    ).includes(draft.status)
                       ? draft.status
                       : fresh.ticket.status,
                   });

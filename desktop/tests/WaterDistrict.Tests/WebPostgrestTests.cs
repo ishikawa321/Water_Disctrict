@@ -21,6 +21,9 @@ public sealed class WebPostgrestTests
         var executable = Environment.GetEnvironmentVariable("WATERDISTRICT_TEST_POSTGREST");
         Assert.SkipWhen(string.IsNullOrWhiteSpace(executable) || !File.Exists(executable), "Set WATERDISTRICT_TEST_POSTGREST to an official local PostgREST executable.");
         await using var database = await PostgresDatabase.CreateAsync(verifiedSchema: true); await WebOfficeWorkflowTests.Install(database);
+        await database.SqlAsync("alter table auth.users add column email text,add column email_confirmed_at timestamptz,add column raw_user_meta_data jsonb default '{}'");
+        await database.SqlAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "billing-automation.sql"), Token));
+        await database.SqlAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "staff-role.sql"), Token));
         var connection = new NpgsqlConnectionStringBuilder(database.Connection);
         const string secret = "isolated-local-postgrest-qa-signing-key-only";
         var start = new ProcessStartInfo(executable!) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -68,6 +71,17 @@ public sealed class WebPostgrestTests
             await Rpc("update_ticket", ticketId, Version(tickets[0]), new { status = "In progress", assignedToUserId = database.Staff.UserId, note = "HTTP work started" });
             using (var history = await client.PostAsJsonAsync("/rpc/wd_web_ticket_history", new { p_ticket_id = ticketId }, Token))
             { history.EnsureSuccessStatusCode(); var events = await history.Content.ReadFromJsonAsync<JsonElement>(Token); Assert.Equal(3, events.GetArrayLength()); Assert.Equal(database.Admin.DisplayName, events[0].GetProperty("changedBy").GetString()); }
+            tickets = await Get("/repair_tickets?select=id,xmin");
+            await Rpc("update_ticket", ticketId, Version(tickets[0]), new { status = "Completed", assignedToUserId = database.Staff.UserId, note = "Work finished, awaiting approval" });
+            tickets = await Get("/repair_tickets?select=id,xmin");
+            using (var forbidden = await client.PostAsJsonAsync("/rpc/wd_web_workflow", new { p_action = "update_ticket", p_id = ticketId, p_version = Version(tickets[0]), p_payload = new { status = "Resolved", assignedToUserId = database.Staff.UserId, note = "Forbidden Staff approval" } }, Token)) Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+            Login(database.Admin.UserId);
+            await Rpc("update_ticket", ticketId, Version(tickets[0]), new { status = "Resolved", assignedToUserId = database.Staff.UserId, note = "Admin confirmed" });
+            using (var invite = await client.PostAsJsonAsync("/rpc/wd_staff_invite", new { p_email = "http-staff@example.test", p_display_name = "HTTP Staff" }, Token))
+            {
+                Assert.True(invite.IsSuccessStatusCode, await invite.Content.ReadAsStringAsync(Token)); var i = await invite.Content.ReadFromJsonAsync<JsonElement>(Token); client.DefaultRequestHeaders.Authorization = null;
+                using var preview = await client.PostAsJsonAsync("/rpc/wd_staff_invitation", new { p_token = i.GetProperty("token").GetString() }, Token); Assert.True(preview.IsSuccessStatusCode, await preview.Content.ReadAsStringAsync(Token));
+            }
             Login(database.OtherClientId); Assert.Empty((await Get("/repair_tickets?select=id")).EnumerateArray());
             using var denied = await client.PostAsJsonAsync("/rpc/wd_web_workflow", new { p_action = "dispatch", p_id = concernId, p_version = reviewed, p_payload = new { note = "Forbidden" } }, Token); Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         }

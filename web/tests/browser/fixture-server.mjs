@@ -43,6 +43,7 @@ function reset() {
   state = {
     revoked: [],
     registrations: [],
+    staffInvitations: [],
     unlinked: false,
     failNextWrite: false,
     workflowAvailable: true,
@@ -261,13 +262,25 @@ createServer(async (request, response) => {
   if (url.pathname === "/health") return respond(response, { ok: true });
   if (url.pathname === "/__test/state") return respond(response, state);
   let role = roleFor(request);
+  if (url.pathname === "/rest/v1/rpc/wd_staff_invitation") {
+    const i = state.staffInvitations.find(
+      (i) => i.token === body.p_token && i.status === "Pending",
+    );
+    return i
+      ? respond(response, { email: i.email, displayName: i.display_name })
+      : fail(response, "Invalid invitation", 422);
+  }
   if (url.pathname === "/rest/v1/rpc/client_registration_approval_available")
     return respond(response, true);
   if (url.pathname === "/auth/v1/signup") {
     if (
-      body.data?.registration_source !== "client_signup_v1" ||
-      !body.data.display_name ||
-      !body.data.service_address
+      !["client_signup_v1", "staff_invite_v1"].includes(
+        body.data?.registration_source,
+      ) ||
+      (body.data.registration_source === "client_signup_v1" &&
+        !body.data.display_name) ||
+      (body.data.registration_source === "client_signup_v1" &&
+        !body.data.service_address)
     )
       return fail(response, "Registration details required", 422);
     return respond(response, { user: user("client"), session: null });
@@ -331,12 +344,17 @@ createServer(async (request, response) => {
   const table = url.pathname.split("/").pop();
   if (table === "approve_client_registration") {
     if (role !== "admin") return fail(response, "Admin only");
+    if (state.failNextWrite) {
+      state.failNextWrite = false;
+      return fail(response, "Simulated approval failure", 503);
+    }
     const registration = state.registrations.find(
       (r) => r.userId === body.registration_user_id,
     );
     if (!registration) return fail(response, "Not found", 404);
     if (registration.status !== "Approved") {
       registration.status = "Approved";
+      state.clientAccountId = ids.other;
       state.accounts.push({
         id: ids.other,
         accountNumber: "MWD-001250",
@@ -348,6 +366,57 @@ createServer(async (request, response) => {
     return respond(response, [{ account_number: "MWD-001250" }]);
   }
 
+  if (table === "wd_staff_directory")
+    return respond(response, [
+      {
+        userId: ids.admin,
+        displayName: "QA Admin",
+        role: "admin",
+        active: true,
+        email: "admin@example.test",
+      },
+      {
+        userId: ids.staff,
+        displayName: "QA Staff",
+        role: "staff",
+        active: !state.revoked.includes("staff"),
+        email: "staff@example.test",
+      },
+    ]);
+  if (table === "staff_invitations")
+    return rows(
+      request,
+      response,
+      role === "admin" ? state.staffInvitations : [],
+      url,
+    );
+  if (table === "wd_staff_invite") {
+    if (role !== "admin") return fail(response, "Admin required");
+    const id = crypto.randomUUID();
+    const token = crypto.randomUUID();
+    state.staffInvitations.push({
+      id,
+      token,
+      email: body.p_email,
+      display_name: body.p_display_name,
+      status: "Pending",
+      expires_at: "2026-12-04T08:00:00Z",
+      invited_at: now,
+    });
+    return respond(response, { id, token, email: body.p_email });
+  }
+  if (table === "wd_staff_access") {
+    if (role !== "admin") return fail(response, "Admin required");
+    state.revoked = state.revoked.filter((r) => r !== "staff");
+    if (!body.p_active) state.revoked.push("staff");
+    return respond(response, { userId: body.p_user_id, active: body.p_active });
+  }
+  if (table === "wd_staff_revoke_invite") {
+    if (role !== "admin") return fail(response, "Admin required");
+    const i = state.staffInvitations.find((i) => i.id === body.p_id);
+    if (i) i.status = "Revoked";
+    return respond(response, { id: body.p_id });
+  }
   if (table === "profiles") {
     const own = {
       user_id: ids[role],
@@ -376,7 +445,13 @@ createServer(async (request, response) => {
       response,
       state.unlinked || role === "other"
         ? []
-        : [{ account_id: ids.account, user_id: ids[role], active: true }],
+        : [
+            {
+              account_id: state.clientAccountId ?? ids.account,
+              user_id: ids[role],
+              active: true,
+            },
+          ],
       url,
     );
   if (url.pathname.startsWith("/rest/v1/rpc/")) {
@@ -391,7 +466,8 @@ createServer(async (request, response) => {
         return respond(response, { asOf: "2026-11-27" });
       if (table === "wd_billing_status")
         return respond(response, { scheduleActive: true });
-      if (role !== "admin") return fail(response, "Admin required");
+      if (role !== "admin" && table !== "wd_billing_confirm_payment")
+        return fail(response, "Admin required");
       if (state.failNextWrite) {
         state.failNextWrite = false;
         return fail(response, "Simulated save failure", 503);
@@ -563,6 +639,12 @@ createServer(async (request, response) => {
         return fail(response, "Ticket unavailable", 403);
       if (body.p_version !== t.version)
         return respond(response, { code: "40001" }, 409);
+      if (
+        (input.status === "Resolved" &&
+          (role !== "admin" || t.status !== "Completed")) ||
+        (t.status === "Completed" && role !== "admin")
+      )
+        return fail(response, "Administrator confirmation required", 403);
       Object.assign(t, {
         status: input.status,
         assignedToUserId: input.assignedToUserId,
@@ -662,7 +744,15 @@ createServer(async (request, response) => {
         base_amount_due: b.baseAmount ?? b.amountDue,
         interest_amount: b.interestAmount ?? "0.00",
         interest_days: b.interestDays ?? 0,
-        service_accounts: { account_number: b.accountNumber },
+        service_accounts: {
+          account_number: b.accountNumber,
+          holder_name: state.accounts.find(
+            (a) => a.accountNumber === b.accountNumber,
+          )?.holderName,
+          service_address: state.accounts.find(
+            (a) => a.accountNumber === b.accountNumber,
+          )?.serviceAddress,
+        },
       })),
       url,
     );

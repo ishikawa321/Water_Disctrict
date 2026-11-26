@@ -19,6 +19,57 @@ export async function POST(
     const { action } = await context.params;
     const body = await readBody(request);
     const supabase = await createSupabaseServer();
+    if (action === "staff-invitation" || action === "staff-signup") {
+      const token = textField(body.token, "Invitation", 100);
+      const invite = await supabase.rpc("wd_staff_invitation", {
+        p_token: token,
+      });
+      if (invite.error || !invite.data)
+        throw new HttpError(
+          422,
+          "This Staff invitation is invalid, expired or revoked. Contact your Admin.",
+        );
+      if (action === "staff-invitation") return json(invite.data);
+      if (
+        typeof body.password !== "string" ||
+        body.password.length < 8 ||
+        body.password.length > 128 ||
+        body.password !== body.confirm
+      )
+        throw new HttpError(
+          422,
+          "Use matching passwords with 8 to 128 characters.",
+        );
+      const {
+        data: { user: existing },
+      } = await supabase.auth.getUser();
+      if (existing)
+        throw new HttpError(
+          409,
+          "Sign out of your current account before accepting a Staff invitation.",
+        );
+      const result = await supabase.auth.signUp({
+        email: invite.data.email,
+        password: body.password,
+        options: {
+          emailRedirectTo: `${publicOrigin(request)}/auth/callback`,
+          data: {
+            registration_source: "staff_invite_v1",
+            staff_invite_token: token,
+          },
+        },
+      });
+      if (result.error)
+        throw new HttpError(
+          result.error.status === 429 ? 429 : 422,
+          "Staff signup could not be confirmed. Check your invitation and email before retrying.",
+        );
+      if (result.data.session) await supabase.auth.signOut({ scope: "local" });
+      return json({
+        message:
+          "Invitation accepted for signup. Confirm your email, then sign in with this password on web or mobile. Your Admin can disable access at any time.",
+      });
+    }
     if (action === "logout") {
       const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error)

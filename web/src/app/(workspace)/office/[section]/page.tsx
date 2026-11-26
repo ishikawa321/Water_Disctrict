@@ -28,7 +28,7 @@ export default async function Page({
   return section === "accounts" ? (
     <AccountsPage />
   ) : section === "bills" ? (
-    <BillsPage />
+    <BillsPage staff={profile.role === "staff"} />
   ) : section === "payments" ? (
     <PaymentsPage initialBillId={query.billId} />
   ) : section === "announcements" ? (

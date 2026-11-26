@@ -60,11 +60,12 @@ export function publicOrigin(request: Request) {
 }
 export async function readBody(
   request: Request,
+  maximum = 32768,
 ): Promise<Record<string, unknown>> {
-  if (Number(request.headers.get("content-length") ?? 0) > 32768)
+  if (Number(request.headers.get("content-length") ?? 0) > maximum)
     throw new HttpError(413, "The form is too large.");
   const raw = await request.text();
-  if (raw.length > 32768) throw new HttpError(413, "The form is too large.");
+  if (raw.length > maximum) throw new HttpError(413, "The form is too large.");
   try {
     const body: unknown = JSON.parse(raw);
     if (!body || typeof body !== "object" || Array.isArray(body))
