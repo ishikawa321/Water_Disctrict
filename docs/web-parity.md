@@ -32,7 +32,7 @@ Office Data API lists: up to 1000. Office workflow concerns/tickets: up to 500 m
 
 - [x] 1. Audit, branch and parity/architecture decisions.
 - [x] 2. Next.js foundation, assets and responsive reusable UI.
-- [ ] 3. Supabase cookie authentication, role boundaries, recovery and access-loss handling.
+- [x] 3. Supabase cookie authentication, role boundaries, recovery and access-loss handling.
 - [ ] 4. Consumer account, billing/payments, concerns/repairs, notices and help.
 - [ ] 5. Admin management and read-only directory.
 - [ ] 6. Office concern and repair API workflows, retained drafts and conflicts.

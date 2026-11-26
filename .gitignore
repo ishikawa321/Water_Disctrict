@@ -39,6 +39,7 @@ migrate_working_dir/
 /web/coverage/
 /web/*.tsbuildinfo
 .vercel/
+/.local-tests/
 
 # Symbolication related
 app.*.symbols
