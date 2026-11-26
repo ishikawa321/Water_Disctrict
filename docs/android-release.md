@@ -12,7 +12,11 @@ The main-branch Flutter app and website refresh issued Consumer bills and balanc
 
 Verification: Flutter analysis passed; all 49 Flutter tests, all 23 web Chrome workflows, 80 web unit checks, TypeScript, ESLint and the optimized production build passed. The final 1.0.4 website download metadata also passed its browser workflow.
 
+Published [Android 1.0.4](https://github.com/ishikawa321/Water_Disctrict/releases/tag/android-v1.0.4) from `11b76dd` on `main`. Both uploaded asset digests were verified, and a fresh public download matched all 63,192,212 bytes and the exact SHA-256 above. The old 1.0.3 release notes now direct users to 1.0.4 without changing its historical assets. Ready Vercel deployment `dpl_ApFNRvMcj6eZ853cv7BHAKvWgMur` was promoted to https://maramag-waterdistrict-web.vercel.app after the APK became public. Production Chrome confirmed the current download/version/checksum, narrow layout, clean sign-in and protected billing PDF route. The main-branch Flutter app was also served and browser-checked at http://127.0.0.1:3000.
+
 ## Superseded release: 1.0.3 build 4
+
+This historical APK has a confirmed Android first-install startup failure. Install 1.0.4 or later instead. The details below record its original release checks, which did not catch the native storage-plugin failure.
 
 Built from the merged main/web and `UI-Redesign` sources on 2026-11-27. This release adds the updated #00479D application design, guided navigation, announcement indicators and Client/Admin billing-history PDF sharing. Existing invited Staff sign-in, payment confirmation, assigned repairs and Admin-only final repair confirmation are retained. Admin repair shortcuts use the reviewed Staff workspace rather than the older repair editor.
 
