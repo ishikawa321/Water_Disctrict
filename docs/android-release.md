@@ -12,6 +12,8 @@ The website keeps its existing Admin/Staff individual and filtered-list PDF expo
 
 Web verification passed: landing JavaScript checks, route type generation, TypeScript, ESLint with zero warnings, all 80 unit checks, all 22 Chrome workflows and the optimized production build. The download test reads the current release metadata and verifies the link, checksum, installation page and browser download filename.
 
+Published [Android 1.0.3](https://github.com/ishikawa321/Water_Disctrict/releases/tag/android-v1.0.3) from source `ffcf9b1`, now on both `main` (the Flutter app source) and `feature/web-platform-parity`. GitHub verified both uploaded asset digests. A fresh anonymous download of the full APK matched the exact size/hash above; the checksum sidecar matched too. The [website download page](https://maramag-waterdistrict-web.vercel.app/download) is live in Ready Vercel deployment `dpl_9RawzoZ7Uqn3vvi5WFMcwnYmVeEf` with Singapore functions. Production Chrome verified the landing download action, current version/link/checksum, 320-pixel layout and clean `/app` sign-in. Anonymous office PDF GET/POST remain 401 and private/no-store. The website stays under `web/`; Flutter remains at the repository root.
+
 ## Previous release: 1.0.2 build 3
 
 The new universal APK adds Staff sign-in and the concerns/assigned-repairs/bills/payment workspace, plus mobile Admin review of Completed repairs. It keeps application ID `ph.maramag.waterdistrictconnect`, minimum Android 7/API 24 and the same private release signing certificate as 1.0.1, so it installs as an update. Follow [Staff role setup](staff-role.md) once in the shared Supabase project before inviting personnel or using Staff financial permissions.
