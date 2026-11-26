@@ -1,0 +1,14 @@
+.git
+.local-tests
+**/node_modules
+**/.next
+**/bin
+**/obj
+**/artifacts
+**/TestResults
+**/appsettings.Local.json
+**/.env
+**/.env.*
+**/*.pfx
+**/*.key
+**/test-results

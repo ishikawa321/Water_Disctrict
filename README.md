@@ -1,5 +1,11 @@
 # Water District Connect
 
+## Browser application
+
+The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities/database and ASP.NET Core API as the existing applications. See the [feature matrix](docs/web-parity.md), [deployment guide](docs/web-deployment.md) and [verification evidence](docs/web-verification.md).
+
+Run `npm ci` and `npm run dev` from `web/` after configuring its `.env.local`. Deploy that folder as the Vercel project root; the office API requires a separately hosted HTTPS address. The Flutter browser launcher files are preserved for the original Flutter workflow described below.
+
 ## Configure authentication
 
 The app uses the existing Supabase project `kaeespcylucvsazfdaks`.
