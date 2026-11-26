@@ -2400,7 +2400,9 @@ class _ConcernsPageState extends State<ConcernsPage> {
                                 'Account: ${account?['account_number'] ?? 'Unavailable'}',
                               ),
                               ExpansionTile(
-                                initiallyExpanded: true,
+                                // Closed by default so the list stays short;
+                                // open when arriving from a specific concern.
+                                initiallyExpanded: widget.concernId != null,
                                 tilePadding: EdgeInsets.zero,
                                 expandedCrossAxisAlignment:
                                     CrossAxisAlignment.start,
@@ -2948,6 +2950,7 @@ class _RepairTicketsPageState extends State<RepairTicketsPage> {
                       final account =
                           concern?['service_accounts'] as Map<String, dynamic>?;
                       return RecordCard(
+                        initiallyExpanded: widget.concernId != null,
                         summary: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('${concern?['subject'] ?? 'Repair ticket'}',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
@@ -4289,7 +4292,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
   }
 
   /// Bills, Services and Account: records are visible as soon as the tab opens.
-  Widget directTabBody(Widget header, String heading, String guide) {
+  Widget directTabBody(Widget header, String heading, String? guide) {
     final List<String> views;
     final int view;
     final ValueChanged<int> pick;
@@ -4333,8 +4336,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
             header,
             const SizedBox(height: 20),
             Semantics(header: true, child: Text(heading, style: Heading.page)),
-            const SizedBox(height: 6),
-            Text(guide, style: Heading.guide),
+            if (guide != null) ...[
+              const SizedBox(height: 6),
+              Text(guide, style: Heading.guide),
+            ],
             if (views.length > 1) ...[
               const SizedBox(height: 16),
               SegmentTabs(labels: views, selected: view, onSelect: pick),
@@ -4577,6 +4582,147 @@ class _ModernDashboardState extends State<ModernDashboard> {
     ])),
   );
 
+  /// Home's two headline tiles: what the customer owes (royal blue) and
+  /// new announcements (white). They stack on narrow screens or large text.
+  Widget summaryTiles() => LayoutBuilder(builder: (context, constraints) {
+    final stack = constraints.maxWidth < 300 ||
+        MediaQuery.textScalerOf(context).scale(16) > 22;
+    final caption = initialLoading ? 'Updating records'
+        : !hasLoaded && error != null ? 'Please refresh'
+        : nextDueDate != null ? 'Due ${recordDate(nextDueDate)}'
+        : billCount == 0 ? 'No bills yet' : 'All paid';
+    final balance = homeTile(
+      blue: true,
+      icon: CupertinoIcons.doc_text,
+      label: 'Outstanding balance',
+      hint: 'Opens your bills',
+      onTap: () => setState(() => tab = 1),
+      value: AnimatedSwitcher(
+        duration: motionDuration(context, 200),
+        child: Align(
+          key: ValueKey('$initialLoading/$hasLoaded/$remaining'),
+          alignment: Alignment.centerLeft,
+          child: AmountText(
+            initialLoading ? 'Loading…'
+                : !hasLoaded && error != null ? 'Unavailable'
+                : '₱${formatCentavos(remaining)}',
+            fontSize: 30, color: Colors.white, letterSpacing: -1),
+        ),
+      ),
+      caption: caption,
+    );
+    final fresh = unreadNotices > 0;
+    final news = homeTile(
+      blue: false,
+      icon: CupertinoIcons.speaker_2,
+      label: 'Announcements',
+      hint: 'Opens district announcements',
+      onTap: openAnnouncements,
+      badge: fresh,
+      value: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic, children: [
+        Text(hasLoaded ? '$unreadNotices' : '—', style: TextStyle(
+          color: fresh ? alertRed : ink, fontSize: 30,
+          fontWeight: FontWeight.w700, letterSpacing: -1)),
+        const SizedBox(width: 6),
+        Text('new', style: TextStyle(color: fresh ? alertRed : muted,
+          fontSize: 15, fontWeight: FontWeight.w600)),
+      ]),
+      caption: fresh
+          ? (unreadNotices == 1 ? 'Notice to read' : 'Notices to read')
+          : 'You are up to date',
+    );
+    if (stack) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [balance, const SizedBox(height: 12), news]);
+    }
+    return IntrinsicHeight(child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: balance),
+        const SizedBox(width: 12),
+        Expanded(child: news),
+      ],
+    ));
+  });
+
+  /// One headline tile: icon box and arrow on top, label, then a big value.
+  Widget homeTile({
+    required bool blue,
+    required IconData icon,
+    required String label,
+    required String hint,
+    required VoidCallback onTap,
+    required Widget value,
+    required String caption,
+    bool badge = false,
+  }) {
+    final fg = blue ? Colors.white : ink;
+    final soft = blue ? Colors.white.withValues(alpha: .85) : muted;
+    return Semantics(
+      button: true,
+      label: '$label. $caption. $hint',
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: blue ? [BoxShadow(color: royalBlue.withValues(alpha: .22),
+            blurRadius: 24, offset: const Offset(0, 10))] : null,
+        ),
+        child: Material(
+          color: blue ? royalBlue : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: blue ? BorderSide.none : const BorderSide(color: hairline),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Container(
+                        width: 40, height: 40, alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: blue ? Colors.white.withValues(alpha: .16) : accentTint,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(icon, size: 20, color: blue ? Colors.white : royalBlue),
+                      ),
+                      const Spacer(),
+                      if (badge) ...[
+                        Container(width: 10, height: 10, decoration: const BoxDecoration(
+                          color: alertRed, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                      ],
+                      Icon(CupertinoIcons.arrow_up_right, size: 18, color: fg),
+                    ]),
+                    const SizedBox(height: 12),
+                    Text(label, maxLines: 2, style: TextStyle(color: fg,
+                      fontSize: 15, height: 1.25, fontWeight: FontWeight.w600)),
+                  ]),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      value,
+                      const SizedBox(height: 2),
+                      Text(caption, style: TextStyle(color: soft, fontSize: 13)),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// The one royal-blue focal point on Home: what the customer owes.
   Widget balanceCard() => Container(
     padding: const EdgeInsets.all(24),
@@ -4670,7 +4816,7 @@ class _ModernDashboardState extends State<ModernDashboard> {
       ], columns: 2),
       const SizedBox(height: 24), announcements(),
     ]) else dashboardColumns([
-      balanceCard(),
+      summaryTiles(),
       const Padding(padding: EdgeInsets.fromLTRB(4, 10, 4, 0), child: Text(
         'Payments appear after district verification.', style: TextStyle(color: muted, fontSize: 13))),
       const SizedBox(height: 28),
@@ -4789,10 +4935,8 @@ class _ModernDashboardState extends State<ModernDashboard> {
         ? 'More'
         : 'My account';
     // One plain-language line under each title says what the screen is for.
-    final guide = tab == 0
-        ? (admin
-              ? "Today's district activity and everyday tasks."
-              : 'Your water account at a glance.')
+    final String? guide = tab == 0
+        ? null
         : tab == 1
         ? (admin
               ? 'Manage service accounts, bills and verified payments.'
@@ -4880,8 +5024,10 @@ class _ModernDashboardState extends State<ModernDashboard> {
                         header,
                         const SizedBox(height: 24),
                         Semantics(header: true, child: Text(heading, style: Heading.page)),
-                        const SizedBox(height: 6),
-                        Text(guide, style: Heading.guide),
+                        if (guide != null) ...[
+                          const SizedBox(height: 6),
+                          Text(guide, style: Heading.guide),
+                        ],
                         if (!admin && accountNumber != null) ...[
                           const SizedBox(height: 4),
                           Text('Account $accountNumber', style: const TextStyle(color: muted, fontSize: 14)),

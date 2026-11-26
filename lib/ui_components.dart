@@ -658,12 +658,16 @@ class RecordCard extends StatelessWidget {
     required this.details,
     this.detailsLabel = 'Details',
     this.action,
+    this.initiallyExpanded = true,
   });
 
   final Widget summary;
   final List<Widget> details;
   final String detailsLabel;
   final Widget? action;
+
+  /// Whether the details start open; long lists (like Services) start closed.
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -676,7 +680,7 @@ class RecordCard extends StatelessWidget {
           const SizedBox(height: 16),
           const Divider(height: 1),
           ExpansionTile(
-            initiallyExpanded: true,
+            initiallyExpanded: initiallyExpanded,
             tilePadding: EdgeInsets.zero,
             childrenPadding: const EdgeInsets.only(bottom: 16),
             expandedCrossAxisAlignment: CrossAxisAlignment.stretch,

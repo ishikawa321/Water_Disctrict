@@ -764,16 +764,20 @@ void main() {
         await tester.pumpWidget(app(pages[i], textScale: 2));
         await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
         await tester.pumpAndSettle();
-        // Details start open so records are readable without extra taps.
-        expect(find.text(detailTexts[i]), i == 2 ? findsNWidgets(2) : findsOneWidget);
+        // Payments and notices start open; Services cards (repairs i=1,
+        // concerns i=3) start closed so the list stays short.
+        final startsOpen = i == 0 || i == 2;
+        expect(find.text(detailTexts[i]),
+          i == 2 ? findsNWidgets(2) : startsOpen ? findsOneWidget : findsNothing);
         if (i == 2) expect(find.text('Edit notice'), admin ? findsOneWidget : findsNothing);
         if (i == 1) expect(find.text('Update on desktop'), admin ? findsOneWidget : findsNothing);
         await tester.ensureVisible(find.text(labels[i]));
         await tester.pumpAndSettle();
         await tester.tap(find.text(labels[i]));
         await tester.pumpAndSettle();
-        // Tapping the label collapses the open details.
-        expect(find.text(detailTexts[i]), i == 2 ? findsOneWidget : findsNothing);
+        // Tapping the label toggles the details.
+        expect(find.text(detailTexts[i]),
+          i == 2 ? findsOneWidget : startsOpen ? findsNothing : findsOneWidget);
         expect(tester.takeException(), isNull);
         await screenshot(tester, '${admin ? 'admin' : 'client'}-record-$i-2x');
         await tester.pumpWidget(const SizedBox());
