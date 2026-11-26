@@ -2,6 +2,14 @@
 
 Executed 26 November 2026 (Asia/Manila), on `feature/web-platform-parity` based on desktop `68bc1590`. This file records current checks separately from the repository's historical deployment notes.
 
+## Android download follow-up
+
+A private-key-signed universal Android APK 1.0.1 (build 2) was built from the Flutter source. Android Build Tools verified the package, friendly label, API 24 minimum, non-debuggable build, ARM32/ARM64/x86-64 contents and APK v2 release signature. Artifact size is 57,785,128 bytes; SHA-256 and certificate fingerprint are recorded in `web/src/lib/android-release.json`. No physical Android device was connected; device installation is not claimed.
+
+The original adjacent landing and integrated snapshot add two Android download links while preserving all demo/tour actions. A public `/download` page provides install instructions and the verified immutable GitHub Release asset URL. `npm run check` passed (TypeScript, zero-warning lint, 42 tests and production build). All 16 browser workflows passed, including the two landing downloads, artifact URL/checksum, browser download behavior, 320-pixel layout and returning to clean web sign-in. Two backend-origin validation tests reject the supplied Supabase REST URL as an ASP.NET API and reject insecure/credential-bearing/malformed origins.
+
+`render.yaml` and the verified connection script are prepared for the shared API. No Render account or private database connection is currently connected, and the supplied Supabase data URL does not supply that separate service. The live Admin connection is not claimed fixed. See [office API hosting](office-api-hosting.md) and [APK release](android-release.md).
+
 ## Latest app synchronization
 
 Compared and merged main `dbdc382` first, then detected and merged freshly pushed `3336607` at `b375354` before publication. Detailed scope and prerequisites are in [web-update-comparison.md](web-update-comparison.md).

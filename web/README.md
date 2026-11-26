@@ -41,6 +41,12 @@ Never put service-role keys, database credentials or connection strings in this 
 - Office lists retain the established 1,000 / 500 / 200 limits and label them. Consumer lists paginate 30 records at a time. Dashboard admin counts use the exact summary endpoint rather than a list's length.
 - Consumer billing shows individual saved bill balances. The dashboard pages through all linked bills/payments to calculate the exact outstanding balance, bill count and next unpaid due date. It does not total a truncated district list. Consumer repair progress is the current saved personnel update; office staff can see chronological append-only history.
 
+## Android download
+
+The existing landing now offers Download for Android alongside Explore Demo. `/download` shows the signed universal APK's actual version/size, minimum Android version, SHA-256 and installation steps. The binary is hosted on GitHub Releases; `src/lib/android-release.json` identifies the verified artifact. APK/private signing/Flutter build outputs are excluded from Vercel uploads. See [Android release instructions](../docs/android-release.md).
+
+The live Admin error is a missing separate office API, not a missing Supabase public key. [Prepared API hosting and connection steps](../docs/office-api-hosting.md) preserve the existing shared database and ASP.NET workflows.
+
 ## Latest app update
 
 Concern intake now supports optional map pins and landmarks, with explicit GPS/manual selection, draft retention and read-only saved maps. The shared office API carries those fields and exposes an authenticated capability check so older APIs cannot silently discard a pin. Unpaid bills offer payment guidance using their actual account and bill references. Screens follow the latest mobile midnight/aqua palette, rounded cards, ripple balance/office surfaces and mobile navigation dock. Recent activity reflects the latest saved verified payment; an empty feed is shown only after a successful empty read. Workspace loading/errors and auth artwork use the same branding.

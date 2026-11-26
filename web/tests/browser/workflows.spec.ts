@@ -815,3 +815,64 @@ test("midnight dashboard uses verified activity and mobile dock respects role ro
   await dock.getByRole("link", { name: "Repairs", exact: true }).click();
   await expect(page).toHaveURL(/office\/repairs$/);
 });
+
+test("landing Android downloads open release instructions with the signed APK link", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("[data-download-apk]")).toHaveCount(2);
+  await page.locator(".hero [data-download-apk]").click();
+  await expect(page).toHaveURL(/\/download$/);
+  await expect(
+    page.getByRole("heading", { name: /Your water services/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Version 1.0.1", { exact: false })).toBeVisible();
+  const link = page.getByRole("link", { name: "Download APK", exact: true });
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.1/WaterDistrictConnect-1.0.1.apk",
+  );
+  await page.getByText("Release details and checksum", { exact: true }).click();
+  await expect(
+    page.getByText("ph.maramag.waterdistrictconnect", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".apk-checksum")).toHaveText(
+    "637244eb7ee2871d78722025179c6c47193e81f4cbd2072bdba4d9110ab46303",
+  );
+  await page.setViewportSize({ width: 320, height: 720 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("android-download-mobile.png"),
+    fullPage: true,
+  });
+  await page.route(
+    "https://github.com/ishikawa321/Water_Disctrict/releases/download/android-v1.0.1/WaterDistrictConnect-1.0.1.apk",
+    (route) =>
+      route.fulfill({
+        contentType: "application/vnd.android.package-archive",
+        headers: {
+          "content-disposition":
+            "attachment; filename=WaterDistrictConnect-1.0.1.apk",
+        },
+        body: "isolated browser download fixture",
+      }),
+  );
+  const downloaded = page.waitForEvent("download");
+  await link.click();
+  expect((await downloaded).suggestedFilename()).toBe(
+    "WaterDistrictConnect-1.0.1.apk",
+  );
+  await page
+    .getByRole("link", { name: "Back to the website", exact: true })
+    .click();
+  await expect(page).toHaveURL(/:3100\/$/);
+  await page.locator("#explore [data-download-apk]").click();
+  await expect(page).toHaveURL(/\/download$/);
+  await page.getByRole("link", { name: "Open web app", exact: false }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator(".feedback.error")).toHaveCount(0);
+});

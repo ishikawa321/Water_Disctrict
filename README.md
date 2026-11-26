@@ -158,9 +158,12 @@ configuration alone does not enable production password recovery. Complete the
 live client/admin and recovery checks against that origin before release.
 Map selection is preserved, and browser GPS requires HTTPS outside localhost.
 
-Android store distribution is separate: `android/app/build.gradle.kts` still
-uses an example application ID and debug signing for release builds. Configure
-the district's application ID and release signing before distributing to a store.
+Android APK distribution now uses `ph.maramag.waterdistrictconnect` and a private
+release signing configuration. The landing page links to the signed universal
+APK and installation instructions at https://maramag-waterdistrict-web.vercel.app/download.
+See [Android release and signing instructions](docs/android-release.md). Private
+keystores/credentials stay outside source control. Google Play store submission
+is separate from this directly downloadable APK release.
 
 
 ## Admin and Staff desktop

@@ -17,6 +17,10 @@ await cp(path.join(source, "assets"), path.join(destination, "assets"), {
   recursive: true,
 });
 const integratedHtml = html
+  .replaceAll(
+    'href="https://maramag-waterdistrict-web.vercel.app/download"',
+    'href="/download"',
+  )
   .replaceAll('href="assets/', 'href="/landing/assets/')
   .replaceAll('src="assets/', 'src="/landing/assets/')
   .replaceAll('content="assets/', 'content="/landing/assets/')
