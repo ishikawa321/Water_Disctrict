@@ -27,7 +27,7 @@ public sealed class WorkflowApiTests
         await using var database=await PostgresDatabase.CreateAsync();await using var app=new Factory(database.Connection);
         using var admin=app.Caller(database.Admin.UserId);
         var accounts=await admin.GetFromJsonAsync<AccountOption[]>("/api/workflow/accounts?search=TEST-001",Token);Assert.Single(accounts!);
-        var intake=await admin.PostAsJsonAsync("/api/workflow/concerns",new CreateConcern(Guid.NewGuid(),database.AccountId,"Repair request","API repair report","Service connection is leaking."),Token);
+        var intake=await admin.PostAsJsonAsync("/api/workflow/concerns",new CreateConcern(Guid.NewGuid(),database.AccountId,"Repair request","API repair report","Service connection is leaking.",7.7633,125.0058,"Near service line"),Token);
         intake.EnsureSuccessStatusCode();var concern=(await intake.Content.ReadFromJsonAsync<ConcernRecord>(Token))!;
         var reviewed=await admin.PutAsJsonAsync($"/api/workflow/concerns/{concern.Id}/review",new ReviewConcern(concern.Version,"Under review","Reviewed for dispatch."),Token);
         reviewed.EnsureSuccessStatusCode();concern=(await reviewed.Content.ReadFromJsonAsync<ConcernRecord>(Token))!;
@@ -42,9 +42,12 @@ public sealed class WorkflowApiTests
             response.EnsureSuccessStatusCode();ticket=(await response.Content.ReadFromJsonAsync<TicketDetails>(Token))!;
         }
         Assert.Equal(4,ticket.History.Count);
+        var capabilities = await admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/workflow/capabilities",Token);
+        Assert.True(capabilities.GetProperty("concernLocation").GetBoolean());
         var listed=await staff.GetFromJsonAsync<TicketRecord[]>("/api/workflow/tickets?status=Resolved&search=API",Token);Assert.Single(listed!);
         var concerns=await admin.GetFromJsonAsync<ConcernRecord[]>("/api/workflow/concerns?status=Resolved",Token);Assert.Single(concerns!);
         Assert.Equal(ticket.Ticket.LatestUpdate,concerns![0].Response);
+        Assert.Equal(7.7633, concerns[0].Latitude); Assert.Equal(125.0058, concerns[0].Longitude); Assert.Equal("Near service line",concerns[0].LocationNote);
         var health=await new DatabaseProbe(database.Connection).CheckAsync(Token);Assert.Equal("ready",health.Status);
     }
     [Fact]
@@ -59,6 +62,8 @@ public sealed class WorkflowApiTests
         Assert.Equal(HttpStatusCode.Forbidden,forbidden.StatusCode);
         using var consumer=app.Caller(database.ClientId);
         Assert.Equal(HttpStatusCode.Forbidden,(await consumer.GetAsync("/api/workflow/concerns",Token)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await consumer.GetAsync("/api/workflow/capabilities",Token)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await staff.GetAsync("/api/workflow/capabilities",Token)).StatusCode);
         using var anonymous=app.CreateClient();Assert.Equal(HttpStatusCode.Unauthorized,(await anonymous.GetAsync("/api/workflow/tickets",Token)).StatusCode);
     }
     private sealed class Factory(string connection):WebApplicationFactory<Program>

@@ -50,6 +50,20 @@ public sealed class OfficeServiceTests
         Assert.Equal(450m,bill.AmountDue);Assert.Equal(120.50m,bill.Paid);Assert.Equal(329.50m,bill.Remaining);
     }
     [Fact]
+    public async Task Bill_payment_history_filters_before_the_server_list_limit_and_preserves_caller_token()
+    {
+        var service=Service(request=>
+        {
+            Assert.Equal("caller-token",request.Headers.Authorization!.Parameter);
+            Assert.Contains($"bill_id=eq.{BillId:D}",request.RequestUri!.Query);
+            Assert.Contains("limit=1000",request.RequestUri.Query);
+            return Task.FromResult(Json(Array.Empty<object>()));
+        });
+        Assert.Empty(await service.PaymentsForBillAsync(Admin,"caller-token",BillId,Token));
+        await Assert.ThrowsAsync<WorkflowException>(()=>service.PaymentsForBillAsync(Admin with {Role="staff"},"caller-token",BillId,Token));
+        await Assert.ThrowsAsync<WorkflowException>(()=>service.PaymentsForBillAsync(Admin,"caller-token",Guid.Empty,Token));
+    }
+    [Fact]
     public async Task Invalid_bill_dates_and_fractional_centavo_amounts_send_no_write()
     {
         var service=Service(_=>throw new InvalidOperationException("No write expected"));

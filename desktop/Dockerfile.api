@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /source
+COPY desktop/Directory.Build.props desktop/
+COPY desktop/src/WaterDistrict.Domain/WaterDistrict.Domain.csproj desktop/src/WaterDistrict.Domain/
+COPY desktop/src/WaterDistrict.Application/WaterDistrict.Application.csproj desktop/src/WaterDistrict.Application/
+COPY desktop/src/WaterDistrict.Infrastructure/WaterDistrict.Infrastructure.csproj desktop/src/WaterDistrict.Infrastructure/
+COPY desktop/src/WaterDistrict.Api/WaterDistrict.Api.csproj desktop/src/WaterDistrict.Api/
+RUN dotnet restore desktop/src/WaterDistrict.Api/WaterDistrict.Api.csproj
+COPY desktop/src/WaterDistrict.Domain/ desktop/src/WaterDistrict.Domain/
+COPY desktop/src/WaterDistrict.Application/ desktop/src/WaterDistrict.Application/
+COPY desktop/src/WaterDistrict.Infrastructure/ desktop/src/WaterDistrict.Infrastructure/
+COPY desktop/src/WaterDistrict.Api/ desktop/src/WaterDistrict.Api/
+RUN dotnet publish desktop/src/WaterDistrict.Api/WaterDistrict.Api.csproj --no-restore -c Release -o /publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /publish ./
+ENV ASPNETCORE_HTTP_PORTS=8080
+ENV TZ=Asia/Manila
+USER app
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "WaterDistrict.Api.dll"]

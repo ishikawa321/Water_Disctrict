@@ -1,5 +1,11 @@
 # Water District Connect
 
+## Browser application
+
+The Next.js application in [`web/`](web/README.md) adds Consumer, Admin and Staff browser workspaces using the same Supabase identities/database and ASP.NET Core API as the existing applications. See the [feature matrix](docs/web-parity.md), [deployment guide](docs/web-deployment.md) and [verification evidence](docs/web-verification.md).
+
+Run `npm ci` and `npm run dev` from `web/` after configuring its `.env.local`. Deploy that folder as the Vercel project root; the office API requires a separately hosted HTTPS address. The Flutter browser launcher files are preserved for the original Flutter workflow described below.
+
 ## Latest WaterDistrictConnect desktop source
 
 The current standalone Avalonia/.NET desktop workspace is available in
@@ -152,9 +158,12 @@ configuration alone does not enable production password recovery. Complete the
 live client/admin and recovery checks against that origin before release.
 Map selection is preserved, and browser GPS requires HTTPS outside localhost.
 
-Android store distribution is separate: `android/app/build.gradle.kts` still
-uses an example application ID and debug signing for release builds. Configure
-the district's application ID and release signing before distributing to a store.
+Android APK distribution now uses `ph.maramag.waterdistrictconnect` and a private
+release signing configuration. The landing page links to the signed universal
+APK and installation instructions at https://maramag-waterdistrict-web.vercel.app/download.
+See [Android release and signing instructions](docs/android-release.md). Private
+keystores/credentials stay outside source control. Google Play store submission
+is separate from this directly downloadable APK release.
 
 
 ## Admin and Staff desktop

@@ -19,6 +19,20 @@ public sealed class VerifiedSchemaTests
         var result=await command.ExecuteScalarAsync(Token);await transaction.CommitAsync(Token);return (T)result!;
     }
     [Fact]
+    public async Task Reviewed_location_grant_allows_owned_consumer_pins_without_expanding_rls()
+    {
+        await using var database=await PostgresDatabase.CreateAsync(verifiedSchema:true);
+        // Apply upstream SQL only inside this disposable fixture, never the operational project.
+        await database.SqlAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"add_concern_locations.sql"),Token));
+        await database.SqlAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"add_concern_locations.sql"),Token));
+        var id=await AsCaller<Guid>(database,database.ClientId,$"INSERT INTO public.service_concerns(account_id,submitted_by,category,subject,description,latitude,longitude,location_note) VALUES('{database.AccountId}','{database.ClientId}','Water supply','Pinned concern','Test issue.',7.7633,125.0058,'Near test meter') RETURNING id");
+        await using var db=database.Open(); var saved=await new WorkflowService(db).ConcernAsync(database.Admin,id,Token);
+        Assert.Equal(7.7633,saved.Latitude); Assert.Equal(125.0058,saved.Longitude); Assert.Equal("Near test meter",saved.LocationNote);
+        Assert.Equal(0,await AsCaller<int>(database,database.OtherClientId,"SELECT count(*)::int FROM public.service_concerns"));
+        await Assert.ThrowsAsync<PostgresException>(()=>AsCaller<Guid>(database,database.ClientId,$"INSERT INTO public.service_concerns(account_id,submitted_by,category,subject,description,latitude,longitude) VALUES('{database.OtherAccountId}','{database.ClientId}','Water supply','Unauthorized pin','Other account.',7.76,125) RETURNING id"));
+        await Assert.ThrowsAsync<PostgresException>(()=>AsCaller<Guid>(database,database.ClientId,$"INSERT INTO public.service_concerns(account_id,submitted_by,category,subject,description,latitude) VALUES('{database.AccountId}','{database.ClientId}','Water supply','Incomplete pin','Test issue.',7.76) RETURNING id"));
+    }
+    [Fact]
     public async Task Actual_schema_accepts_workflow_migrations_and_complete_staff_repair_processing()
     {
         await using var database=await PostgresDatabase.CreateAsync(verifiedSchema:true);

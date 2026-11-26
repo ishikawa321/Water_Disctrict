@@ -1,4 +1,4 @@
-package com.example.water_district_connect
+package ph.maramag.waterdistrictconnect
 
 import io.flutter.embedding.android.FlutterActivity
 

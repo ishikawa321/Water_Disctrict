@@ -178,6 +178,16 @@ namespace WaterDistrict.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("repair_dispatched_at");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+                    b.Property<string>("LocationNote")
+                        .HasColumnType("text")
+                        .HasColumnName("location_note");
+
                     b.Property<DateTimeOffset?>("ReviewedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("reviewed_at");

@@ -7,6 +7,7 @@ public static class WorkflowEndpoints
     public static void MapWorkflows(this WebApplication app)
     {
         var group = app.MapGroup("/api/workflow").RequireAuthorization("Desktop");
+        group.MapGet("/capabilities", () => new { concernLocation = true });
         group.MapGet("/accounts", (HttpContext http, IWorkflowService service, string? search, CancellationToken token) => service.AccountsAsync(Actor(http),search,token));
         group.MapGet("/assignees", (HttpContext http, IWorkflowService service, CancellationToken token) => service.AssigneesAsync(Actor(http),token)).RequireAuthorization("Admin");
         group.MapGet("/concerns", (HttpContext http, IWorkflowService service, string? search, string? status, CancellationToken token) => service.ConcernsAsync(Actor(http),search,status,token));

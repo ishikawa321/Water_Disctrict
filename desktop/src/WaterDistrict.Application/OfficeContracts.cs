@@ -43,6 +43,7 @@ public interface IOfficeService
     Task<IReadOnlyList<OfficeBill>> BillsAsync(SessionProfile actor,string bearer,CancellationToken token);
     Task<OfficeBill> AddBillAsync(SessionProfile actor,string bearer,AddOfficeBill input,CancellationToken token);
     Task<IReadOnlyList<OfficePayment>> PaymentsAsync(SessionProfile actor,string bearer,CancellationToken token);
+    Task<IReadOnlyList<OfficePayment>> PaymentsForBillAsync(SessionProfile actor,string bearer,Guid billId,CancellationToken token);
     Task<OfficePayment> AddPaymentAsync(SessionProfile actor,string bearer,AddOfficePayment input,CancellationToken token);
     Task<IReadOnlyList<OfficeAnnouncement>> AnnouncementsAsync(SessionProfile actor,string bearer,CancellationToken token);
     Task<OfficeAnnouncement> SaveAnnouncementAsync(SessionProfile actor,string bearer,Guid? id,SaveOfficeAnnouncement input,CancellationToken token);

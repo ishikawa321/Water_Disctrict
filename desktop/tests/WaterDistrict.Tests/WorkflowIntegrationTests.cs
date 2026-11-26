@@ -20,6 +20,38 @@ public sealed class WorkflowIntegrationTests
     }
 
     [Fact]
+    public async Task Location_survives_create_reload_review_and_retries_and_mismatches_do_not_overwrite()
+    {
+        await using var database = await PostgresDatabase.CreateAsync();
+        var input = Intake(database) with { Latitude = 7.7633, Longitude = 125.0058, LocationNote = "  Beside service connection  " };
+        await using (var db = database.Open())
+        {
+            var service = new WorkflowService(db);
+            var created = await service.CreateConcernAsync(database.Admin, input, Token);
+            Assert.Equal(input.Latitude, created.Latitude); Assert.Equal(input.Longitude, created.Longitude);
+            Assert.Equal("Beside service connection", created.LocationNote);
+            Assert.Equal(created.Id, (await service.CreateConcernAsync(database.Admin, input, Token)).Id);
+            var failure = await Assert.ThrowsAsync<WorkflowException>(() => service.CreateConcernAsync(database.Admin, input with { Latitude = 8 }, Token));
+            Assert.Equal(409, failure.StatusCode);
+            var reviewed = await service.ReviewConcernAsync(database.Staff, created.Id, new(created.Version, "Under review", "Checked the reported pin."), Token);
+            Assert.Equal(input.Latitude, reviewed.Latitude); Assert.Equal(created.LocationNote, reviewed.LocationNote);
+        }
+        await using var fresh = database.Open();
+        var saved = await fresh.Concerns.SingleAsync(Token);
+        Assert.Equal(input.Longitude, saved.Longitude); Assert.Equal("Under review", saved.Status);
+    }
+
+    [Fact]
+    public async Task Invalid_location_is_rejected_without_a_concern()
+    {
+        await using var database = await PostgresDatabase.CreateAsync();
+        await using var db = database.Open(); var service = new WorkflowService(db);
+        foreach (var input in new[] { Intake(database) with { Latitude = 8 }, Intake(database) with { Latitude = 91, Longitude = 0 }, Intake(database) with { LocationNote = "No pin" }, Intake(database) with { Latitude = 8, Longitude = 125, LocationNote = new string('x',301) } })
+            Assert.Equal("location", (await Assert.ThrowsAsync<WorkflowException>(() => service.CreateConcernAsync(database.Admin, input, Token))).Code);
+        Assert.Empty(await db.Concerns.ToListAsync(Token));
+    }
+
+    [Fact]
     public async Task Intake_is_durable_and_retrying_the_same_request_is_idempotent()
     {
         await using var database = await PostgresDatabase.CreateAsync();

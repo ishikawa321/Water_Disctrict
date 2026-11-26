@@ -32,6 +32,9 @@ public sealed partial class WaterDistrictDbContext
             entity.Property(row => row.Category).HasColumnName("category");
             entity.Property(row => row.Subject).HasColumnName("subject");
             entity.Property(row => row.Description).HasColumnName("description");
+            entity.Property(row => row.Latitude).HasColumnName("latitude");
+            entity.Property(row => row.Longitude).HasColumnName("longitude");
+            entity.Property(row => row.LocationNote).HasColumnName("location_note");
             entity.Property(row => row.Status).HasColumnName("status");
             entity.Property(row => row.AdminResponse).HasColumnName("admin_response");
             entity.Property(row => row.ReviewedBy).HasColumnName("reviewed_by");
